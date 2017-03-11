@@ -248,10 +248,9 @@ class TransactionList(object):
             position = self.combined_positions[positiontype].get(t.symbol, Position(t.symbol))
             position.add_transaction(t)
             position.normalize_quote(quotes.get_by_symbol(t.symbol))
-            position.gen_report_line(quotes.get_by_symbol(t.symbol))
             self.combined_positions[positiontype][t.symbol] = position
             self.cash -= t.open_price * t.shares
-            self.openvalue += position.report['MktVal'][1]
+            self.openvalue += t.shares * quotes.get_by_symbol(t.symbol).last
 
         for t in self.cash_positions:
             self.cash += t.open_price
@@ -266,6 +265,14 @@ class TransactionList(object):
             self.combined_positions['closed'][t.symbol] = closedposition
 
         self.totalvalue = self.cash + self.openvalue
+
+    def finalize_positions(self, quotes):
+        for positiontype in ('longs', 'shorts', 'options'):
+            for symbol in self.combined_positions[positiontype]:
+                position = self.combined_positions[positiontype][symbol]
+                position.port_pct = Decimal(100.0) * position.shares * quotes.get_by_symbol(symbol).last / self.totalvalue
+                position.gen_report_line(quotes.get_by_symbol(symbol))
+            
 
 class Position(object):
     def __init__(self, symbol):
@@ -327,7 +334,7 @@ class Position(object):
         report['Gain'] = ('{:+.2f}', (self.shares * quote.last) - self.basis)
         report['Gain%'] = ('{:+.1f}%', ((self.shares * quote.last) - self.basis) * Decimal(100.0) / abs(self.basis))
         report['Basis'] = ('{:.2f}', self.basis)
-        report['Port%'] = ('{:+.1f}%', 0.1 * 100.0)
+        report['Port%'] = ('{:+.1f}%', self.port_pct)
         report['Low'] = ('{:.2f}', quote.low)
         report['High'] = ('{:.2f}', quote.high)
         report['HL%'] = ('{:.1f}%', quote.hl_pct)
@@ -401,6 +408,7 @@ def main():
         tldict[fpn].query_cash()
         tldict[fpn].query_closed()
         tldict[fpn].combine_positions()
+        tldict[fpn].finalize_positions(quotes)
 
     #import pdb;pdb.set_trace()
     context = {
