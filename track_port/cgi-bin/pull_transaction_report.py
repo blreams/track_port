@@ -5,6 +5,7 @@ import cgi
 import cgitb; cgitb.enable() # for troubleshooting
 
 import os
+import re
 import jinja2
 
 from collections import OrderedDict
@@ -78,6 +79,40 @@ def load_session():
 
 class FinanceQuotes(Base):
     """
++------------+------------------+------+-----+---------+-------+
+| Field      | Type             | Null | Key | Default | Extra |
++------------+------------------+------+-----+---------+-------+
+| symbol     | varchar(32)      | NO   | PRI |         |       |
+| name       | varchar(32)      | YES  |     | NULL    |       |
+| last       | decimal(14,4)    | YES  |     | 0.0000  |       |
+| high       | decimal(14,4)    | YES  |     | 0.0000  |       |
+| low        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| date       | date             | YES  |     | NULL    |       |
+| time       | time             | YES  |     | NULL    |       |
+| net        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| p_change   | decimal(6,2)     | YES  |     | 0.00    |       |
+| volume     | int(10) unsigned | YES  |     | 0       |       |
+| avg_vol    | int(10) unsigned | YES  |     | 0       |       |
+| bid        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| ask        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| close      | decimal(14,4)    | YES  |     | 0.0000  |       |
+| open       | decimal(14,4)    | YES  |     | 0.0000  |       |
+| day_range  | varchar(64)      | YES  |     | NULL    |       |
+| year_range | varchar(64)      | YES  |     | NULL    |       |
+| eps        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| pe         | decimal(14,4)    | YES  |     | 0.0000  |       |
+| div_date   | date             | YES  |     | NULL    |       |
+| dividend   | decimal(14,4)    | YES  |     | 0.0000  |       |
+| div_yield  | decimal(14,4)    | YES  |     | 0.0000  |       |
+| cap        | decimal(20,4)    | YES  |     | NULL    |       |
+| ex_div     | date             | YES  |     | NULL    |       |
+| nav        | decimal(14,4)    | YES  |     | 0.0000  |       |
+| yield      | decimal(14,4)    | YES  |     | 0.0000  |       |
+| exchange   | varchar(32)      | YES  |     | NULL    |       |
+| success    | tinyint(1)       | YES  |     | 0       |       |
+| errormsg   | varchar(40)      | YES  |     | NULL    |       |
+| method     | varchar(32)      | YES  |     | NULL    |       |
++------------+------------------+------+-----+---------+-------+
     """
     __tablename__ = 'finance_quote'
     __table_args__ = {'autoload': True}
@@ -212,6 +247,7 @@ class TransactionList(object):
                         )
             position = self.combined_positions[positiontype].get(t.symbol, Position(t.symbol))
             position.add_transaction(t)
+            position.normalize_quote(quotes.get_by_symbol(t.symbol))
             position.gen_report_line(quotes.get_by_symbol(t.symbol))
             self.combined_positions[positiontype][t.symbol] = position
             self.cash -= t.open_price * t.shares
@@ -244,6 +280,14 @@ class Position(object):
     def __repr__(self):
         return 'symb={sy},shs={sh},bs={b},mv={mv},op={op},od={od}'.format(sy=self.symbol, sh=self.shares, b=self.basis, od=self.open_date, op=self.open_price, mv=self.mktval)
 
+    def parse_range(self, quoterange, part='low'):
+        if not quoterange:
+            return Decimal(0.0)
+        rangematch = re.match(r"'(?P<low>\d+\.?\d*) - (?P<high>\d+\.?\d*)'", quoterange)
+        if rangematch:
+            return Decimal(rangematch.group(part))
+        return Decimal(0.0)
+
     def add_transaction(self, transaction):
         self.shares += transaction.shares
         self.basis += transaction.shares * transaction.open_price
@@ -253,6 +297,20 @@ class Position(object):
         elif self.open_date > transaction.open_date:
             self.open_date = transaction.open_date
         self.transactions.append(transaction)
+
+    def normalize_quote(self, quote):
+        quote.low = self.parse_range(quote.day_range, part='low')
+        quote.high = self.parse_range(quote.day_range, part='high')
+        if quote.high != quote.low:
+            quote.hl_pct = Decimal(100.0) * ((quote.last - quote.low) / (quote.high - quote.low))
+        else:
+            quote.hl_pct = Decimal(0.0)
+        quote.low52 = self.parse_range(quote.year_range, part='low')
+        quote.high52 = self.parse_range(quote.year_range, part='high')
+        if quote.high52 != quote.low52:
+            quote.hl52_pct = Decimal(100.0) * ((quote.last - quote.low52) / (quote.high52 - quote.low52))
+        else:
+            quote.hl52_pct = Decimal(0.0)
 
     def gen_report_line(self, quote):
         datefmt = '%Y-%m-%d'
@@ -270,17 +328,17 @@ class Position(object):
         report['Gain%'] = ('{:+.1f}%', ((self.shares * quote.last) - self.basis) * Decimal(100.0) / abs(self.basis))
         report['Basis'] = ('{:.2f}', self.basis)
         report['Port%'] = ('{:+.1f}%', 0.1 * 100.0)
-        #report['Low'] = ('{:.2f}', quote.low)
-        #report['High'] = ('{:.2f}', quote.high)
-        #report['HL%'] = ('{:.1f}%', Decimal(100.0) * ((quote.last - quote.low) / (quote.high - quote.low)))
+        report['Low'] = ('{:.2f}', quote.low)
+        report['High'] = ('{:.2f}', quote.high)
+        report['HL%'] = ('{:.1f}%', quote.hl_pct)
         report['Days'] = ('{:d}', 1) #TODO
         report['PurDate'] = ('{:s}', self.open_date.strftime(datefmt))
         report['P/E'] = ('{:.2f}', quote.pe)
         report['Vol'] = ('{:d}', quote.volume)
         report['MkCap'] = ('{:d}', quote.cap)
-        #report['Low52'] = ('{:.2f}', quote.low52)
-        #report['High52'] = ('{:.2f}', quote.high52)
-        #report['HL52%'] = ('{:.1f}%', Decimal(100.0) * ((quote.last - quote.low52) / (quote.high52 - quote.low52)))
+        report['Low52'] = ('{:.2f}', quote.low52)
+        report['High52'] = ('{:.2f}', quote.high52)
+        report['HL52%'] = ('{:.1f}%', quote.hl52_pct)
         report['CAGR'] = ('{:.1f}%', Decimal(10.1))
         report['DIV'] = ('{:.2f}', quote.dividend)
         report['YLD'] = ('{:.2f}', quote.div_yield)
