@@ -1,0 +1,538 @@
+#!/usr/bin/env perl
+# Copyright 2007 Intel Corporation.
+# All rights reserved.
+# This is unpublished, confidential Intel proprietary
+# information.  Do not reproduce without written permission.
+#
+# file:         get_a_quote
+#
+# description:
+#   Meant as an alternate method of receiving stock quote info
+#   when Finance::Quote isn't working properly.  Original idea
+#   was to just grab the previous close and current (last) price.
+#   Expanded to get high, low, year_range, volume and PE.
+#
+# return value is 0 in first field if something went wrong.
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 04/30/08  1.0   blreams   initial
+# 08/01/08  1.1   blreams   added google as a service
+# 03/23/09  1.2   blreams   services changed, last wasn't returned properly.
+# 03/28/09  1.3   blreams   lots of fixes for google quotes.
+# 09/16/10  1.4   blreams   yahoo tweaks for indices.
+# 09/16/10  1.5   blreams   calculate net and p_change returned values.
+# 07/19/11  1.6   blreams   reversed yearlow and yearhigh to match how put_db_quotes uses it.
+# 03/23/13  1.7   blreams   added bid, ask.
+# 02/12/14  1.8   blreams   added a loop around request if response was not OK.
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+require LWP::UserAgent;
+use Time::CTime;
+use Time::ParseDate;
+
+$script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+$script_ver = '1.8';
+$min_args = 2;
+$max_args = 6;
+
+sub usage {
+  print(STDERR "\n");
+  print(STDERR "USAGE: $script_name  [--help] [--version] [--debug] [--verbose] \n");
+  print(STDERR "USAGE:               [--service service] --symbol symbol \n");
+  printf(stderr "USAGE:   [--help]            - help\n");
+  printf(stderr "USAGE:   [--version]         - version\n");
+  printf(stderr "USAGE:   [--debug]           - debug\n");
+  printf(stderr "USAGE:   [--verbose]         - verbose\n");
+  printf(stderr "USAGE:   [--service service] - specify which service to use (yahoo, google)\n");
+  printf(stderr "USAGE:   --symbol symbol     - specify symbol to lookup\n");
+  printf(stderr "\n");
+}
+
+#-----------------------------------------------------------------------------
+# Assign constants
+#-----------------------------------------------------------------------------
+$FALSE = 0;
+$TRUE = 1;
+
+sub fix_comma {
+  my ($s) = @_;
+  my $rv;
+  $rv = $s;
+  $rv =~ s/,//g;
+  return($rv);
+}
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+$num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+$legal_services{'yahoo'} = 1;
+$legal_services{'google'} = 1;
+
+$flag_help = $FALSE;
+$flag_version = $FALSE;
+$flag_debug = $FALSE;
+$flag_verbose = $FALSE;
+$opt_service = 'yahoo';
+$opt_symbol = '';
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') {
+    usage;
+    exit(0);
+  }
+  if ($arg eq '--version') {
+    printf(stderr "%s v%s\n", $script_name, $script_ver);
+    exit(0);
+  }
+  if ($arg eq '--debug') {
+    $flag_debug = $TRUE;
+    next;
+  }
+  if ($arg eq '--verbose') {
+    $flag_verbose = $TRUE;
+    next;
+  }
+  if ($arg eq '--service') {
+    $opt_service = shift;
+    next;
+  }
+  if ($arg eq '--symbol') {
+    $opt_symbol = shift;
+    next;
+  }
+}
+
+if (! $legal_services{$opt_service}) {
+  printf(stderr "ERROR: Illegal service specified <--service %s>\n", $opt_service);
+  foreach $service (keys %legal_services) { $legal_services .= $service . ' '; }
+  printf(stderr "ERROR:   legal services are: %s\n", $legal_services);
+  exit(1);
+}
+
+if (! $opt_symbol) {
+  printf(stderr "ERROR: Missing required argument <--symbol>\n");
+  exit(1);
+}
+
+$symbol = $opt_symbol;
+$symbol =~ tr/a-z/A-Z/;
+$service = $opt_service;
+
+#-----------------------------------------------------------------------------
+# Process the arguments passed to this script and
+# setup initial variables.
+#-----------------------------------------------------------------------------
+# The following statements are an example of how to open a file or die trying.
+# $fn = $ARGV[0]; ### Assign appropriate file name to $fn.
+# open(F1, $fn) || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+
+if ($service eq 'yahoo') {
+  $index_symbol = $FALSE;
+  ### This is the yahoo flow
+  if ($symbol =~ /^\^(.*)$/) { 
+    if ($flag_verbose) { printf("NOTE: Parsing for Index.\n"); }
+    $index_symbol = $1;
+  }
+  if ($flag_verbose) { printf("NOTE: Building URL request.\n"); }
+  $ua = LWP::UserAgent->new(env_proxy => 1, keep_alive => 1, timeout => 10);
+  $request = "http://finance.yahoo.com/q?s=$symbol";
+  $response = $ua->get($request);
+  if ($flag_verbose) { printf("NOTE: URL response received.\n"); }
+
+  $req_cnt = 0;
+  while (($response->{'_msg'} ne 'OK') && ($req_cnt < 100)) {
+    $req_cnt++;
+    if ($flag_verbose) { printf("WARNING: Attempting secondary request <%d>.\n", $req_cnt); }
+    $response = $ua->get($request);
+  }
+
+  if (($flag_verbose) && ($response->{'_msg'} ne 'OK')) { printf("WARNING: Response _msg not OK.\n"); }
+  
+  @lines = split(/\n/, $response->content);
+  
+  if ($flag_verbose) { printf("NOTE: Parsing response.\n"); }
+  $last = 0;       $found_last = $FALSE;
+  $close = 0;      $found_close = $FALSE;
+  $dayhigh = 0;
+  $daylow = 0;     $found_daylow = $FALSE;
+  $yearhigh = 0;
+  $yearlow = 0;    $found_yearlow = $FALSE;
+  $volume = 0;     $found_volume = $FALSE;
+  $pe = 0;         $found_pe = $FALSE;
+  $bid = 0;
+  $ask = 0;
+  
+  foreach $line (@lines) {
+    @raw_tokens = split(/\<[^<>]+\>/, $line);
+    foreach $token (@raw_tokens) {
+      if ($token =~ /^\s*$/) { next; }
+      $token =~ s/^\s*//;
+      $token =~ s/\s*$//;
+      push(@tokens, $token);
+#   push(@tokens, split(/\<[^<>]+\>/, $line));
+    }
+  }
+
+  ### Adding token filters
+  $PARSE = 'find_start';
+  for ($i = 0; $i <= $#tokens; $i++) {
+    if ($PARSE eq 'find_start') {
+      if (   
+              ($tokens[$i] eq 'NasdaqGS') 
+           || ($tokens[$i] eq 'NasdaqGM') 
+           || ($tokens[$i] eq 'NYSE')
+           || ($tokens[$i] eq 'NYSE MKT')
+           || ($tokens[$i] eq 'NYSEArca')
+           || ($tokens[$i] eq 'NYSE Amex')
+           || ($tokens[$i] eq 'OPR')
+           || ($tokens[$i] eq 'Last Trade:')
+           || ($tokens[$i] eq 'Net Asset Value:')
+           || ($tokens[$i] eq 'Index Value:')
+         ) {
+        $delete_offset = $i + 1;
+        $delete_length = 0;
+        $PARSE = 'find_number';
+      }
+    } elsif ($PARSE eq 'find_number') {
+      if ($tokens[$i] =~ /^[-+0-9.]+$/) {
+        $PARSE = 'skip_from_here';
+      } else {
+        $delete_length += 1;
+      }
+    } else {
+      last;
+    }
+  }
+  if ($flag_debug) { printf("Deleting token lines %d to %d\n", $delete_offset, $delete_offset + $delete_length - 1); }
+  splice(@tokens, $delete_offset, $delete_length);
+  
+  if ($flag_debug) { 
+    printf("DEBUG: Creating tokens.txt file.\n");
+    $fn = "tokens.txt";
+    open(TOK, "> $fn") || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+    foreach $token (@tokens) {
+      printf(TOK "%s\n", $token);
+    }
+    close(TOK);
+  }
+
+  for ($i = 0; $i <= $#tokens; $i++) {
+    if (!$found_last && (($tokens[$i] =~ /^NasdaqGS - /) || ($tokens[$i] =~ /^NasdaqGM - /) || ($tokens[$i] =~ /^NYSE - /) || ($tokens[$i] =~ /^NYSE MKT/) || ($tokens[$i] =~ /^NYSEArca/) || ($tokens[$i] =~ /^NYSE Amex/) || ($tokens[$i] eq 'OPR') || ($tokens[$i] eq 'Last Trade:') || ($tokens[$i] eq 'Net Asset Value:') || ($tokens[$i] eq 'Index Value:') || (($symbol eq '^DJI') && ($tokens[$i] =~ /DJI - /)) || ($tokens[$i] =~ / Delayed Price\. /))) {
+      if ($flag_verbose) { printf("NOTE: Last found <COMMON>.\n"); }
+      #if ($tokens[$i] eq 'DJI') { $i += 1; }
+      #if ($index_symbol) { $i += 1; }
+      $i += 2;
+      $last = $tokens[$i];
+      $last =~ s/,//g;
+      $found_last = $TRUE;
+      $net = $tokens[$i+1];
+      if ($flag_debug) { $debug_token_index{'last'} = $i; }
+      if ($flag_debug) { $debug_token_index{'end'} = $i+1; }
+
+      next;
+    }
+  
+    if (!$found_last && (($tokens[$i] eq 'Fund'))) {
+      ### Now look down from here for symbol in parens at end of line
+      for ($j = $i; $j <= ($i + 20); $j++) {
+        $srch = "($symbol)";
+        if (($srchindex = index($tokens[$j], $srch)) > -1) { $i = $j; last; }
+      }
+      if ($srchindex > -1) {
+        if ($flag_verbose) { printf("NOTE: Fund Last found.\n"); }
+        $i += 1;
+        $last = $tokens[$i];
+        $last =~ s/,//g;
+        $found_last = $TRUE;
+        if ($flag_debug) { $debug_token_index{'last'} = $i; }
+        $close = $last - $tokens[$i+1];
+        $found_close = $TRUE;
+        if ($flag_debug) { $debug_token_index{'close'} = $i+1; }
+      }
+      next;
+    }
+
+    if (!$found_close && ($tokens[$i] eq 'Prev Close')) {
+      if (! $found_last) {
+        if ((! $index_symbol)) {
+          if ($flag_verbose) { printf("NOTE: Last found based on Prev Close.\n"); }
+          $j = $i - 13;
+          $last = $tokens[$j];
+          $last =~ s/,//g;
+          $found_last = $TRUE;
+          if ($flag_debug) { $debug_token_index{'last'} = $j; }
+        } else {
+          if ($flag_verbose) { printf("NOTE: Index Last found.\n"); }
+          $j = $i - 5;
+          $last = $tokens[$j];
+          $last =~ s/,//g;
+          $found_last = $TRUE;
+          if ($flag_debug) { $debug_token_index{'last'} = $j; }
+        }
+      }
+      if ($flag_verbose) { printf("NOTE: Prev Close found.\n"); }
+      $i += 1;
+      $close = $tokens[$i];
+      $close =~ s/,//g;
+      $found_close = $TRUE;
+      if ($flag_debug) { $debug_token_index{'close'} = $i; }
+      next;
+    }
+  
+    if (!$found_daylow && (substr($tokens[$i], 0, 3) eq "Day") && (substr($tokens[$i], -5) eq "Range")) {
+      if ($flag_verbose) { printf("NOTE: Day's Range found.\n"); }
+      $i += 1;
+      ($daylow, $dash, $dayhigh) = split(" ", $tokens[$i]);
+      if ($flag_debug) { $debug_token_index{'daylow'} = $i; }
+      $found_daylow = $TRUE;
+      if ($flag_debug) { $debug_token_index{'dayhigh'} = $i; }
+      next;
+    }
+  
+    if (!$found_yearlow && ($tokens[$i] eq '52wk Range')) {
+      if ($flag_verbose) { printf("NOTE: 52wk Range found.\n"); }
+      $i += 1;
+      ($yearlow, $dash, $yearhigh) = split(" ", $tokens[$i]);
+      if ($flag_debug) { $debug_token_index{'yearlow'} = $i; }
+      $found_yearlow = $TRUE;
+      if ($flag_debug) { $debug_token_index{'yearhigh'} = $i; }
+      next;
+    }
+  
+    if (!$found_volume && ($tokens[$i] eq 'Volume')) {
+      if ($flag_verbose) { printf("NOTE: Volume found.\n"); }
+      $i += 1;
+      $volume = $tokens[$i];
+      $volume =~ s/,//g;
+      $found_volume = $TRUE;
+      if ($flag_debug) { $debug_token_index{'volume'} = $i; }
+      next;
+    }
+  
+    if (!$found_pe && ($tokens[$i] eq 'P/E Ratio (ttm)')) {
+      if ($flag_verbose) { printf("NOTE: P/E found.\n"); }
+      $i += 1;
+      $pe = $tokens[$i];
+      $pe += 0.0;
+      if (! defined $pe) { $pe = -0.01; }
+      $found_pe = $TRUE;
+      if ($flag_debug) { $debug_token_index{'pe'} = $i; }
+      next;
+    }
+  
+    if (($tokens[$i] eq 'Bid')) {
+      if ($flag_verbose) { printf("NOTE: Bid found.\n"); }
+      $i += 1;
+      $bid = $tokens[$i];
+      if ($flag_debug) { $debug_token_index{'bid'} = $i; }
+      next;
+    }
+  
+    if (($tokens[$i] eq 'Ask')) {
+      if ($flag_verbose) { printf("NOTE: Ask found.\n"); }
+      $i += 1;
+      $ask = $tokens[$i];
+      if ($flag_debug) { $debug_token_index{'ask'} = $i; }
+      next;
+    }
+  
+    #if ((substr($symbol,0,1) eq '^') && ($found_yearlow && $found_daylow && $found_close && $found_last)) { last; }
+    if ($found_pe && $found_volume && $found_yearlow && $found_daylow && $found_close && $found_last) { last; }
+  }
+
+} elsif ($service eq 'google') {
+  ### Build a translation hash
+  %symbol_translator = (
+    '^DJI'      => 'INDEXDJI:.DJI',
+    '^GSPC'     => 'INDEXSP:.INX',
+    '^IXIC'     => 'INDEXNASDAQ:.IXIC'
+  );
+  ### This is the google flow
+  if ($flag_verbose) { printf("NOTE: Building URL request.\n"); }
+  if ($symbol_translator{$symbol}) {
+    $lookup_string = $symbol_translator{$symbol};
+  } elsif ($symbol =~ /^\^(.*)$/) {
+    $index_symbol = $1;
+    $index_symbol =~ tr/a-z/A-Z/;
+    $lookup_string = sprintf("INDEX%s:.%s", $index_symbol, $index_symbol);
+  }
+  $ua = LWP::UserAgent->new(env_proxy => 1, keep_alive => 1, timeout => 10);
+  $request = "http://finance.google.com/finance?q=$lookup_string";
+  $response = $ua->get($request);
+  if ($flag_verbose) { printf("NOTE: URL response received.\n"); }
+  
+  @lines = split(/\n/, $response->content);
+
+  if ($flag_verbose) { printf("NOTE: Parsing response.\n"); }
+  $last = 0;       $found_last = $FALSE;
+  $close = 0;      $found_close = $FALSE;
+  $dayhigh = 0;    $found_dayhigh = $FALSE;
+  $daylow = 0;     $found_daylow = $FALSE;
+  $yearhigh = 0;   $found_yearhigh = $FALSE;
+  $yearlow = 0;    $found_yearlow = $FALSE;
+  $volume = 0;     $found_volume = $FALSE;
+  $pe = 0;         $found_pe = $FALSE;
+  
+  foreach $line (@lines) {
+    $line =~ s/^\s*//;
+    push(@raw_tokens, split(/\<[^<>]+\>/, $line));
+  }
+
+  foreach $token (@raw_tokens) {
+    $token =~ s/\&nbsp;//g;
+    if ($token =~ /^\s*$/) { next; }
+    push(@tokens, $token);
+  }
+
+  if ($flag_debug) {
+    foreach $token (@tokens) {
+      printf(stderr "%s\n", $token);
+    }
+  }
+  
+  for ($i = 0; $i <= $#tokens; $i++) {
+    @t = split(/\s+/, $tokens[$i]);
+    if (($t[0] eq 'var') && ($t[1] eq '_ticker') && ($t[2] eq '=')) { $ticker_name = $t[3]; last; }
+  }
+
+  if (! $ticker_name) { 
+    if ($flag_verbose) { printf(STDERR "ERROR: unable to find _ticker in quote, bailing...\n"); }
+    exit(1); 
+  }
+
+  $ticker_name =~ /([A-Za-z]+):/;  $quote_source = $1;
+
+  $quote_sources{'INDEXASX'}{'valid'} = $TRUE;$quote_sources{'INDEXASX'}{'skip_pe'} = $TRUE;
+  $quote_sources{'INDEXBOM'}{'valid'} = $TRUE;$quote_sources{'INDEXBOM'}{'skip_pe'} = $TRUE;
+  $quote_sources{'INDEXDJX'}{'valid'} = $TRUE;$quote_sources{'INDEXDJX'}{'skip_pe'} = $TRUE;
+  $quote_sources{'INDEXNASDAQ'}{'valid'} = $TRUE;$quote_sources{'INDEXNASDAQ'}{'skip_pe'} = $TRUE;
+  $quote_sources{'INDEXNIKKEI'}{'valid'} = $TRUE;$quote_sources{'INDEXNIKKEI'}{'skip_pe'} = $TRUE;
+  $quote_sources{'INDEXSP'}{'valid'} = $TRUE;$quote_sources{'INDEXSP'}{'skip_pe'} = $TRUE;
+  $quote_sources{'MUTF'}{'valid'} = $TRUE;
+  $quote_sources{'AMEX'}{'valid'} = $TRUE;
+  $quote_sources{'NASDAQ'}{'valid'} = $TRUE;
+  $quote_sources{'NYSE'}{'valid'} = $TRUE;
+  $quote_sources{'TSE'}{'valid'} = $TRUE;
+
+# $quote_sources{'INDEXDB'}{'valid'} = $TRUE;
+
+  if (! $quote_sources{$quote_source}{'valid'}) {
+    if ($flag_verbose) { printf(STDERR "WARNING: Unrecognized quote source for google <%s>.\n", $quote_source); }
+  } else {
+    if ($quote_sources{$quote_source}{'skip_pe'}) { $found_pe = $TRUE; }
+    if ($quote_source eq 'MUTF') {
+      $found_dayhigh = $TRUE;
+      $found_daylow = $TRUE;
+      $found_yearhigh = $TRUE;
+      $found_yearlow = $TRUE;
+      $found_volume = $TRUE;
+      $found_pe = $TRUE;
+    }
+    for ($i = 0; $i <= $#tokens; $i++) {
+      if ($quote_source eq 'MUTF') {
+        if (!$found_last && ($tokens[$i] eq $symbol)) {
+          $i += 1;
+          $last = fix_comma($tokens[$i]);
+          $found_last = $TRUE;
+          $i += 1;
+          $close = $last - fix_comma($tokens[$i]);
+          $found_close = $TRUE;
+          next;
+        }
+      } else {
+        if (!$found_last && ($tokens[$i] eq 'Open')) {
+          if ($flag_verbose) { printf("NOTE: Last found based on Open.\n"); }
+          $j = $i - 15;
+          $last = fix_comma($tokens[$j]);
+          $found_last = $TRUE;
+          $j = $i + 1;
+          $close = fix_comma($tokens[$j]);
+          $found_close = $TRUE;
+          next;
+        }
+      }
+    
+      if (!$found_daylow && ($tokens[$i] eq "Range")) {
+        if ($flag_verbose) { printf("NOTE: Day's Low/High found.\n"); }
+        $j = $i + 1;
+        ($daylow, $dayhigh) = split(/ - /, $tokens[$j]);
+        $daylow = fix_comma($daylow);
+        $dayhigh = fix_comma($dayhigh);
+        $found_daylow = $TRUE;
+        $found_dayhigh = $TRUE;
+        next;
+      }
+    
+      if (!$found_yearlow && ($tokens[$i] eq '52 week')) {
+        if ($flag_verbose) { printf("NOTE: 52wk Low/High found.\n"); }
+        $j = $i + 1;
+        ($yearlow, $yearhigh) = split(/ - /, $tokens[$j]);
+        $yearlow = fix_comma($yearlow);
+        $yearhigh = fix_comma($yearhigh);
+        $found_yearlow = $TRUE;
+        $found_yearhigh = $TRUE;
+        next;
+      }
+    
+      if (!$found_volume && (($tokens[$i] eq 'Vol / Avg.') || ($tokens[$i] eq 'Vol.'))) {
+        if ($flag_verbose) { printf("NOTE: Volume/Average found.\n"); }
+        $j = $i + 1;
+        ($volume, $junk) = split(/ \/ /, $tokens[$j]);
+        $volume = fix_comma($volume);
+        if ($volume =~ s/M//) { $volume *= 1000000; }
+        if ($volume =~ s/B//) { $volume *= 1000000000; }
+        $found_volume = $TRUE;
+        next;
+      }
+    
+      if (!$found_pe && ($tokens[$i] eq 'P/E')) {
+        if ($flag_verbose) { printf("NOTE: P/E found.\n"); }
+        $i += 3;
+        $pe = fix_comma($tokens[$i]);
+        $pe += 0.0;
+        if (! defined $pe) { $pe = -0.01; }
+        $found_pe = $TRUE;
+        next;
+      }
+    
+      if ($found_pe && $found_volume && $found_yearlow && $found_daylow && $found_close && $found_last) { last; }
+    }
+
+  }
+}
+
+if (! defined($net)) { 
+  $net = $last - $close; 
+} else {
+  if ($close < 0.01) {
+    $close = $last - $net;
+  }
+}
+$p_change = ($close < 0.01) ? 0.0 : (($last - $close) * 100.0) / $close;
+
+if ($flag_debug) {
+  foreach $index (keys %debug_token_index) {
+    printf(stderr "DEBUG: <%s> - \$tokens[%d] = %s\n", $index, $debug_token_index{$index}, $tokens[$debug_token_index{$index}]);
+  }
+}
+
+
+printf("%f %f %f %f %f %f %d %f %f %f %f %f\n", $close, $last, $dayhigh, $daylow, $yearlow, $yearhigh, $volume, $pe, $net, $p_change, $bid, $ask);
+
+$junk = 1;

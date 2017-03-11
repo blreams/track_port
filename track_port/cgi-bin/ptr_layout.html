@@ -1,0 +1,140 @@
+{% extends "ptr_template.html" %}
+{% block title %}pull_transaction_report.py{% endblock %}
+{% block head_js_block %}
+  <script type="text/javascript">
+    $(document).ready(function() { 
+      $('.mainTable').tablesorter({
+        debug: true,
+        cssChildRow: "tablesorter-childRow",
+        sortInitialOrder: "desc",
+        widgets:['zebra'],
+        widgetOptions: {
+            zebra: ["odd", "even"],
+        },
+        headers: {
+           {% for key in lheadings %}
+           {{loop.index0}}: { sorter: "{{lheadings[key]}}" },
+           {% endfor %}
+        }
+       });
+      $('.tablesorter-childRow td').hide();
+      $('.tablesorter').delegate('.toggle', 'click', function() {
+        $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
+        return false;
+      });
+    });
+  </script>
+  <script type="text/javascript">
+    $(document).ready(function() { 
+      $('table.mainTable tbody tr').mouseover(function() { 
+        $(this).addClass('highlight'); 
+      }).mouseout(function() { 
+        $(this).removeClass('highlight'); 
+      });
+    });
+  </script>
+  <script type="text/javascript">
+    function ChangeColor(tableRow, highLight, outLight) {
+      if (highLight) {
+        tableRow.style.backgroundColor = '#6666ff';
+      } else {
+        tableRow.style.backgroundColor = outLight;
+      }
+    }
+    function DoNav(theUrl,theName) {
+      //document.location.href = theUrl;
+      window.open(theUrl,theName);
+    }
+  </script>
+{% endblock %}
+
+
+{% block body_block %}
+<div>
+<table class="mainTable tablesorter tablesorter-grey" border="1">
+    <!-- Header Row -->
+    <thead><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></thead>
+    <tfoot><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></tfoot>
+
+    {% for fileportname in tldict %}
+    <!-- Non-sorting Name Row -->
+    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">{{fileportname}}</th></tr></tbody>
+
+    <!-- Long Positions -->
+    {% if tldict[fileportname].combined_positions['longs']|length > 0 %}
+    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Long Positions</th></tr></tbody>
+    <tbody>
+    {% for symbol in tldict[fileportname].combined_positions['longs'] %}
+        <tr>
+        {% for key in lheadings %}
+            {% if key == 'Symb' %}
+                {% if tldict[fileportname].combined_positions['longs'][symbol].transactions|length > 1 %}
+                    <td rowspan="{{tldict[fileportname].combined_positions['longs'][symbol].transactions|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</a></td>
+                {% else %}
+                    <td>{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</td>
+                {% endif %}
+            {% else %}
+                <td>{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</td>
+            {% endif %}
+        {% endfor %}
+        </tr>
+    <!-- Transactions Within A Position -->
+    {% if tldict[fileportname].combined_positions['longs'][symbol].transactions|length > 1 %}
+    {% for transaction in tldict[fileportname].combined_positions['longs'][symbol].transactions %}
+    <tr class="tablesorter-childRow">
+    {% for key in lheadings %}
+    {% if key != 'Symb' %}
+        <td>
+        {% if key == 'Shrs' %}{{transaction.shares}}
+        {% elif key == 'Purch' %}{{transaction.open_price}}
+        {% elif key == 'Chg' %}{{transaction.net}}
+        {% elif key == 'Day' %}{{transaction.shares * transaction.net}}
+        {% elif key == 'MktVal' %}{{transaction.shares * transaction.last}}
+        {% elif key == 'Gain%' %}TODO
+        {% elif key == 'Gain' %}{{transaction.shares * (transaction.last - transaction.open_price)}}
+        {% elif key == 'Basis' %}{{transaction.shares * transaction.open_price}}
+        {% elif key == 'Port%' %}TODO
+        {% endif %}
+        </td>
+    {% endif %}
+    {% endfor %}
+    </tr>
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+    </tbody>
+    {% endif %}
+
+    <!-- Short Positions -->
+    {% if tldict[fileportname].combined_positions['shorts']|length > 0 %}
+    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Short Positions</th></tr></tbody>
+    <tbody>
+    {% for symbol in tldict[fileportname].combined_positions['shorts'] %}
+    <tr>
+        {% for key in lheadings %}
+        <td>{{tldict[fileportname].combined_positions['shorts'][symbol].report[key][0].format(tldict[fileportname].combined_positions['shorts'][symbol].report[key][1])}}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+    {% endif %}
+
+    <!-- Option Positions -->
+    {% if tldict[fileportname].combined_positions['options']|length > 0 %}
+    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Option Positions</th></tr></tbody>
+    <tbody>
+    {% for symbol in tldict[fileportname].combined_positions['options'] %}
+    <tr>
+        {% for key in lheadings %}
+        <td>{{tldict[fileportname].combined_positions['options'][symbol].report[key][0].format(tldict[fileportname].combined_positions['options'][symbol].report[key][1])}}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+    {% endif %}
+
+{% endfor %}
+</table>
+</div>
+{% endblock %}
+

@@ -1,0 +1,4 @@
+When I added the ability to use less for generating css, I picked out the
+following color scheme:
+http://colorschemedesigner.com/#3O62a9pWqq3Za
+

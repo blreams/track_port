@@ -1,0 +1,38 @@
+# Edit this file to introduce tasks to be run by cron.
+# 
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+# 
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').# 
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+# 
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+# 
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+# 
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+#31 04 * * * /home/blreams/automysqlbackup/runmysqlbackup /home/blreams/automysqlbackup/track_port.conf
+
+# Run quote_query as follows:
+#   o Run at 9:35am with end time 4:45pm, 60 second delay on iterations
+#   o Run at 4:50pm run once
+#   o Run at 8:00pm run once
+35 09 * * 1-5 /home/blreams/bin/quote_query --verbose --maxper 4 --end 4:45pm --wait 30 2> /var/tmp/quote_query/quote_query.log
+50 16 * * 1-5 /home/blreams/bin/quote_query --verbose --maxper 5                        2> /var/tmp/quote_query/quote_query_1.log
+00 20 * * 1-5 /home/blreams/bin/quote_query --verbose --maxper 5                        2> /var/tmp/quote_query/quote_query_2.log
+# Run put_db_quotes as follows:
+#   o Run at 9:45am with end time 4:55pm, 10 second delay on iterations
+#   o Run at 8:05pm with end of day option, run once
+#   o Run at 8:45pm with end of day option, run once
+45 09 * * 1-5 /home/blreams/bin/put_db_quotes --verbose --end 4:55pm --wait 10 2> /var/tmp/put_db_quotes/put_db_quotes.log
+05 20 * * 1-5 /home/blreams/bin/put_db_quotes --verbose --eod                  2> /var/tmp/put_db_quotes/put_db_quotes_1.log
+45 20 * * 1-5 /home/blreams/bin/put_db_quotes --verbose --eod                  2> /var/tmp/put_db_quotes/put_db_quotes_2.log

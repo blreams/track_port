@@ -1,0 +1,100 @@
+@whiteColor: #ffffff;
+@blackColor: #000000;
+@evenRowColor: #b4c4f3;
+@oddRowColor:  #dde5ff;
+@cashRowColor: #49ae83;
+@totalRowColor: #cbbc9c;
+@headerRowColor: #ffe7b4;
+@headerRowBorderColor: #cbbc9c;
+@highlightRowColor: #ffe7b4;
+@sortedHeaderColor: #7d4bae;
+@topTableBackgroundColor: #95c2af;
+@sumTableBackgroundColor: #99a4c2;
+@opensTableHeaderTextColor: #f6f8ff;
+@opensTableHeaderRowColor: #4c65ae;
+@opensTableEvenRowColor: #d3b1f3;
+@opensTableOddRowColor: #eddbff;
+@cashTableHeaderTextColor: #f6f8ff;
+@cashTableHeaderRowColor: #4c65ae;
+@cashTableEvenRowColor: #acf4d5;
+@cashTableOddRowColor: #d8ffee;
+
+h2 { color: @whiteColor; font-size: 10pt; font-family: Arial, Verdana, sans-serif; }
+th { color: @blackColor; font-size: 10pt; font-weight: bold; font-family: Arial, Verdana, sans-serif; padding: 0em; }
+td { color: @blackColor; font-size: 8pt; font-family: Arial, Verdana, sans-serif; padding: 0em; }
+td.right  { text-align: right }
+td.center { text-align: center }
+td.left   { text-align: left }
+th.right  { text-align: right }
+th.center { text-align: center }
+th.left   { text-align: left }
+tr.heading { color: @blackColor; text-align: center; font: bolder 9pt Arial, Verdana, sans-serif; }
+
+.top_tab { border: 2px solid @blackColor; padding: 0px; margin: 0px; background: @topTableBackgroundColor; }
+
+.sum_tab { border: 2px solid @blackColor; padding: 0px; margin: 0px; background: @sumTableBackgroundColor; }
+.sum_tab th { border-style: groove; margin: 0px; font-weight: bold; color: @blackColor; text-align: center; background: @headerRowColor; }
+.sum_tab td { border: 1px solid @blackColor; border-style: inset; margin: 0px; font-weight: normal; color: @whiteColor; text-align: right; }
+.sum_tab th.left   { text-align: left }
+.sum_tab th.center { text-align: center }
+.sum_tab th.right  { text-align: right }
+.sum_tab td.left   { text-align: left }
+.sum_tab td.center { text-align: center }
+.sum_tab td.right  { text-align: right }
+.sum_tab td.total  { text-align: left; color: @blackColor; background: @totalRowColor;}
+.sum_tab td.totalcenter { text-align: center; color: @blackColor; background: @totalRowColor;}
+.sum_tab tr.total  { text-align: left; color: @blackColor; background: @totalRowColor;}
+
+.tick_tab { padding: 0px; background: transparent; }
+.tick_tab th { border-style: groove; padding: 0px; margin: 0px; font-weight: bold; color: @blackColor; text-align: center; background: @headerRowColor; }
+.tick_tab td { border-style: ridge; padding: 0px; margin: 0px; font-weight: normal; color: @blackColor; text-align: left; }
+.tick_tab th.left   { text-align: left }
+.tick_tab th.center { text-align: center }
+.tick_tab th.right  { text-align: right }
+.tick_tab td.left   { text-align: left }
+.tick_tab td.center { text-align: center }
+.tick_tab td.right  { text-align: right }
+
+.highlight { background: @highlightRowColor !important; }
+
+/* Styling the main table */
+.mainTable th { background: @headerRowColor; text-align: left; cursor: pointer; padding-right: 16px; border: 2px inset @headerRowBorderColor; }
+.mainTable th.headerSortDown { color: @whiteColor; background: @sortedHeaderColor url(/images/up_arrow.png)   no-repeat 98% 7px; }
+.mainTable th.headerSortUp   { color: @whiteColor; background: @sortedHeaderColor url(/images/down_arrow.png) no-repeat 98% 5px; }
+.mainTable th:hover  { background: @sortedHeaderColor; color: @blackColor; font-weight: bold; border: 2px outset  @headerRowBorderColor; }
+.mainTable tr.even { background: @evenRowColor; }
+.mainTable tr.odd  { background: @oddRowColor; }
+.mainTable td.cashcell { color: @whiteColor; background: @cashRowColor; }
+.mainTable td.totalcell { color: @blackColor; background: @totalRowColor; font-weight: bold; }
+
+
+/* Styling for the sold=TRUE */
+.soldTable th { background: @headerRowColor; text-align: left; cursor: pointer; padding-right: 16px; border: 2px inset @headerRowBorderColor; }
+.soldTable th.headerSortDown { background: @sortedHeaderColor url(/images/up_arrow.png) no-repeat 98% 7px; }
+.soldTable th.headerSortUp   { background: @sortedHeaderColor url(/images/down_arrow.png) no-repeat 98% 5px; }
+.soldTable th:hover  { background: @sortedHeaderColor; color: @blackColor; font-weight: bold; border: 2px outset @headerRowBorderColor; }
+.soldTable tr.even { background: @evenRowColor; }
+.soldTable tr.odd  { background: @oddRowColor; }
+
+
+/* Styling for port_edit.cgi tables. */
+.opens_tab { border: 0px inset @headerRowBorderColor; }
+.opens_tab th { color: @opensTableHeaderTextColor; background: @opensTableHeaderRowColor; text-align: left; cursor: pointer; padding-right: 16px; border: 0px inset @headerRowBorderColor; }
+.opens_tab th.headerSortDown { color: @blackColor; background: @highlightRowColor url(/images/up_arrow.png) no-repeat 98% 7px; }
+.opens_tab th.headerSortUp   { color: @blackColor; background: @highlightRowColor url(/images/down_arrow.png) no-repeat 98% 5px; }
+.opens_tab th:hover  { background: @highlightRowColor; color: @blackColor; font-weight: bold; border: 0px outset @headerRowBorderColor; }
+.opens_tab tr.even { background: @opensTableEvenRowColor; }
+.opens_tab tr.odd  { background: @opensTableOddRowColor; }
+.opens_title_tab, .opens_title_tab td.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: left; color: @opensTableHeaderTextColor; background: @opensTableHeaderRowColor; }
+.ot_left { font: 8pt Arial, Verdana, sans-serif; text-align: left; color: @whiteColor; background: @opensTableHeaderRowColor; }
+.opens_tab input[type=submit] { font: 10px Arial, Verdana, sans-serif; }
+
+.cash_tab th { color: @cashTableHeaderTextColor; background: @cashTableHeaderRowColor; text-align: left; cursor: pointer; padding-right: 16px; border: 2px inset @headerRowBorderColor; }
+.cash_tab th.headerSortDown { color: @blackColor; background: @highlightRowColor url(/images/up_arrow.png) no-repeat 98% 7px; }
+.cash_tab th.headerSortUp   { color: @blackColor; background: @highlightRowColor url(/images/down_arrow.png) no-repeat 98% 5px; }
+.cash_tab th:hover  { background: @highlightRowColor; color: @blackColor; font-weight: bold; border: 2px outset @headerRowBorderColor; }
+.cash_tab tr.even { background: @cashTableEvenRowColor; }
+.cash_tab tr.odd  { background: @cashTableOddRowColor; }
+.cash_title_tab, .cash_title_tab td.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: left; color: @cashTableHeaderTextColor; background: @cashTableHeaderRowColor; }
+.cash_tab input[type=submit] { font: 10px Arial, Verdana, sans-serif; }
+

@@ -1,0 +1,240 @@
+#!/usr/bin/env perl
+# Copyright 2007 Intel Corporation.
+# All rights reserved.
+# This is unpublished, confidential Intel proprietary
+# information.  Do not reproduce without written permission.
+#
+# file:         create_watchport
+#
+# description:
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 05/05/07  1.0   blreams   initial
+# 10/31/13  1.1   blreams   added --sect option to operate on specific section of .tpi
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+use Time::CTime;
+use Time::ParseDate;
+
+$script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+$script_ver = '1.1';
+$min_args = 8;
+$max_args = 16;
+
+sub usage {
+  print(STDERR "\n");
+  print(STDERR "USAGE: $script_name  [--help] [--version] [--debug] [--verbose] \n");
+  print(STDERR "USAGE:               --tpi tpi [--sect sect] --date date [--close close] --db db [--nodelete] [--noinitial] --file file\n");
+  printf(stderr "USAGE:   [--help]      - help\n");
+  printf(stderr "USAGE:   [--version]   - version\n");
+  printf(stderr "USAGE:   [--debug]     - debug\n");
+  printf(stderr "USAGE:   [--verbose]   - verbose\n");
+  printf(stderr "USAGE:   --tpi tpi     - input file (.ini style)\n");
+  printf(stderr "USAGE:   [--sect sect] - only work on specified section\n");
+  printf(stderr "USAGE:   --date date   - date for getting prices\n");
+  printf(stderr "USAGE:   --close close - date for getting sell prices\n");
+  printf(stderr "USAGE:   --db db       - file for storing mysql commands\n");
+  printf(stderr "USAGE:   [--nodelete]  - do not generate delete query\n");
+  printf(stderr "USAGE:   [--noinitial] - do not generate insert query for initial cash\n");
+  printf(stderr "USAGE:   --file file   - specify the file in fpn\n");
+  printf(stderr "\n");
+}
+
+#-----------------------------------------------------------------------------
+# Assign constants
+#-----------------------------------------------------------------------------
+$FALSE = 0;
+$TRUE = 1;
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+$num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+$flag_help = $FALSE;
+$flag_version = $FALSE;
+$flag_debug = $FALSE;
+$flag_verbose = $FALSE;
+$opt_tpi = '';
+$opt_sect = '';
+$opt_date = '';
+$opt_close = '';
+$opt_db = '';
+$flag_nodelete = $FALSE;
+$flag_noinitial = $FALSE;
+$opt_file = '';
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help')    { usage; exit(0); }
+  if ($arg eq '--version') { printf(stderr "%s v%s\n", $script_name, $script_ver); exit(0); }
+  if ($arg eq '--debug')   { $flag_debug = $TRUE; next; }
+  if ($arg eq '--verbose') { $flag_verbose = $TRUE; next; }
+  if ($arg eq '--tpi') { $opt_tpi = shift; next; }
+  if ($arg eq '--sect') { $opt_sect = shift; next; }
+  if ($arg eq '--date') { $opt_date = shift; next; }
+  if ($arg eq '--close') { $opt_close = shift; next; }
+  if ($arg eq '--db') { $opt_db = shift; next; }
+  if ($arg eq '--nodelete') { $flag_nodelete = $TRUE; next; }
+  if ($arg eq '--noinitial') { $flag_noinitial = $TRUE; next; }
+  if ($arg eq '--file') { $opt_file = shift; next; }
+}
+
+if (! $opt_tpi) { printf("ERROR: Missing required argument <--tpi>\n"); exit(1); }
+if (! $opt_date) { printf("ERROR: Missing required argument <--date>\n"); exit(1); }
+if (! $opt_db) { printf("ERROR: Missing required argument <--db>\n"); exit(1); }
+if (! $opt_file) { printf("ERROR: Missing required argument <--file>\n"); exit(1); }
+
+#-----------------------------------------------------------------------------
+# Process the arguments passed to this script and
+# setup initial variables.
+#-----------------------------------------------------------------------------
+# The following statements are an example of how to open a file or die trying.
+# $fn = $ARGV[0]; ### Assign appropriate file name to $fn.
+# open(F1, $fn) || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+
+### Parse date and transform to mm/dd/yyyy
+if (! ($date_secs = parsedate($opt_date))) {
+  printf(stderr "ERROR: Unable to parse <--date %s>.\n", $opt_date);
+  exit(1);
+}
+if ($opt_close) {
+  if (! ($close_secs = parsedate($opt_close))) {
+    printf(stderr "ERROR: Unable to parse <--close %s>.\n", $opt_close);
+    exit(1);
+  }
+}
+
+$parsed_date = sprintf("%02d/%02d/%04d", strftime("%m", localtime($date_secs)), strftime("%e", localtime($date_secs)), strftime("%Y", localtime($date_secs)));
+if ($flag_verbose) { printf(stderr "NOTE: Parsed date as %s.\n", $parsed_date); }
+
+$parsed_close = sprintf("%02d/%02d/%04d", strftime("%m", localtime($close_secs)), strftime("%e", localtime($close_secs)), strftime("%Y", localtime($close_secs)));
+if ($flag_verbose) { printf(stderr "NOTE: Parsed close as %s.\n", $parsed_close); }
+
+### Read tpi file into array
+$fn = $opt_tpi; ### Assign appropriate file name to $fn.
+open(TPI, $fn) || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+if ($flag_verbose) { printf(stderr "NOTE: Reading tpi file <%s>.\n", $opt_tpi); }
+@tpi = <TPI>;
+close(TPI);
+
+### Parse @tpi
+$symbol_count = 0;
+
+for ($i = 0; $i <= $#tpi; $i++) {
+  $tpi[$i] =~ s/^\s+//; $tpi[$i] =~ s/\s+$//;
+  if (! $tpi[$i]) { if ($flag_verbose) { printf(stderr "NOTE: Skipping blank line %d.\n", $i+1); } next; }
+  if ($tpi[$i] =~ /^;/) { if ($flag_verbose) { printf(stderr "NOTE: Skipping comment on line %d.\n", $i+1); } next; }
+  if ($tpi[$i] =~ /\[(\S+)\]/) {
+    $section = $1;
+    if ($section_length_max < length($section)) { $section_length_max = length($section); }
+    $hash{$section}{'count'} = 0;
+    $hash{$section}{'max_symbol_len'} = 0;
+    if ($flag_verbose) { printf(stderr "NOTE: Found section [%s]\n", $section); } 
+    next;
+  }
+
+  if (! $section) { if ($flag_verbose) { printf(stderr "NOTE: Skipping line outside any section %d.\n", $i+1); } next; }
+
+  foreach (split(/\s+/, $tpi[$i])) {
+    if ($hash{$section}{'count'} == 0) { push(@list_sections, $section); }
+    if ($flag_verbose) { printf(stderr "NOTE: Adding symbol %s to section %s.\n", $_, $section); }
+    $hash{$section}{'symbols'}[$hash{$section}{'count'}] = $_;
+    $hash{$section}{'count'} += 1;
+    $symbol_count++;
+    if ($symbol_length_max < length($_)) { $symbol_length_max = length($_); }
+    if ($hash{$section}{'max_symbol_len'} < length($_)) { $hash{$section}{'max_symbol_len'} = length($_); }
+  }
+
+}
+
+if ($opt_sect) {
+  while ($sect = pop(@list_sections)) {
+    if ($sect eq $opt_sect) { push(@list_sections_subset, $sect); }
+  }
+  @list_sections = @list_sections_subset;
+  $symbol_count = 0;
+  foreach $section (@list_sections) {
+    $symbol_count += (@{$hash{$section}{'symbols'}});
+  }
+}
+
+### Walk the hash and lookup prices
+$scnt = 0;
+foreach $section (@list_sections) {
+  foreach $symbol (@{$hash{$section}{'symbols'}}) {
+    $scnt++;
+    $cmd = sprintf("lookup_price --showdate --avg --date %s --symbol %s", $parsed_date, $symbol);
+    if ($flag_verbose) { printf(stderr "NOTE: Executing %d of %d <%s>\n", $scnt, $symbol_count, $cmd); }
+    $cmd_out = `$cmd`;
+    $cmd_out =~ s/^\s+//;
+    ($price, $actual_date) = split(/\s+/, $cmd_out); chomp($actual_date);
+    if (! $price) { 
+      printf(stderr "WARNING: Unable to find price for %s.\n", $symbol); 
+      $hash{$section}{'count'} -= 1;
+      next;
+    }
+    $hash{$section}{$symbol}{'price'} = $price;
+    #$hash{$section}{$symbol}{'qty'} = (100000.0 / $hash{$section}{'count'}) / $price;
+    $hash{$section}{$symbol}{'date'} = $actual_date;
+
+    if ($opt_close) {
+      $cmd = sprintf("lookup_price --showdate --avg --date %s --symbol %s", $parsed_close, $symbol);
+      if ($flag_verbose) { printf(stderr "NOTE: Executing %d of %d <%s>\n", $scnt, $symbol_count, $cmd); }
+      $cmd_out = `$cmd`;
+      $cmd_out =~ s/^\s+//;
+      ($price, $actual_date) = split(/\s+/, $cmd_out); chomp($actual_date);
+      if (! $price) { printf(stderr "WARNING: Unable to find price for %s.\n", $symbol); next; }
+      $hash{$section}{$symbol}{'price2'} = $price;
+      $hash{$section}{$symbol}{'date2'} = $actual_date;
+    }
+  }
+  foreach $symbol (@{$hash{$section}{'symbols'}}) {
+    if ($hash{$section}{$symbol}{'price'}) {
+      $hash{$section}{$symbol}{'qty'} = (100000.0 / $hash{$section}{'count'}) / $hash{$section}{$symbol}{'price'};
+    }
+  }
+}
+
+### Walk the hash and print transaction lines
+$fn = $opt_db; ### Assign appropriate file name to $fn.
+open(DB, "> $fn") || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+$fn =~ s/.sql$//;
+
+foreach $section (@list_sections) {
+  $cash = 0;
+  $fpn = $opt_file . ':' . $section;
+  if (! $flag_nodelete) { printf(DB "DELETE FROM transaction_list WHERE (fileportname = '%s');\n", $fpn); }
+  if (! $flag_noinitial) { printf(DB "INSERT INTO transaction_list SET fileportname='%s',position='cash',descriptor='initial',open_price='100000.0000';\n", $fpn); }
+  foreach $symbol (sort(@{$hash{$section}{'symbols'}})) {
+    if (! $hash{$section}{$symbol}{'price'}) { next; }
+    $symbolup = uc($symbol);
+    $line = sprintf("INSERT INTO transaction_list SET fileportname='%s',symbol='%s',sector='%s',position='long',descriptor='stock',shares='%.4f',open_price='%.4f',open_date='%s'", $fpn, $symbolup, $section, $hash{$section}{$symbol}{'qty'}, $hash{$section}{$symbol}{'price'}, strftime("%Y-%m-%d", localtime(parsedate($hash{$section}{$symbol}{'date'}))));
+
+    if ($opt_close) {
+      $line .= sprintf(",closed='1',close_price='%.4f',close_date='%s'", $hash{$section}{$symbol}{'price2'}, ($dbdate = strftime("%Y-%m-%d", localtime(parsedate($hash{$section}{$symbol}{'date2'})))));
+    }
+    printf(DB "%s;\n", $line);
+    $cash += ($hash{$section}{$symbol}{'price2'} - $hash{$section}{$symbol}{'price'}) * $hash{$section}{$symbol}{'qty'};
+  }
+  if ($opt_close) {
+    printf(DB "INSERT INTO transaction_list SET fileportname='%s',position='cash',descriptor='intermediate',open_price='%.4f',open_date='%s';\n", $fpn, (-1 * $cash), $dbdate);
+  }
+}
+close(DB);
+
+$junk = 1;
+

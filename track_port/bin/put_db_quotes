@@ -1,0 +1,1300 @@
+#!/usr/bin/env perl
+# Copyright 2008 BLR.
+# All rights reserved.
+# This is unpublished, confidential BLR proprietary
+# information.  Do not reproduce without written permission.
+#
+# $Id: put_db_quotes 93 2010-06-23 14:54:06Z blreams $
+#
+# file:         put_db_quotes
+#
+# description:
+#   While this script has morphed a good bit over the years, in a nutshell it does the following:
+#     o Collect a series of transactions from the DB.
+#     o Collect a hash of finance::quote data from the DB.
+#     o Build a transaction report, write it to DB.
+#     o Calculate cash totals, write them to DB.
+#     o Append port totals to DB for keeping history.
+#   For now it relies on a separate script that writes finance::quote data to the DB.  By 
+#   separating out the finance::quote piece, it makes it easier to react to issues with
+#   finance::quote and I can more easily develop alternate quote methods.
+# 
+# TODO
+#    - Investigate ability to tag transactions (group for subtotals?).
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 11/30/08  1.0   blreams   initial
+# 12/14/08  1.1   blreams   Allow file glob using *.tph on cmd line
+# 01/05/09  1.2   blreams   Loads 3 db tables, finance_quote, transaction_report, port_param
+# 01/21/09  1.3   blreams   Added totalling fields to port_params
+# 01/22/09  1.3a  blreams   Fixed minor bugs w/ change to port_params.
+# 01/22/09  1.3b  blreams   Minor bug introduced due to altering db field.
+# 01/26/09  1.3c  blreams   Minor bug with initializing port_params hash.
+# 01/27/09  1.3d  blreams   Added portnum field to db port_param table.
+# 01/31/09  1.3e  blreams   Added hilo_pct and hilo_52wk_pct fields to transaction_report.
+# 02/10/09  1.3f  blreams   Added mktcap to TR table, div/yld to FQ table.
+# 03/15/09  1.4   blreams   Added updates to port_history table.
+# 03/15/09  1.4a  blreams   Only add to port_history if today quote.
+# 03/23/09  1.5   blreams   Fixed good_fetch check, re-attempts if bad.
+# 03/28/09  1.6   blreams   Added --aq argument to force alternate quotes.
+# 07/29/09  1.7   blreams   Added special code for cashonly ports.
+# 07/30/09  1.7a  blreams   Adding code for SO_ handling.
+# 07/30/09  1.7b  blreams   Fixed bug w/ cash-only ports, and more SO_ handling.
+# 08/03/09  1.7c  blreams   Added support for T (trillion) prefix.
+# 08/09/09  1.7d  blreams   Added ability to specify sector in .tph file.
+# 08/09/09  1.7e  blreams   Changed default alternate quote service to yahoo.
+# 12/15/09  1.8   blreams   Added a loop around quote fetch due to errors.
+# 03/28/10  1.9   blreams   Added table locks to prevent partial result on pulls.
+# 06/23/10  1.9a  blreams   Commented use Finance::YahooQuote.
+# 07/13/10  1.10  blreams   Replaced truncate w/ delete for transaction_report and enabled lock.
+# 07/13/10  1.10a blreams   Tweak to usage of get_a_quote returned data.
+# 01/11/11  1.11  blreams   Added --slurp option.
+# 01/12/11  1.11a blreams   Added --dbinput flag.
+# 01/13/11  1.11b blreams   Completed changeover to transaction_list as input.
+# 01/14/11  1.11c blreams   parsed_transactions() was not initialized on each loop.
+# 01/19/11  1.11d blreams   added descriptor='esop' to transaction_list.
+# 01/19/11  1.11e blreams   fixed bug where cashonly _combined ports were not totaled properly in port_params.
+# 01/20/11  1.11f blreams   initial cash did not consider purchase of open positions.
+# 02/02/11  1.11g blreams   fixed a bug where some parsed transactions were getting overwritten.
+# 06/20/11  1.11h blreams   added put_stats table loading code.
+# 06/22/11  1.11i blreams   added fetch_iterations to put_stats.
+# 07/18/11  1.11j blreams   added a bit more checking for good_fetch and added tallying of alternate quotes.
+# 07/25/11  1.12  blreams   use separate script to fetch finance::quote and load DB, use DB quote data here.
+# 07/25/11  1.12a blreams   fix issue w/ mktcap introduced by quote_query change.
+# 02/02/13  2.0   blreams   Major overhaul, removed tph vestiges, added options.
+# 02/11/13  2.1   blreams   Added a sleep if quote_query has not filled in DB.
+# 02/11/13  2.2   blreams   fixed bug where valid_fq_data was not initialized to false on every loop.
+# 02/23/13  2.3   blreams   added check for market close.
+# 02/25/13  2.4   blreams   added support for short transaction_list descriptor.
+# 07/24/13  2.5   blreams   added code to help debug duplicate transaction_report entries when it occurs.
+# 07/24/13  2.6   blreams   added more code to help debug duplicate transaction_report entries when it occurs.
+# 07/24/13  2.6a  blreams   added more debug code to detect repeats in transaction_report.
+# 09/12/13  2.7   blreams   added --eod command line argument and associated logging.
+# 09/12/13  2.8   blreams   change to main loop management to keep it from running twice when --end not specified.
+# 10/24/13  2.9   blreams   added line to init @transaction_report, think this was source of duplicates.
+# 10/27/13  2.10  blreams   added ex_div to transaction_report.
+# 10/27/13  2.10a blreams   changed volume in transaction_report table to be actual volume, not K volume.
+# 01/24/14  2.10b blreams   messing with AutoCommit in hopes of avoiding deadlock when quote_query takes too long to complete first iteration.
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+use strict;
+use warnings;
+use Readonly;
+use Time::CTime;
+use Time::ParseDate;
+use File::Basename;
+use Finance::Quote;
+#use Finance::YahooQuote;
+use DBI;
+
+our $script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+our $script_ver = '2.10b';
+our $min_args = 2;
+our $max_args = 10;
+
+sub usage {
+  my $spaces = ' ' x length($script_name);
+  printf(STDERR "\n");
+  printf(STDERR "USAGE: %s [--help] [--version] [--debug] [--verbose]\n", $script_name);
+  printf(STDERR "USAGE: %s [--aq altquote] [--end end] [--wait wait] [--skipmktchk][--eod]\n", $spaces);
+  printf(STDERR "USAGE:   [--help]        - help information\n");
+  printf(STDERR "USAGE:   [--version]     - version information\n");
+  printf(STDERR "USAGE:   [--debug]       - print debug messages\n");
+  printf(STDERR "USAGE:   [--verbose]     - print verbose messages\n");
+  printf(STDERR "USAGE:   [--aq aq]       - use alternate quote method (yahoo|google)\n");
+  printf(STDERR "USAGE:   --end end       - time when updates should be terminated\n");
+  printf(STDERR "USAGE:   --wait wait     - seconds to wait between lookups\n");
+  printf(STDERR "USAGE:   [--skipmktchk]  - skip checking for market close\n");
+  printf(STDERR "USAGE:   [--eod]         - calls print functions for extra debugging in verbose log\n");
+  printf(STDERR "USAGE: \n");
+  printf(STDERR "USAGE: The --end parameter can be fairly free-form (valid examples below) \n");
+  printf(STDERR "USAGE: If the --end parameter is not specified or specified as already \n");
+  printf(STDERR "USAGE: elapsed, the script will perform a single update and terminate. \n");
+  printf(STDERR "USAGE: The --wait parameter must be specified as a positive integer.  The \n");
+  printf(STDERR "USAGE: default value is 15 (seconds).\n");
+  printf(STDERR "USAGE: \n");
+  printf(STDERR "USAGE: EXAMPLES\n");
+  printf(STDERR "USAGE:   $script_name --verbose\n");
+  printf(STDERR "USAGE:   $script_name --end 4:00pm --wait 30\n");
+  printf(STDERR "USAGE:   $script_name --end noon\n");
+  printf(STDERR "USAGE:   $script_name --end 'now + 8 hours'\n");
+  printf(STDERR "USAGE:   $script_name --end 16:30\n");
+  printf(STDERR "\n");
+}
+
+#########################################################################################
+### Globals are declared here.
+#########################################################################################
+our $dbh;
+
+Readonly our $FALSE => 0;
+Readonly our $TRUE  => 1;
+
+our $quote_date = '';
+our $today_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+
+#########################################################################################
+# market_closed
+#   Check if today market is closed.  Return 1 if closed, 0 if open.
+#
+#   Market observes the following 9 holidays in addition to being closed on Sat/Sun:
+#     o New Year's Day             (January 1)
+#     o MLK Day                    (3rd Monday in January)
+#     o Presidents Day             (3rd Monday in February)
+#     o Good Friday                (Friday before Easter where Easter is 1st Sunday after 1st full moon after vernal equinox)
+#     o Memorial Day               (Last Monday in May)
+#     o Independence Day           (July 4)
+#     o Labor Day                  (1st Monday in September)
+#     o Thanksgiving Day           (4th Thursday in November)
+#     o Christmas                  (December 25)
+#  If the holiday falls on a Saturday, the market will close on the preceding Friday unless that Friday is the end of a 
+#  monthly or annual accounting period.  If the holiday falls on a Sunday, the market will close on the following Monday.
+#  
+#  Because of the complexity, I decided this needed a manual element, do the holidays are stored in a table in the DB
+#  that can be automatically filled or manually edited.  This sub will simply look for today's date in the table.
+#
+sub market_closed {
+  my $todays_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+  my $todays_day = strftime("%a", localtime(parsedate('now')));
+
+  if (($todays_day eq 'Sat') || ($todays_day eq 'Sun')) { return(1); }
+
+  my $query = sprintf(qq/SELECT date FROM market_holiday WHERE (date = '%s');/, $todays_date);
+  my $p_holiday = $dbh->selectcol_arrayref($query);
+  return((scalar(@{$p_holiday}) > 0) ? 1 : 0);
+}
+
+#########################################################################################
+# midpointer
+#   Takes three numbers (high, low, middle) and returns the pct distance
+#   represented by the middle number between the high and low (ie. normalized
+#   to 100.
+sub midpointer {
+  my ($high, $low, $middle) = @_;
+  my $rv;
+
+  $rv = ($high - $low);
+  if ($rv > 0) { $rv = int(($middle - $low)*(100.0 / ($rv))); } else { $rv = 0; }
+  if ($rv > 100) { $rv = 100; }
+  return($rv);
+}
+
+#########################################################################################
+# elapsed_days
+#   Calculate the number of days elapsed from argument to today.
+sub elapsed_days {
+  my ($earlier_date) = @_;
+  my $today_string;
+  my $seconds_today;
+  my $seconds_earlier_date;
+  my $seconds_per_day = 24 * 3600;
+  my $edays;
+
+  $today_string = strftime("%D", localtime(time)) . ' 2am';
+  $seconds_today = parsedate($today_string, NO_RELATIVE => 1);
+  $seconds_earlier_date = parsedate("$earlier_date 2am", NO_RELATIVE => 1);
+  $edays = int(($seconds_today - $seconds_earlier_date) / $seconds_per_day);
+  return($edays);
+}
+
+#########################################################################################
+# build_fq_hash
+#   Fetch finance::quote data from DB (finance_quote table) and build a hash indexed on
+#   {symbol}{field}.
+#########################################################################################
+sub build_fq_hash {
+  my ($p_list_fq_fields, $p_hash_fq) = @_;
+  my $query;
+  my $sth;
+  my @dbrow;
+  my $f;
+  my $s;
+
+  ### Start by querying the finance_quote table fields if needed.
+  if (! scalar(@{$p_list_fq_fields})) {
+    $query = 'DESCRIBE finance_quote';
+    $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+    $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+
+    $f = 0;
+    while (@dbrow = $sth->fetchrow_array()) {
+      push(@{$p_list_fq_fields}, $dbrow[0]);
+    }
+  }
+
+  ### Now query each row of the finance_quote table.
+  $query = 'SELECT * FROM finance_quote ORDER BY symbol';
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+
+  while (@dbrow = $sth->fetchrow_array()) {
+    $s = $dbrow[0]; # NOTE: implicit assumption that symbol is the first field.
+    for ($f = 1; $f <= $#{$p_list_fq_fields}; $f++) {
+      $p_hash_fq->{$s}{$p_list_fq_fields->[$f]} = $dbrow[$f];
+    }
+  }
+}
+
+#########################################################################################
+# db_parse_transactions
+#   Parameters returned:
+#     p_parsed_transactions -- Pointer to list of hashes containing all transaction data (will include options).
+#     p_port_params         -- Pointer to hash containing port parameters.
+#     p_list_cashonly_ports -- Pointer to list of cash-only ports.
+sub db_parse_transactions {
+  my ($p_parsed_transactions, $p_port_params, $p_list_cashonly_ports) = @_;
+  my $sth;
+  my @dbrow;
+  my @tl_describe;
+  my %tl_index;
+  my $portnum = 0;
+  my $query;
+
+  ### Start by clearing parsed_transactions arrays
+  @{$p_parsed_transactions} = ();
+
+  ### And clear port_params
+  %{$p_port_params} = ();
+
+    ### TODO: It would be better if db_parse_transactions was called such that a pointer to an array could be returned
+    #         instead of passing in a pointer to an existing array.
+
+  ### Use describe to get field indexes for each field of transaction_list.
+  $query = 'DESCRIBE transaction_list';
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $r = 0;
+  while (@dbrow = $sth->fetchrow_array()) {
+    push(@tl_describe, $dbrow[0]);
+    $tl_index{$dbrow[0]} = $r++;
+  }
+
+  ### Now grab all the long/short, open stock transactions and stuff parsed_transactions.
+  $query = "SELECT * FROM transaction_list WHERE ((position in ('long', 'short')) && (descriptor = 'stock') && (NOT closed))";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $t = 0;
+  my %hash_position_ports;
+  my %hash_open_totals;
+  while (@dbrow = $sth->fetchrow_array()) {
+    (my $file, my $port) = split(/:/, $dbrow[$tl_index{fileportname}]);
+    my $open_date = $dbrow[$tl_index{open_date}];
+    $p_parsed_transactions->[$t]{file} = $file;
+    $p_parsed_transactions->[$t]{port} = $port;
+    $p_parsed_transactions->[$t]{symbol} = $dbrow[$tl_index{symbol}];
+    $p_parsed_transactions->[$t]{label} = $dbrow[$tl_index{symbol}];
+    $p_parsed_transactions->[$t]{sector} = $dbrow[$tl_index{sector}];
+    $p_parsed_transactions->[$t]{date} = $open_date;
+    $p_parsed_transactions->[$t]{purchase} = $dbrow[$tl_index{open_price}];
+    $p_parsed_transactions->[$t]{qty} = $dbrow[$tl_index{shares}];
+    $p_parsed_transactions->[$t]{id}  = $dbrow[$tl_index{id}];
+
+    ### Keep track of ports that contain actual positions and total up the cost of open transactions per port.
+    $hash_position_ports{$dbrow[$tl_index{fileportname}]} = 1;
+    $hash_open_totals{$dbrow[$tl_index{fileportname}]} += $dbrow[$tl_index{open_price}] * $dbrow[$tl_index{shares}];
+
+    if (elapsed_days($open_date) == 0) {
+      $p_parsed_transactions->[$t]{label} .= sprintf("_%4d", $dbrow[$tl_index{id}]);
+    }
+    $t++;
+  }
+
+  ### Now grab all the long, open esop transactions and stuff parsed_transactions.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'long') && (descriptor = 'esop') && (NOT closed)) order by fileportname";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $l = 0;
+  my $prev_fpn = '';
+  while (@dbrow = $sth->fetchrow_array()) {
+    if ($dbrow[$tl_index{fileportname}] ne $prev_fpn) {
+      $l = 0;
+      $prev_fpn = $dbrow[$tl_index{fileportname}];
+    }
+    (my $file, my $port) = split(/:/, $dbrow[$tl_index{fileportname}]);
+    my $open_date = $dbrow[$tl_index{open_date}];
+    $p_parsed_transactions->[$t]{file} = $file;
+    $p_parsed_transactions->[$t]{port} = $port;
+    $p_parsed_transactions->[$t]{symbol} = $dbrow[$tl_index{symbol}];
+    $p_parsed_transactions->[$t]{label} = sprintf("SO_%s_%02d", $dbrow[$tl_index{symbol}], $l++);
+    $p_parsed_transactions->[$t]{sector} = $dbrow[$tl_index{sector}];
+    $p_parsed_transactions->[$t]{date} = $open_date;
+    $p_parsed_transactions->[$t]{purchase} = $dbrow[$tl_index{open_price}];
+    $p_parsed_transactions->[$t]{qty} = $dbrow[$tl_index{shares}];
+    $p_parsed_transactions->[$t]{id}  = $dbrow[$tl_index{id}];
+
+    $hash_position_ports{$dbrow[$tl_index{fileportname}]} = 1;
+
+    if (elapsed_days($open_date) == 0) {
+      $p_parsed_transactions->[$t]{label} .= sprintf("_%4d", $dbrow[$tl_index{id}]);
+    }
+    $t++;
+  }
+
+  ### Now grab all the open long/short option transactions and stuff parsed_transactions.
+  $query = "SELECT * FROM transaction_list WHERE ((position in ('long', 'short')) && (descriptor in ('call', 'put')) && (NOT closed))";
+  my $p_options = $dbh->selectall_hashref($query, 'id');
+  my $option_symbol = '';
+  my $descriptor = '';
+  my $expiration = '';
+  my $strike = '';
+  foreach my $id (keys %{$p_options}) {
+    ($p_parsed_transactions->[$t]{file}, $p_parsed_transactions->[$t]{port}) = split(/:/, $p_options->{$id}{fileportname});
+    $p_parsed_transactions->[$t]{sector}     = $p_options->{$id}{sector};
+    $p_parsed_transactions->[$t]{date}       = $p_options->{$id}{open_date};
+    $p_parsed_transactions->[$t]{purchase}   = $p_options->{$id}{open_price};
+    $p_parsed_transactions->[$t]{qty}        = $p_options->{$id}{shares};
+    $p_parsed_transactions->[$t]{sector}     = $p_options->{$id}{sector};
+    $descriptor                         = $p_options->{$id}{descriptor};
+    $expiration                         = $p_options->{$id}{expiration};
+    $strike                             = $p_options->{$id}{strike};
+    $p_parsed_transactions->[$t]{symbol}     = $p_options->{$id}{symbol};
+    $p_parsed_transactions->[$t]{symbol}    .= substr($expiration,2,2);
+    $p_parsed_transactions->[$t]{symbol}    .= substr($expiration,5,2);
+    $p_parsed_transactions->[$t]{symbol}    .= substr($expiration,8,2);
+    $p_parsed_transactions->[$t]{symbol}    .= ($descriptor eq 'call') ? 'C' : 'P';
+    $p_parsed_transactions->[$t]{symbol}    .= sprintf("%05d", int($strike)) . sprintf("%03d", int(($strike - int($strike))* 1000));
+    $p_parsed_transactions->[$t]{label}      = $p_parsed_transactions->[$t]{symbol};
+    $p_parsed_transactions->[$t]{id}         = $id;
+
+    ### Keep track of ports that contain actual positions and total up the cost of open transactions per port.
+    $hash_position_ports{$p_options->{$id}{fileportname}} = 1;
+    $hash_open_totals{$p_options->{$id}{fileportname}} += $p_options->{$id}{open_price} * $p_options->{$id}{shares};
+
+    if (elapsed_days($p_options->{$id}{open_date}) == 0) {
+      $p_parsed_transactions->[$t]{label} .= sprintf("_%4d", $id);
+    }
+    $t++;
+  }
+
+  ### Generate a list of all fileportnames in transaction_list and use it to initialize port_params
+  $query = 'SELECT fileportname FROM transaction_list GROUP BY fileportname';
+  my $p_list_ports = $dbh->selectcol_arrayref($query);
+  my $fpn;
+  foreach (@{$p_list_ports}) {
+    $p_port_params->{$_}{cash}           = 0.0;
+    $p_port_params->{$_}{daygain}        = 0.0;
+    $p_port_params->{$_}{invested_total} = 0.0;
+    $p_port_params->{$_}{gain}           = 0.0;
+    $p_port_params->{$_}{basis}          = 0.0;
+    $p_port_params->{$_}{portnum}        = $portnum++;
+    if (! $hash_position_ports{$_}) { push(@{$p_list_cashonly_ports}, $_); }
+  }
+  foreach (@{$p_list_ports}) {
+    $fpn = sprintf("%s_combined", $_);
+    $p_port_params->{$fpn}{cash}           = 0.0;
+    $p_port_params->{$fpn}{daygain}        = 0.0;
+    $p_port_params->{$fpn}{invested_total} = 0.0;
+    $p_port_params->{$fpn}{gain}           = 0.0;
+    $p_port_params->{$fpn}{basis}          = 0.0;
+    $p_port_params->{$fpn}{portnum}        = $portnum++;
+    if (! $hash_position_ports{$_}) { push(@{$p_list_cashonly_ports}, $fpn); }
+  }
+
+  ### Next grab all the cash, initial transactions and stuff port_params{fileportname}{cash}.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'initial'))";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    $p_port_params->{$dbrow[$tl_index{fileportname}]}{cash} = $dbrow[$tl_index{open_price}];
+  }
+
+  ### Using hash_open_totals, reduce the initial cash by the total amount for open positions.
+  foreach $fpn (keys(%hash_open_totals)) {
+    $p_port_params->{$fpn}{cash} -= $hash_open_totals{$fpn};
+  }
+
+  ### Next grab all the cash, intermediate transactions and modify port_params{fileportname}{cash}.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'intermediate'))";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    $p_port_params->{$dbrow[$tl_index{fileportname}]}{cash} += $dbrow[$tl_index{open_price}];
+  }
+
+  ### Next grab all the long/short, closed transactions and modify port_params{fileportname}{cash}.
+  $query = "SELECT * FROM transaction_list WHERE ((position in ('long', 'short')) && (closed))";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $proceeds = 0.0;
+  while (@dbrow = $sth->fetchrow_array()) {
+    $proceeds = ($dbrow[$tl_index{close_price}] - $dbrow[$tl_index{open_price}]) * $dbrow[$tl_index{shares}];
+    $p_port_params->{$dbrow[$tl_index{fileportname}]}{cash} += $proceeds;
+  }
+
+  ### Finally grab all the cash, final transactions, modify port_params{fileportname}{cash}
+  ### and if needed create an intermediate cash transaction to make the numbers work.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'final'))";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    if (abs($p_port_params->{$dbrow[$tl_index{fileportname}]}{cash} - $dbrow[$tl_index{open_price}]) > 0.01) {
+      ### Generate a reconciling intermediate transaction.
+      # TODO
+      ###
+      $p_port_params->{$dbrow[$tl_index{fileportname}]}{cash} = $dbrow[$tl_index{open_price}];
+    }
+  }
+}
+
+
+#########################################################################################
+# print_parsed_transactions
+#   Input parameters:
+#     p_parsed_transactions -- Pointer to the parsed transactions read from input file.
+sub print_parsed_transactions {
+  (my $p_parsed_transactions) = @_;
+  my $i;
+  my $s;
+  my %hash_parsed_transactions_by_id = ();
+
+  if ($main::flag_verbose) { 
+    printf(STDERR "VERBOSE: print_parsed_transactions(): \n");
+    printf(STDERR "VERBOSE:   - The number of parsed transactions = %d\n", scalar(@{$p_parsed_transactions}));
+    for ($i = 0; $i <= $#{$p_parsed_transactions}; $i++) {
+      $s =  sprintf("VERBOSE:   - [%6d],", $i);
+      $s .= sprintf("id=%8d,", $p_parsed_transactions->[$i]{id});
+      $s .= sprintf("file=%s,", $p_parsed_transactions->[$i]{file});
+      $s .= sprintf("port=%s,", $p_parsed_transactions->[$i]{port});
+      $s .= sprintf("date=%s,", $p_parsed_transactions->[$i]{date});
+      $s .= sprintf("purchase=%s,", $p_parsed_transactions->[$i]{purchase});
+      $s .= sprintf("qty=%s,", $p_parsed_transactions->[$i]{qty});
+      $s .= sprintf("symbol=%s,", $p_parsed_transactions->[$i]{symbol});
+      $s .= sprintf("label=%s,", $p_parsed_transactions->[$i]{label});
+      $s .= sprintf("sector=%s,", $p_parsed_transactions->[$i]{sector});
+      $s .= sprintf("\n");
+      $hash_parsed_transactions_by_id{$p_parsed_transactions->[$i]{id}} .= $s;
+    }
+    foreach my $id (sort(keys(%hash_parsed_transactions_by_id))) {
+      printf(STDERR "%s", $hash_parsed_transactions_by_id{$id});
+    }
+    printf(STDERR "VERBOSE: END print_parsed_transactions(): \n");
+  }
+}
+
+
+#########################################################################################
+# print_transaction_report
+#   Input parameters:
+#     p_transaction_report -- Pointer to transaction_report.
+sub print_transaction_report {
+  (my $p_transaction_report) = @_;
+  my $i;
+  my $idx;
+  my $s;
+  my $s1;
+  my %hash_transaction_report = ();
+
+  if ($main::flag_verbose) {
+    printf(STDERR "VERBOSE: print_transaction_report(): \n");
+    printf(STDERR "VERBOSE:   - The number of items in transaction_report = %d\n", scalar(@{$p_transaction_report}));
+    for ($i = 0; $i <= $#{$p_transaction_report}; $i++) {
+      $s  = sprintf("fpn=%s,", $p_transaction_report->[$i]{fileportname});
+      $s .= sprintf("label=%s,", $p_transaction_report->[$i]{label});
+      $s .= sprintf("idx=%s,", $i);
+      $hash_transaction_report{$s} = $i;
+    }
+    foreach $s (sort(keys(%hash_transaction_report))) {
+      $idx = $hash_transaction_report{$s};
+      printf(STDERR "VERBOSE:  - [%6d]", $idx);
+      printf(STDERR "%s", $s);
+      $s1  = sprintf("symbol=%s,", $p_transaction_report->[$idx]{symbol});
+      $s1 .= sprintf("shares=%s,", $p_transaction_report->[$idx]{shares});
+      $s1 .= sprintf("purchase_price=%s,", $p_transaction_report->[$idx]{purchase_price});
+      $s1 .= sprintf("purchase_date=%s,", $p_transaction_report->[$idx]{purchase_date});
+      $s1 .= sprintf("last=%s,", $p_transaction_report->[$idx]{last});
+      $s1 .= sprintf("high=%s,", $p_transaction_report->[$idx]{high});
+      $s1 .= sprintf("low=%s,", $p_transaction_report->[$idx]{low});
+      $s1 .= sprintf("chg=%s,", $p_transaction_report->[$idx]{chg});
+      $s1 .= sprintf("daygain=%s,", $p_transaction_report->[$idx]{daygain});
+      $s1 .= sprintf("gain=%s,", $p_transaction_report->[$idx]{gain});
+      $s1 .= sprintf("basis=%s,", $p_transaction_report->[$idx]{basis});
+      printf(STDERR "%s\n", $s1);
+    }
+    printf(STDERR "VERBOSE: END print_transaction_report(): \n");
+  }
+}
+
+
+#########################################################################################
+# print_dup_transaction_report
+#   Input parameters:
+#     p_transaction_report -- Pointer to transaction_report.
+sub print_dup_transaction_report {
+  (my $p_transaction_report) = @_;
+  my $i;
+  my $s;
+  my $s1;
+  my %hash_transaction_report_unique = ();
+  my %hash_transaction_report_duplicate = ();
+
+  printf(STDERR "VERBOSE: print_dup_transaction_report(): \n");
+  printf(STDERR "VERBOSE:   - The number of items in transaction_report = %d\n", scalar(@{$p_transaction_report}));
+  for ($i = 0; $i <= $#{$p_transaction_report}; $i++) {
+    $s1 = sprintf("VERBOSE:   - [%6d],", $i);
+    $s  = sprintf("label=%s,", $p_transaction_report->[$i]{label});
+    $s .= sprintf("symbol=%s,", $p_transaction_report->[$i]{symbol});
+    $s .= sprintf("fpn=%s,", $p_transaction_report->[$i]{fileportname});
+    $s .= sprintf("shares=%s,", $p_transaction_report->[$i]{shares});
+    $s .= sprintf("purchase_price=%s,", $p_transaction_report->[$i]{purchase_price});
+    $s .= sprintf("purchase_date=%s,", $p_transaction_report->[$i]{purchase_date});
+    if (!$hash_transaction_report_unique{$s}) {
+      $hash_transaction_report_unique{$s} = $i;
+    } else {
+      if (!$hash_transaction_report_duplicate{$s}) { 
+        push(@{$hash_transaction_report_duplicate{$s}}, $hash_transaction_report_unique{$s}); 
+      } else {
+        push(@{$hash_transaction_report_duplicate{$s}}, $i); 
+      }
+    }
+  }
+  foreach my $label (sort(keys(%hash_transaction_report_duplicate))) {
+    printf(STDERR "VERBOSE:  - [");
+    foreach $i (@{$hash_transaction_report_duplicate{$label}}) {
+      printf(STDERR "%d,", $i);
+    }
+    printf(STDERR "],");
+    printf(STDERR "%s\n", $label);
+  }
+  printf(STDERR "VERBOSE: END print_dup_transaction_report(): \n");
+}
+
+
+#########################################################################################
+# create_transaction_report
+#   Input parameters:
+#     p_parsed_transactions -- Pointer to the parsed transactions read from input file.
+#     p_list_cashonly_ports -- Pointer to the list of cash-only ports.
+#     p_port_params         -- Pointer to hash containing port parameters.
+#     p_hash_fq             -- Pointer to hash finance quote info.
+#   Output parameters:
+#     p_transaction_report  -- Pointer to list of hashes containing transaction report data.
+#
+#   Description
+#     There are two passes through the parsed_transactions/options list.  The first pass has 
+#     two objectives:
+#       1) Total each portfolio (according to fileportname) and store in port_params hash.
+#       2) As portfolios are built, create a mirror image portfolio that combines transactions
+#          that involve the same symbol.  These are appended to the parsed_transactions list
+#          as needed and a uniquified fileportname is created for each by appending '_combined'
+#          to the port name.
+#     The second pass through the parsed_transactions/options list has a single objective:
+#       1) Create transaction_report data for each transaction/option in the list.
+sub create_transaction_report {
+  my ($p_parsed_transactions, $p_list_cashonly_ports, $p_port_params, $p_hash_fq, $p_transaction_report) = @_;
+  my $i;
+  my $p_tr_item;
+  my $s;
+  my $l;
+  my $fileportname;
+  my $chg;
+  my $pct_chg;
+  my $daygain;
+  my $gain;
+  my $pct_gain;
+  my $pct_port;
+  my $market_value;
+  my $high;
+  my $low;
+  my $low_52wk;
+  my $high_52wk;
+  my $days_owned;
+  my $sign;
+  my $cagr;
+# my $volume;
+  my $dividend;
+  my $div_yield;
+  my $pe;
+  my $basis;
+  my $num_of_transactions = scalar(@{$p_parsed_transactions});
+  my %hash_fileportsymbolname_to_index;
+  my %fileportsymbolname;
+  my $fileportsymbolname;
+  my $next_index = $num_of_transactions;
+  my %hash_ports;
+  my @list_ports;
+  
+  for ($i = 0; $i < $num_of_transactions; $i++) {
+    $s = $p_parsed_transactions->[$i]{symbol};
+    $l = $p_parsed_transactions->[$i]{label};
+    $fileportname = sprintf("%s:%s", $p_parsed_transactions->[$i]{file}, $p_parsed_transactions->[$i]{port});
+    $fileportsymbolname = $fileportname . ':' . $p_parsed_transactions->[$i]{label};
+    if (! exists($hash_fileportsymbolname_to_index{$fileportsymbolname})) {
+      ### This is the first time the symbol has been referenced for this fileportname.
+      $hash_fileportsymbolname_to_index{$fileportsymbolname} = $next_index;
+      $p_parsed_transactions->[$next_index]{file}     = $p_parsed_transactions->[$i]{file};
+      $p_parsed_transactions->[$next_index]{port}     = $p_parsed_transactions->[$i]{port} . '_combined';
+      $p_parsed_transactions->[$next_index]{date}     = $p_parsed_transactions->[$i]{date};
+      $p_parsed_transactions->[$next_index]{purchase} = $p_parsed_transactions->[$i]{purchase};
+      $p_parsed_transactions->[$next_index]{qty}      = $p_parsed_transactions->[$i]{qty};
+      $p_parsed_transactions->[$next_index]{symbol}   = $p_parsed_transactions->[$i]{symbol};
+      $p_parsed_transactions->[$next_index]{label}    = $p_parsed_transactions->[$i]{label};
+      $p_parsed_transactions->[$next_index]{sector}   = $p_parsed_transactions->[$i]{sector};
+      $p_parsed_transactions->[$next_index]{id}       = $p_parsed_transactions->[$i]{id};
+      $next_index++;
+    } else {
+      ### Already seen this symbol for fileportname, so combine the transaction.
+      ### Do this in three parts:
+      ###   o Calculate the current combined basis (current qty * current purchase price)
+      ###   o Add to that the transaction basis (transaction qty * transaction price)
+      ###   o Divide by the sum of the qtys.
+      if ($main::flag_debug) { printf(STDERR "DEBUG: create_transaction_report() - DIV0 check, fileportsymbolname:<%s>, i:<%d>\n", $fileportsymbolname, $i); }
+      $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{purchase} *= $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{qty};
+      $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{purchase} += ($p_parsed_transactions->[$i]{purchase} * $p_parsed_transactions->[$i]{qty});
+      $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{purchase} /= ($p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{qty} + $p_parsed_transactions->[$i]{qty});
+      ### Then add in the transaction qty to the current combined qty.
+      $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{qty} += $p_parsed_transactions->[$i]{qty};
+      if (elapsed_days($p_parsed_transactions->[$i]{date}) > elapsed_days($p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{date})) {
+        ### This particular purchase is earlier than the current combined purchase, so:
+        ###   o Set the purchase date to that of this transactions (ie. keep the oldest date).
+        $p_parsed_transactions->[$hash_fileportsymbolname_to_index{$fileportsymbolname}]{date} = $p_parsed_transactions->[$i]{date};
+      }
+    }
+
+    ### Add fileportname to list_ports.
+    if (! $hash_ports{$fileportname}) {
+      $hash_ports{$fileportname} = $TRUE;
+      push(@list_ports, $fileportname);
+    }
+
+    ### The assumption is that port_params has been zeroed out prior to entering this function.
+    ### Take into account so_ option tracking.
+    if ($l =~ /^SO_/) {
+      if ($p_hash_fq->{$s}{last} >= $p_parsed_transactions->[$i]{purchase}) {
+        $p_port_params->{$fileportname}{total} += (($p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase}) * $p_parsed_transactions->[$i]{qty});
+      }
+    } else {
+      if (defined $p_hash_fq->{$s}{last}) {
+        $p_port_params->{$fileportname}{total} += ($p_hash_fq->{$s}{last} * $p_parsed_transactions->[$i]{qty});
+      }
+    }
+    $p_port_params->{$fileportname . '_combined'}{total} = $p_port_params->{$fileportname}{total};
+  }
+
+  ### Before continuing to set totals for all ports, make sure that cashonly ports (base_fpn) are added to @list_ports
+  foreach $fileportname (@{$p_list_cashonly_ports}) {
+    if ($fileportname =~ /_combined$/) { next; }
+    push(@list_ports, $fileportname);
+  }
+  ### Add in the cash position for each fileportname to the total in port_params.
+  foreach $fileportname (@list_ports) {
+    $p_port_params->{$fileportname}{total} += $p_port_params->{$fileportname}{cash};
+    $p_port_params->{$fileportname . '_combined'}{total} += $p_port_params->{$fileportname}{cash};
+    $p_port_params->{$fileportname . '_combined'}{cash} = $p_port_params->{$fileportname}{cash};
+  }
+
+  ### Add in the cash position for each cash-only fileportname to the total in port_params.
+  ### Note that cash-only ports were not properly initialized, hence can set 'total' value to 'cash'.
+  foreach $fileportname (@{$p_list_cashonly_ports}) {
+    $p_port_params->{$fileportname}{total} = $p_port_params->{$fileportname}{cash};
+    $p_port_params->{$fileportname}{pct_daygain} = 0;
+    $p_port_params->{$fileportname}{pct_gain} = 0;
+    $p_port_params->{$fileportname}{pct_invested} = 0;
+  }
+
+  for ($i = 0; $i < scalar(@{$p_parsed_transactions}); $i++) {
+    $s = $p_parsed_transactions->[$i]{symbol};
+    $l = $p_parsed_transactions->[$i]{label};
+    unless (defined($p_hash_fq->{$s}{last})) {
+      ### Since $p_hash_fq does not have valid quote data for this symbol, use reasonable values.
+      printf(STDERR "WARNING: %s: Quote info for <%s> is not available.\n", $main::script_name, $s);
+      $p_hash_fq->{$s}{ask}             = 0.0;
+      $p_hash_fq->{$s}{avg_vol}         = 0;
+      $p_hash_fq->{$s}{bid}             = 0.0;
+      $p_hash_fq->{$s}{cap}             = 0;
+      $p_hash_fq->{$s}{close}           = 0.0;
+      $p_hash_fq->{$s}{date}            = '';
+      $p_hash_fq->{$s}{day_range}       = '0.0 - 0.0';
+      $p_hash_fq->{$s}{div_date}        = '';
+      $p_hash_fq->{$s}{div_yield}       = 0.0;
+      $p_hash_fq->{$s}{dividend}        = 0.0;
+      $p_hash_fq->{$s}{eps}             = 0.0;
+      $p_hash_fq->{$s}{errormsg}        = 'BLANK';
+      $p_hash_fq->{$s}{ex_div}          = '';
+      $p_hash_fq->{$s}{exchange}        = undef;
+      $p_hash_fq->{$s}{high}            = 0.0;
+      $p_hash_fq->{$s}{last}            = 0.0;
+      $p_hash_fq->{$s}{low}             = 0.0;
+      $p_hash_fq->{$s}{method}          = 'blank';
+      $p_hash_fq->{$s}{name}            = $s;
+      $p_hash_fq->{$s}{nav}             = 0.0;
+      $p_hash_fq->{$s}{net}             = 0.0;
+      $p_hash_fq->{$s}{open}            = 0.0;
+      $p_hash_fq->{$s}{p_change}        = 0.0;
+      $p_hash_fq->{$s}{pe}              = 0.0;
+      $p_hash_fq->{$s}{success}         = 0;
+      $p_hash_fq->{$s}{time}            = '';
+      $p_hash_fq->{$s}{volume}          = 0;
+      $p_hash_fq->{$s}{year_range}      = '0.0 - 0.0';
+      $p_hash_fq->{$s}{yield}           = 0.0;
+    }
+    $fileportname = sprintf("%s:%s", $p_parsed_transactions->[$i]{file}, $p_parsed_transactions->[$i]{port});
+    $days_owned = elapsed_days($p_parsed_transactions->[$i]{date});
+    $sign = ($p_parsed_transactions->[$i]{qty} < 0) ? -1.0 : 1.0;
+    if ($days_owned == 0) {
+      $chg = ($p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase}) * $sign;
+      $pct_chg = (100.0 * ($chg / $p_parsed_transactions->[$i]{purchase}));
+    } else {
+      $chg = ($p_hash_fq->{$s}{last} - $p_hash_fq->{$s}{close}) * $sign;
+      $pct_chg = 0.0;
+      if ($p_hash_fq->{$s}{close} > 0.0) {
+        $pct_chg = (100.0 * ($chg / $p_hash_fq->{$s}{close}));
+      }
+    }
+    $daygain = ($chg * $p_parsed_transactions->[$i]{qty}) * $sign;
+    $gain = ($p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase}) * $p_parsed_transactions->[$i]{qty};
+    $basis = ($p_parsed_transactions->[$i]{purchase} * $p_parsed_transactions->[$i]{qty});
+    $pct_gain = (100.0 * ($gain / abs($basis)));
+    $market_value = ($p_hash_fq->{$s}{last} * $p_parsed_transactions->[$i]{qty});
+    ### Take into account SO_ option tracking.
+    if ($p_parsed_transactions->[$i]{label} =~ /^SO_/) {
+      $market_value = (($p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase}) * $p_parsed_transactions->[$i]{qty});
+      if ($gain < 0.0) {
+        $daygain      = 0.0;
+        $pct_chg      = 0.0;
+        $gain         = 0.0;
+        $pct_gain     = 0.0;
+        $market_value = 0.0;
+        $basis        = 0.0;
+      } else {
+        $market_value = (($p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase}) * $p_parsed_transactions->[$i]{qty});
+        $basis = 0;
+        if ($p_parsed_transactions->[$i]{purchase} < $p_hash_fq->{$s}{close}) {
+          ### This is the case where the option started the day in the money.
+          $chg = $p_hash_fq->{$s}{last} - $p_hash_fq->{$s}{close};
+          $pct_chg = (100.0 * ($chg / ($p_hash_fq->{$s}{close} - $p_parsed_transactions->[$i]{purchase})));
+          $daygain = $chg * $p_parsed_transactions->[$i]{qty};
+          $pct_gain = 9999.9;
+        } else {
+          ### This is the case where the option started the day out of the money.
+          $chg = $p_hash_fq->{$s}{last} - $p_parsed_transactions->[$i]{purchase};
+          $pct_chg = 9999.9;
+          $daygain = $chg * $p_parsed_transactions->[$i]{qty};
+          $pct_gain = 9999.9;
+        }
+      }
+    }
+    $pct_port = 0.0;
+    if ($p_port_params->{$fileportname}{total} > 0.0) {
+      $pct_port = (100.0 * ($market_value / $p_port_params->{$fileportname}{total}));
+    }
+    $high = (defined($p_hash_fq->{$s}{high})) ? $p_hash_fq->{$s}{high} : 0.0;
+    $low =  (defined($p_hash_fq->{$s}{low}))  ? $p_hash_fq->{$s}{low}  : 0.0;
+    if (! defined($p_hash_fq->{$s}{year_range})) { $p_hash_fq->{$s}{year_range} = "0.00 - 0.00"; }
+    $p_hash_fq->{$s}{year_range} =~ s/\'//g;
+    ($low_52wk, $high_52wk) = split(/ - /, $p_hash_fq->{$s}{year_range});
+    $low_52wk =  ($low_52wk  eq 'N/A') ? 0.0 : $low_52wk;
+    $high_52wk = ($high_52wk eq 'N/A') ? 0.0 : $high_52wk;
+    $cagr = 0.0;
+    my $fq_last = $p_hash_fq->{$s}{last};
+    if ($days_owned > 0) {
+      if ($sign > 0.0) {
+        $cagr = (($p_hash_fq->{$s}{last} / $p_parsed_transactions->[$i]{purchase}) ** (1.0 / ($days_owned / 365.0)) - 1.0) * 100.0;
+      } else {
+        $cagr = ($fq_last > 0.10) ? ((($p_parsed_transactions->[$i]{purchase} / $fq_last) ** (1.0 / ($days_owned / 365.0)) - 1.0) * 100.0) : 0.0;
+      }
+    }
+
+#   $volume = defined($p_hash_fq->{$s}{volume}) ? ($p_hash_fq->{$s}{volume} / 1000.0) : 0.0;
+    $dividend = defined($p_hash_fq->{$s}{div}) ? $p_hash_fq->{$s}{div} : 0.0;
+    $div_yield = defined($p_hash_fq->{$s}{div_yield}) ? $p_hash_fq->{$s}{div_yield} : 0.0;
+
+    $pe = $p_hash_fq->{$s}{pe};
+    if (! (defined $pe)) {
+      $pe = 0.0;
+    }
+
+    $p_tr_item = {
+      'fileportname'       => $fileportname,
+      'filename'           => $p_parsed_transactions->[$i]{file},
+      'portname'           => $p_parsed_transactions->[$i]{port},
+      'symbol'             => $s,
+      'label'              => $p_parsed_transactions->[$i]{label},
+      'name'               => $p_hash_fq->{$s}{name},
+      'sector'             => $p_parsed_transactions->[$i]{sector},
+      'shares'             => $p_parsed_transactions->[$i]{qty},
+      'purchase_price'     => $p_parsed_transactions->[$i]{purchase},
+      'purchase_date'      => $p_parsed_transactions->[$i]{date},
+      'last'               => $p_hash_fq->{$s}{last},
+      'high'               => $high,
+      'hilo_pct'           => midpointer($high, $low, $p_hash_fq->{$s}{last}),
+      'low'                => $low,
+      'chg'                => $chg,
+      'pct_chg'            => $pct_chg,
+      'market_value'       => $market_value,
+      'daygain'            => $daygain,
+      'gain'               => $gain,
+      'pct_gain'           => $pct_gain,
+      'pct_port'           => $pct_port,
+      'days_owned'         => $days_owned,
+      'basis'              => $basis,
+#     'volume'             => $volume,
+      'volume'             => $p_hash_fq->{$s}{volume},
+      'avg_vol'            => $p_hash_fq->{$s}{avg_vol},
+      'close'              => $p_hash_fq->{$s}{close},
+      'open'               => $p_hash_fq->{$s}{open},
+      'high_52wk'          => $high_52wk,
+      'hilo_52wk_pct'      => midpointer($high_52wk, $low_52wk, $p_hash_fq->{$s}{last}),
+      'low_52wk'           => $low_52wk,
+      'eps'                => $p_hash_fq->{$s}{eps},
+      'pe'                 => $pe,
+      'dividend'           => $dividend,
+      'div_yield'          => $div_yield,
+      'ex_div'             => $p_hash_fq->{$s}{ex_div},
+      'cap'                => $p_hash_fq->{$s}{cap},
+      'cagr'               => $cagr,
+    };
+    $p_transaction_report->[$i] = $p_tr_item;
+
+    ### Add fileportname to list_ports.
+    if (! $hash_ports{$fileportname}) {
+      $hash_ports{$fileportname} = $TRUE;
+      push(@list_ports, $fileportname);
+    }
+
+    ### The assumption is that port_params fields were zeroed out prior to entering this function.
+    $p_port_params->{$fileportname}{daygain} += $daygain;
+    $p_port_params->{$fileportname}{invested_total} += $market_value;
+    $p_port_params->{$fileportname}{gain} += $gain;
+    $p_port_params->{$fileportname}{basis} += $basis;
+  }
+
+  ### Calculate percentages for port_params.
+  ###################################
+  # Below is a good place to look for
+  # DIV0 errors.
+  ###################################
+  foreach $fileportname (@list_ports) {
+    ###################################
+    # I'm going to explicitly look for
+    # potential DIV0 errors and force
+    # 0.01 in the divisor to make it
+    # obvious that a problem occurred
+    # without killing the script.
+    ###################################
+    if ($p_port_params->{$fileportname}{total} < 0.01) { $p_port_params->{$fileportname}{total} = 0.01; }
+    if ($p_port_params->{$fileportname}{basis} < 0.01) { $p_port_params->{$fileportname}{basis} = 0.01; }
+
+    if (($p_port_params->{$fileportname}{total} - $p_port_params->{$fileportname}{daygain}) > 0.5) {
+      $p_port_params->{$fileportname}{pct_daygain} = (100.0 * $p_port_params->{$fileportname}{daygain}) / ($p_port_params->{$fileportname}{total} - $p_port_params->{$fileportname}{daygain});
+    } else {
+      ### Special case for options where first one comes into the money.
+      if ($p_port_params->{$fileportname}{daygain} > 0.0) {
+        $p_port_params->{$fileportname}{pct_daygain} = 9999.90;
+      } else {
+        $p_port_params->{$fileportname}{pct_daygain} = 0.0;
+      }
+    }
+    if ($p_port_params->{$fileportname}{basis} > 0.01) {
+      $p_port_params->{$fileportname}{pct_gain} = (100.0 * $p_port_params->{$fileportname}{gain}) / ($p_port_params->{$fileportname}{basis});
+    } else {
+      ### Special case for options.
+      if ($p_port_params->{$fileportname}{gain} > 0.0) {
+        $p_port_params->{$fileportname}{pct_gain} = 9999.90;
+      } else {
+        $p_port_params->{$fileportname}{pct_gain} = 0.0;
+      }
+    }
+    $p_port_params->{$fileportname}{pct_invested} = 0.0;
+    if ($p_port_params->{$fileportname}{total} > 1.0) {
+      $p_port_params->{$fileportname}{pct_invested} = (100.0 * $p_port_params->{$fileportname}{invested_total}) / ($p_port_params->{$fileportname}{total});
+    }
+  }
+}
+
+#########################################################################################
+# execute_query_transaction_report
+#   Two parameters are passed in:
+#     p_tr_entry -- pointer to transaction_report list entry (hash).
+#     p_qh -- handle to the DBI query.
+#     
+sub execute_query_transaction_report {
+  my ($p_tr_entry, $p_qh) = @_;
+  my $seconds;
+  my $purchase_date;
+
+  $seconds = parsedate(sprintf("%s", $p_tr_entry->{purchase_date}));
+  $purchase_date = strftime("%Y-%m-%d", localtime($seconds));
+
+  my @insert_list = ();
+  foreach my $col (@main::db_cols_transaction_report) {
+    if ($col eq 'id') {
+      #push(@insert_list, 'NULL');
+      push(@insert_list, 0);
+    } elsif ($col eq 'purchase_date') {
+      push(@insert_list, $purchase_date);
+    } else {
+      push(@insert_list, $p_tr_entry->{$col})
+    }
+  }
+  return($p_qh->execute(@insert_list));
+}
+
+#########################################################################################
+# execute_query_port_param
+#   Three parameters are passed in:
+#     key -- key used to access port_param hash
+#     p_pp -- pointer to port_params hash.
+#     p_qh -- handle to the DBI query.
+#     
+sub execute_query_port_param {
+  my ($key, $p_pp, $p_qh) = @_;
+
+  return($p_qh->execute(
+    0,
+    $key,
+    $p_pp->{$key}{cash},
+    $p_pp->{$key}{total},
+    $p_pp->{$key}{pct_daygain},
+    $p_pp->{$key}{daygain},
+    $p_pp->{$key}{invested_total},
+    $p_pp->{$key}{pct_gain},
+    $p_pp->{$key}{gain},
+    $p_pp->{$key}{pct_invested},
+    $p_pp->{$key}{basis},
+    $p_pp->{$key}{portnum},
+  ));
+}
+
+#########################################################################################
+# execute_query_port_history
+#   Three parameters are passed in:
+#     key -- key used to access port_param hash
+#     p_pp -- pointer to port_params hash.
+#     p_qh -- handle to the DBI query.
+#     
+sub execute_query_port_history {
+  my ($key, $p_pp, $p_qh) = @_;
+
+  return($p_qh->execute(
+    0,
+    $quote_date,
+    $key,
+    $p_pp->{$key}{total},
+    $p_pp->{$key}{cash},
+  ));
+}
+
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+our $num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+our $time_stamp = parsedate('now');
+our $end_seconds;
+our $delay_seconds = 0;
+our $flag_debug = $FALSE;
+our $flag_verbose = $FALSE;
+our $opt_aq = '';
+our $opt_end = 'now + 1 second';
+our $opt_wait = 15;
+our $flag_skipmktchk = $FALSE;
+our $flag_eod = $FALSE;
+our $arg;
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') { usage; exit(0); }
+  if ($arg eq '--version') { printf(STDERR "%s v%s\n", $script_name, $script_ver); exit(0); }
+  if ($arg eq '--debug') { $flag_debug = $TRUE; next; }
+  if ($arg eq '--verbose') { $flag_verbose = $TRUE; next; }
+  if ($arg eq '--aq') { $opt_aq = shift; next; }
+  if ($arg eq '--end') { $opt_end = shift; next; }
+  if ($arg eq '--wait') { $opt_wait = shift; next; }
+  if ($arg eq '--skipmktchk') { $flag_skipmktchk = $TRUE; next; }
+  if ($arg eq '--eod') { $flag_eod = $TRUE; next; }
+}
+
+if ($opt_aq && ($opt_aq ne 'yahoo') && ($opt_aq ne 'google')) {
+  printf("ERROR: Bad argument <--aq %s> if specified, must be [yahoo|google].\n", $opt_aq);
+  exit(1);
+}
+if (! ($end_seconds = parsedate($opt_end))) {
+  printf("WARNING: Unable to parse <--end %s>, set to 'now + 1 second'\n", $opt_end);
+  $opt_end = 'now + 1 second';
+}
+if ($opt_wait < 1) {
+  printf("WARNING: Bad argument <--wait %s>, set to default 15 seconds.\n", $opt_wait);
+  $opt_wait = 15;
+}
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+### Declarations
+our $i;
+our @raw_transactions;
+our @parsed_transactions;
+our %port_params;
+our @list_cashonly_ports;
+our @transaction_report;
+our %hash_fq;
+our @list_fq_fields;
+our $p_tr_entry;
+our $result;
+our $key;
+
+### Create a constant arrays containing database column names.
+Readonly our @db_cols_transaction_report => (
+  'id',
+  'fileportname',
+  'filename',
+  'portname',
+  'symbol',
+  'label',
+  'name',
+  'sector',
+  'shares',
+  'purchase_price',
+  'purchase_date',
+  'last',
+  'high',
+  'hilo_pct',
+  'low',
+  'chg',
+  'pct_chg',
+  'market_value',
+  'daygain',
+  'gain',
+  'pct_gain',
+  'pct_port',
+  'days_owned',
+  'basis',
+  'volume',
+  'avg_vol',
+  'close',
+  'open',
+  'high_52wk',
+  'hilo_52wk_pct',
+  'low_52wk',
+  'eps',
+  'pe',
+  'dividend',
+  'div_yield',
+  'ex_div',
+  'cap',
+  'cagr',
+);
+
+### Build LOCK/UNLOCK TABLES queries and handles for transaction_report
+our $lock_handle_transaction_report;
+our $lock_query_transaction_report = 'LOCK TABLES transaction_report WRITE';
+our $unlock_handle_transaction_report;
+our $unlock_query_transaction_report = 'UNLOCK TABLES';
+
+### Build TRUNCATE query and handle for port_param
+our $truncate_handle_port_param;
+our $truncate_query_port_param = 'TRUNCATE TABLE port_param';
+
+### Build DELETE query for transaction_report
+our $delete_handle_transaction_report;
+our $delete_query_transaction_report = 'DELETE FROM transaction_report';
+
+### Build INSERT query for transaction_report table
+our $insert_handle_transaction_report;
+our $insert_query_transaction_report = 'INSERT INTO transaction_report (';
+our $query_tail = '';
+for ($i = 0; $i <= $#db_cols_transaction_report; $i++) {
+  $insert_query_transaction_report .= sprintf("%s,", $db_cols_transaction_report[$i]);
+  $query_tail .= '?,';
+}
+chop($insert_query_transaction_report);
+chop($query_tail);
+$insert_query_transaction_report .= ') VALUES (';
+$insert_query_transaction_report .= $query_tail;
+$insert_query_transaction_report .= ')';
+
+### Build INSERT query for port_param table
+our $insert_handle_port_param;
+our $insert_query_port_param = 'INSERT INTO port_param (id,fileportname,cash,total,pct_daygain,daygain,invested_total,pct_gain,gain,pct_invested,basis,portnum) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)';
+
+### Build DELETE query for port_history table
+our $delete_handle_port_history;
+our $delete_query_port_history = "DELETE FROM port_history WHERE (date = 'xxx')";
+
+### Build INSERT query for port_history table
+our $insert_handle_port_history;
+our $insert_query_port_history = 'INSERT INTO port_history (id,date,fileportname,total,cash) VALUES (?,?,?,?,?)';
+
+### Connect to database.
+$dbh = DBI->connect('dbi:mysql:track_port', 'blreams') or die "ERROR: Connection error: $DBI::errstr\n";
+$dbh->{AutoCommit} = 0;
+$insert_handle_transaction_report = $dbh->prepare_cached($insert_query_transaction_report);
+die "ERROR: Could not prepare transaction_report insert query, aborting.\n" unless defined $insert_handle_transaction_report;
+$insert_handle_port_param = $dbh->prepare_cached($insert_query_port_param);
+die "ERROR: Could not prepare port_param insert query, aborting.\n" unless defined $insert_handle_port_param;
+$insert_handle_port_history = $dbh->prepare_cached($insert_query_port_history);
+die "ERROR: Could not prepare port_history insert query, aborting.\n" unless defined $insert_handle_port_history;
+
+# Check for holiday
+if (!$flag_skipmktchk && market_closed()) { 
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Aborting, market closed...\n", (parsedate('now')-$time_stamp)); }
+  exit(0); 
+}
+
+our $valid_fq_data = $FALSE;
+our $first_loop = $TRUE;
+do { ### Made this change to keep it from running twice when --end not specified
+  if ($delay_seconds) { sleep($delay_seconds); $delay_seconds = 0; }
+  if (! $first_loop) { 
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Waiting...\n", (parsedate('now')-$time_stamp)); }
+    sleep($opt_wait); 
+  }
+
+# ### Delete rows from put_stats older than one month.
+# if ($first_loop) {
+#   our $date_thirty_days_ago = strftime("%Y-%m-%d", (localtime(parsedate('now') - (30 * 24 * 3600))));
+#   $delete_query_put_stats =~ s/xxx/$date_thirty_days_ago/;
+#   $delete_handle_put_stats = $dbh->do($delete_query_put_stats);
+# }
+
+  ### Parse the transactions and create list of symbols.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Parsing DB transaction_list.\n", (parsedate('now')-$time_stamp)); }
+  db_parse_transactions(\@parsed_transactions, \%port_params, \@list_cashonly_ports);
+    
+  ### Get finance_quote data from DB.
+  $dbh->{AutoCommit} = 1;
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Turned on AutoCommit.\n", (parsedate('now')-$time_stamp)); }
+  $valid_fq_data = $FALSE;
+  while (! $valid_fq_data) {
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Creating hash containing finance::quote data.\n", (parsedate('now')-$time_stamp)); }
+    build_fq_hash(\@list_fq_fields, \%hash_fq);
+    if (defined $hash_fq{'^GSPC'}{date}) {
+      if ($flag_verbose) { printf(STDERR "NOTE: %d -- Found valid F::Q data in DB.\n", (parsedate('now')-$time_stamp)); }
+      $valid_fq_data = $TRUE;
+    } else {
+      if ($flag_verbose) { printf(STDERR "WARN: %d -- Did not find valid F::Q data in DB, sleeping 60s.\n", (parsedate('now')-$time_stamp)); }
+      sleep(60);
+    }
+  }
+  $dbh->{AutoCommit} = 0;
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Turned off AutoCommit.\n", (parsedate('now')-$time_stamp)); }
+  $quote_date = strftime("%Y-%m-%d", localtime(parsedate(sprintf("%s %s", $hash_fq{'^GSPC'}{date}, $hash_fq{'^GSPC'}{time}))));
+
+  ### Create transaction info for each transaction.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Initializing transaction report container.\n", (parsedate('now')-$time_stamp)); }
+  @transaction_report = ();  # I believe this prevents the buildup of "duplicate" transactions.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Creating transaction report info.\n", (parsedate('now')-$time_stamp)); }
+  create_transaction_report(\@parsed_transactions, \@list_cashonly_ports, \%port_params, \%hash_fq, \@transaction_report);
+    ###################################################################
+    # There was a problem with the above function call when good_fetch
+    # used alternate quote and get_a_quote returned 0.00 for last 
+    # price (2nd returned parameter).  This caused DIV0 error that
+    # killed the script.
+    ###################################################################
+
+  if ($flag_eod) { print_parsed_transactions(\@parsed_transactions); }
+  if ($flag_eod) { print_transaction_report(\@transaction_report); }
+
+  ### This is checking for duplicates in transaction report for debugging purposes.
+  if ($flag_verbose) { print_dup_transaction_report(\@transaction_report); }
+
+    
+  ######################################## Start DB operations ###################################################
+  ################################
+  ### transaction_report table ###
+  ################################
+  ### Lock the transaction_report table.
+  ### 1.9 - I added this code, but it doesn't work because of a bug in mysql that doesn't allow truncating
+  ### 1.9 - a locked table.  Leaving the lock and unlock commented for now.
+  ### 1.10 - It works once I replaced truncate w/ delete.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Locking transaction_report table.\n", (parsedate('now')-$time_stamp)); }
+  $lock_handle_transaction_report = $dbh->do($lock_query_transaction_report);
+
+  ### Delete the old transactions.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Deleting existing transaction_report table.\n", (parsedate('now')-$time_stamp)); }
+  $delete_handle_transaction_report = $dbh->do($delete_query_transaction_report);
+
+  ### Insert current transactions.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing insert queries on transaction_report table.\n", (parsedate('now')-$time_stamp)); }
+  our $success = $TRUE;
+  foreach $p_tr_entry (@transaction_report) {
+    $success &&= execute_query_transaction_report($p_tr_entry, $insert_handle_transaction_report);
+    if (! $success) {
+      printf(STDERR "Somthing bad happened, check %s...", $p_tr_entry->{'symbol'});
+      $success = $TRUE;
+    }
+  }
+
+  ### Commit transaction info.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Committing inserts to transaction_report table.\n", (parsedate('now')-$time_stamp)); }
+  $result = ($success ? $dbh->commit : $dbh->rollback);
+
+  ### Unlock the transaction_report database.
+  ### 1.9 - I added this code, but it doesn't work because of a bug in mysql that doesn't allow truncating
+  ### 1.9 - a locked table.  Leaving the lock and unlock commented for now.
+  ### 1.10 - It works once I replaced truncate w/ delete.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Unlocking transaction_report table.\n", (parsedate('now')-$time_stamp)); }
+  $unlock_handle_transaction_report = $dbh->do($unlock_query_transaction_report);
+
+  ########################
+  ### port_param table ###
+  ########################
+  ### Lock the port_param table.
+    # This is probably not needed, skipping for now.
+
+  ### Delete the old port_params.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Truncating existing port_param table.\n", (parsedate('now')-$time_stamp)); }
+  $truncate_handle_port_param = $dbh->do($truncate_query_port_param);
+
+  ### Insert current port_params.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing insert queries on port_param table.\n", (parsedate('now')-$time_stamp)); }
+  $success = $TRUE;
+  foreach $key (keys %port_params) {
+    $success &&= execute_query_port_param($key, \%port_params, $insert_handle_port_param);
+  }
+
+  ### Commit transaction info.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Committing inserts to port_param table.\n", (parsedate('now')-$time_stamp)); }
+  $result = ($success ? $dbh->commit : $dbh->rollback);
+
+  ### Unlock the port_param database.
+    # Since we didn't lock, no need to unlock for now.
+
+  ##########################
+  ### port_history table ###
+  ##########################
+  $today_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+  if ($quote_date eq $today_date) {   ### Only do port_history if quote date matches today's date.
+    ### Lock the port_history table.
+      # This is probably not needed, skipping for now.
+  
+    ### Delete the old transactions.
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Deleting entries in port_history dated <%s>.\n", (parsedate('now')-$time_stamp), $quote_date); }
+    $delete_query_port_history =~ s/xxx/$quote_date/;
+    $delete_handle_port_history = $dbh->do($delete_query_port_history);
+  
+    ### Insert current port_params.
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing insert queries on port_history table.\n", (parsedate('now')-$time_stamp)); }
+    $success = $TRUE;
+    foreach $key (keys %port_params) {
+      if ($key =~ /_combined/) { next; }
+      $success &&= execute_query_port_history($key, \%port_params, $insert_handle_port_history);
+    }
+  
+    ### Commit transaction info.
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Committing inserts to port_history table.\n", (parsedate('now')-$time_stamp)); }
+    $result = ($success ? $dbh->commit : $dbh->rollback);
+  
+    ### Unlock the port_param database.
+      # Since we didn't lock, no need to unlock for now.
+  } else {
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Skipped port_history updates quote <%s> today <%s>.\n", (parsedate('now')-$time_stamp), $quote_date, $today_date); }
+  }
+
+  ### Below is loop maintenance stuff, checking time, remaining seconds, etc.
+  $first_loop = $FALSE;
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Remaining seconds <%d>\n", (parsedate('now')-$time_stamp), ((($end_seconds - parsedate('now')) >= 0) ? ($end_seconds - parsedate('now')) : 0)); }
+} while (($end_seconds - parsedate('now')) >= $opt_wait); ### Made this change to keep it from running twice when --end not specified
+
+$dbh->disconnect;
+our $junk = 1;

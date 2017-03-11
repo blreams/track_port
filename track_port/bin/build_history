@@ -1,0 +1,771 @@
+#!/usr/bin/env perl
+# Copyright 2011 BLR.
+# All rights reserved.
+# This is unpublished, confidential BLR proprietary
+# information.  Do not reproduce without written permission.
+#
+# file:         build_history
+#
+# description:
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 12/23/11  1.0             initial
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+use strict;
+use warnings;
+use Readonly;
+
+require LWP::UserAgent;
+use Time::CTime;
+use Date::Calc qw(Delta_Days Add_Delta_Days);
+use Time::ParseDate;
+use DBI;
+
+our $script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+our $script_ver = '1.0';
+our $min_args = 2;
+our $max_args = 10;
+
+sub usage {
+  printf(STDERR "\n");
+  printf(STDERR "USAGE: $script_name  [--help] [--version] [--debug] [--verbose] --cashoverride --fpn fpn --start start --end end \n");
+  printf(STDERR "USAGE:   [--help]          - help information\n");
+  printf(STDERR "USAGE:   [--version]       - version information\n");
+  printf(STDERR "USAGE:   [--debug]         - print debug messages\n");
+  printf(STDERR "USAGE:   [--verbose]       - print verbose messages\n");
+  printf(STDERR "USAGE:   [--override]      - use script output to override existing port_history cash and total\n");
+  printf(STDERR "USAGE:   [--cashoverride]  - use script output to override existing port_history cash and total (total based on cash diff)\n");
+  printf(STDERR "USAGE:   [--totaloverride] - use script output to override existing port_history total\n");
+  printf(STDERR "USAGE:   [--force]         - delete any existing port_history entries in date range and insert generated ones.\n");
+  printf(STDERR "USAGE:   --fpn fpn         - specify fileportname\n");
+  printf(STDERR "USAGE:   --start start     - start date\n");
+  printf(STDERR "USAGE:   --end end         - end_date\n");
+  printf(STDERR "\n");
+}
+
+#-----------------------------------------------------------------------------
+# Assign constants
+#-----------------------------------------------------------------------------
+Readonly our $FALSE => 0;
+Readonly our $TRUE  => 1;
+Readonly our $DB_DATE_FMT => '%Y-%m-%d';
+#Readonly our $secs_per_day => 24 * 60 * 60;
+Readonly our $STRFTIME_YESTERDAY => strftime($DB_DATE_FMT, localtime(parsedate('yesterday')));
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+our $num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+our $flag_help = $FALSE;
+our $flag_version = $FALSE;
+our $flag_debug = $FALSE;
+our $flag_verbose = $FALSE;
+our $flag_override = $FALSE;
+our $flag_cashoverride = $FALSE;
+our $flag_totaloverride = $FALSE;
+our $flag_force = $FALSE;
+our $opt_fpn = '';
+our $opt_start = '';
+our $opt_end = '';
+our $arg;
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') { usage; exit(0); }
+  if ($arg eq '--version') { printf(STDERR "%s v%s\n", $script_name, $script_ver); exit(0); }
+  if ($arg eq '--debug') { $flag_debug = $TRUE; next; }
+  if ($arg eq '--verbose') { $flag_verbose = $TRUE; next; }
+  if ($arg eq '--override') { $flag_override = $TRUE; next; }
+  if ($arg eq '--cashoverride') { $flag_cashoverride = $TRUE; next; }
+  if ($arg eq '--totaloverride') { $flag_totaloverride = $TRUE; next; }
+  if ($arg eq '--force') { $flag_force = $TRUE; next; }
+  if ($arg eq '--fpn') { $opt_fpn = shift; next; }
+  if ($arg eq '--start') { $opt_start = shift; next; }
+  if ($arg eq '--end') { $opt_end = shift; next; }
+}
+
+if (! $opt_fpn) { printf("ERROR: Missing required argument <--fpn>\n"); exit(1); }
+
+our $start_db_date;
+our $end_db_date;
+if ($opt_start) {
+  $start_db_date = strftime($DB_DATE_FMT, localtime(parsedate($opt_start)));
+}
+if ($opt_end) {
+  $end_db_date = strftime($DB_DATE_FMT, localtime(parsedate($opt_end)));
+}
+
+if ($opt_start && $opt_end) {
+  if ($end_db_date lt $start_db_date) {
+    printf(STDERR "ERROR: Start date must not be later than end date.\n");
+    exit(1);
+  }
+}
+
+### Connect to database.
+our $dbh = DBI->connect('dbi:mysql:track_port', 'blreams') or die "ERROR: Connection error: $DBI::errstr\n";
+$dbh->{AutoCommit} = 0;
+
+#######################################################################################################
+# get_db_transactions
+#   Get transactions needed for recreating port_history.
+#
+# Parameters
+#   $p_shd -- Pointer to hash of symbols, each symbol contains list of 2-element lists (start,end).
+#   $p_tps -- Pointer to hash of symbols, dates, prices.
+#   
+# Returns pointer to hash containing transactions.  The hash is indexed on date.  Each entry is a
+# list of transactions on that date.  Each entry of the list is a hash with keys matching the fields
+# of transaction_list.
+#
+sub get_db_transactions {
+  my ($p_shd, $p_tps) = @_;
+  my $rv;
+  my @dbrow;
+  my @dbcash;
+  my @dbpurchases;
+  my @dbsells;
+  my @dbtransactions;
+  my %tli;
+  my $cash;
+  my %positions;
+  my $tcash;
+  my $ttype;
+  my $tdate;
+  my $tsymbol;
+  my $tshares;
+  my $tprice;
+  my $ttotal;
+  my $last_tdate;
+  my %tlist;
+
+  ### Use describe to get field indexes for each field of transaction_list.
+  my $query = 'DESCRIBE transaction_list';
+  my $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $r = 0;
+  while (@dbrow = $sth->fetchrow_array()) {
+    $tli{$dbrow[0]} = $r++;
+  }
+
+  ### Grab the 'initial' cash transaction.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'initial') && (fileportname = '$opt_fpn')) order by open_date";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  @dbrow = $sth->fetchrow_array();
+  $tdate = $dbrow[$tli{'open_date'}];
+  if (! scalar(@dbrow)) {
+    $last_tdate = 0;
+    $tcash = 0;
+  } elsif (! $tdate) {
+    $last_tdate = 0;
+    $tcash = $dbrow[$tli{'open_price'}];
+  } else {
+    $tcash = $dbrow[$tli{'open_price'}];
+    $last_tdate = $tdate;
+  }
+  $cash = $tcash;
+  my $earliest_date = $last_tdate;
+
+  ### Build an array of transactions that is sorted by date that includes both purchases and sells.
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'intermediate') && (fileportname = '$opt_fpn')) order by open_date";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    push(@dbcash, ['c',
+                    $dbrow[$tli{'open_date'}], 
+                    '',
+                    '',
+                    $dbrow[$tli{'open_price'}]
+                   ]);
+  }
+
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'long') && (descriptor = 'stock') && (fileportname = '$opt_fpn')) order by open_date";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    $p_tps->{$dbrow[$tli{'symbol'}]}{$dbrow[$tli{'open_date'}]} = $dbrow[$tli{'open_price'}];
+    push(@dbpurchases, ['p',
+                        $dbrow[$tli{'open_date'}], 
+                        $dbrow[$tli{'symbol'}], 
+                        $dbrow[$tli{'shares'}], 
+                        $dbrow[$tli{'open_price'}]
+                       ]);
+  }
+  $query = "SELECT * FROM transaction_list WHERE ((position = 'long') && (descriptor = 'stock') && (closed) && (fileportname = '$opt_fpn')) order by close_date";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  while (@dbrow = $sth->fetchrow_array()) {
+    $p_tps->{$dbrow[$tli{'symbol'}]}{$dbrow[$tli{'close_date'}]} = $dbrow[$tli{'close_price'}];
+    push(@dbsells, ['s',
+                    $dbrow[$tli{'close_date'}], 
+                    $dbrow[$tli{'symbol'}], 
+                    $dbrow[$tli{'shares'}], 
+                    $dbrow[$tli{'close_price'}]
+                   ]);
+  }
+
+  while (scalar(@dbcash) + scalar(@dbpurchases) + scalar(@dbsells)) {
+    my $cashdate = (scalar(@dbcash)) ? parsedate($dbcash[0]->[1]) : parsedate('tomorrow');
+    my $purchasedate = (scalar(@dbpurchases)) ? parsedate($dbpurchases[0]->[1]) : parsedate('tomorrow');
+    my $selldate = (scalar(@dbsells)) ? parsedate($dbsells[0]->[1]) : parsedate('tomorrow');
+    my @sorteddates = sort(($cashdate, $purchasedate, $selldate));
+    if ($cashdate == $sorteddates[0]) {
+      push(@dbtransactions, shift(@dbcash));
+    } elsif ($purchasedate == $sorteddates[0]) {
+      push(@dbtransactions, shift(@dbpurchases));
+    } else {
+      push(@dbtransactions, shift(@dbsells));
+    }
+  }
+
+  ### Now, work through all transactions.
+  foreach my $transaction (@dbtransactions) {
+    $ttype = $transaction->[0];
+    $tdate = $transaction->[1];
+    $tsymbol = $transaction->[2];
+    $tshares = $transaction->[3];
+    $tprice = $transaction->[4];
+
+    if (! $last_tdate) { 
+      ### This is here for the special cases of no initial cash or no initial cash date.
+      #$last_tdate = strftime($DB_DATE_FMT, localtime(parsedate($tdate) - $secs_per_day));
+      my ($my,$mm,$md) = Add_Delta_Days(substr($tdate,0,4),substr($tdate,5,2),substr($tdate,8,2),-1);
+      $last_tdate = sprintf("%04d-%02d-%02d", $my,$mm,$md);
+
+      ### Using $tdate for $earliest_date insures a "valid" first date for ^GSPC.
+      #$earliest_date = $last_tdate;
+      $earliest_date = $tdate;
+    }
+
+    if ($tdate ne $last_tdate) {
+      ### Update symbol history dates.
+      foreach my $s (keys %positions) {
+        if (! $p_shd->{$s}) {
+          if ($positions{$s} > 0) {
+            ### This case means no range has yet been defined for this symbol
+            $p_shd->{$s}[0][0] = $last_tdate;
+          }
+        } elsif (($p_shd->{$s}[$#{$p_shd->{$s}}][0]) && ($p_shd->{$s}[$#{$p_shd->{$s}}][1])) {
+          if ($positions{$s} > 0) {
+            ### This case means a new range can be started.
+            $p_shd->{$s}[($#{$p_shd->{$s}} + 1)][0] = $last_tdate;
+          }
+        } elsif (($p_shd->{$s}[$#{$p_shd->{$s}}][0]) && (! $p_shd->{$s}[$#{$p_shd->{$s}}][1])) {
+          if ($positions{$s} == 0) {
+            ### This case means the current range can be closed.
+            $p_shd->{$s}[$#{$p_shd->{$s}}][1] = $last_tdate;
+          }
+        }
+      }
+
+      ### Commit running cash and positions to tlist.
+      $tlist{$last_tdate}{'cash'} = $cash;
+      my %positions_copy = %positions;
+      $tlist{$last_tdate}{'positions'} = \%positions_copy;
+      $last_tdate = $tdate;
+    }
+
+    ### Update running cash
+    if ($ttype eq 'c') {
+      $cash += $tprice;
+    } elsif ($ttype eq 'p') {
+      $cash -= $tshares * $tprice;
+      $positions{$tsymbol} += $tshares;
+    } else {
+      $cash += $tshares * $tprice;
+      $positions{$tsymbol} -= $tshares;
+    }
+
+  }
+
+  ### Update symbol history dates.
+  foreach my $s (keys %positions) {
+    if (! $p_shd->{$s}) {
+      if ($positions{$s} > 0) {
+        ### This case means no range has yet been defined for this symbol
+        $p_shd->{$s}[0][0] = $last_tdate;
+      }
+    } elsif (($p_shd->{$s}[$#{$p_shd->{$s}}][0]) && ($p_shd->{$s}[$#{$p_shd->{$s}}][1])) {
+      if ($positions{$s} > 0) {
+        ### This case means a new range can be started.
+        $p_shd->{$s}[($#{$p_shd->{$s}} + 1)][0] = $last_tdate;
+      }
+    } elsif (($p_shd->{$s}[$#{$p_shd->{$s}}][0]) && (! $p_shd->{$s}[$#{$p_shd->{$s}}][1])) {
+      if ($positions{$s} == 0) {
+        ### This case means the current range can be closed.
+        $p_shd->{$s}[$#{$p_shd->{$s}}][1] = $last_tdate;
+      }
+    }
+  }
+
+  ### Add one placeholder for ^GSPC that covers all dates.
+  $p_shd->{'^GSPC'}[0][0] = $earliest_date;
+  $p_shd->{'^GSPC'}[0][1] = $STRFTIME_YESTERDAY;
+
+  ### Commit running cash and positions to tlist for that last purchase.
+  $tlist{$last_tdate}{'cash'} = $cash;
+  my %positions_copy = %positions;
+  $tlist{$last_tdate}{'positions'} = \%positions_copy;
+
+  ### Close off any open ranges in symbol history dates hash.
+  foreach my $s (keys %{$p_shd}) {
+    for (my $i = 0; $i <= $#{$p_shd->{$s}}; $i++) {
+      if (scalar(@{$p_shd->{$s}[$i]}) == 1) {
+        $p_shd->{$s}[$i][1] = $STRFTIME_YESTERDAY;
+      }
+    }
+  }
+
+  return \%tlist;
+}
+
+
+#######################################################################################################
+# lookup_history
+#   Use Yahoo historical price lookup to get historical prices for a symbol.
+#
+# Parameters
+#   $p_hps -- Pointer to hash of symbols, dates, prices.
+#   $s -- Symbol.
+#   $sdate -- Start date.
+#   $edate -- End date.
+#
+sub lookup_history {
+  my ($p_hps, $s, $sdate, $edate) = @_;
+
+  my $ua = LWP::UserAgent->new(env_proxy => 1, keep_alive => 1, timeout => 10);
+
+  my %yhoo_date = (  'y1' => substr($sdate,0,4),
+                     'y2' => substr($edate,0,4),
+                     'm1' => substr($sdate,5,2) - 1,
+                     'm2' => substr($edate,5,2) - 1,
+                     'd1' => substr($sdate,8,2),
+                     'd2' => substr($edate,8,2)
+                   );
+
+  my $request = sprintf("http://ichart.finance.yahoo.com/table.csv?s=%s&a=%d&b=%d&c=%d&d=%d&e=%d&f=%d&y=0&g=d&ignore=.csv",
+                      $s,
+                      int($yhoo_date{'m1'}), int($yhoo_date{'d1'}), int($yhoo_date{'y1'}), 
+                      int($yhoo_date{'m2'}), int($yhoo_date{'d2'}), int($yhoo_date{'y2'})
+  );
+  my $response;
+  
+  my @tmp;
+  if ($flag_verbose) { printf(STDERR "VERBOSE:   BEG--Getting prices for <%s> from <%s> to <%s>.\n", $s, $sdate, $edate); }
+  for (my $c = 0; $c < 10; $c++) {
+    $response = $ua->get($request);
+    if ($response->is_success) { 
+      @tmp = split(/\n/, $response->content);
+      if (Delta_Days(substr($tmp[1],0,4),substr($tmp[1],5,2),substr($tmp[1],8,2),$yhoo_date{'y2'},($yhoo_date{'m2'}+1),$yhoo_date{'d2'}) < 4) {
+        last; 
+      } else {
+        if ($flag_verbose) { printf(STDERR "VERBOSE:   MID--Almost, trying again...\n"); }
+      }
+    } else {
+      if ($flag_verbose) { printf(STDERR "VERBOSE:   MID--Trying again...\n"); }
+    }
+  }
+  if ($flag_verbose) { printf(STDERR "VERBOSE:   END--Getting prices for <%s> from <%s> to <%s>.\n", $s, $sdate, $edate); }
+
+  if (! $response->is_success) { return($FALSE); }
+
+  #my @lines = split(/\n/, $response->content);
+  my @lines = @tmp;
+  shift(@lines);   ### Get rid of header line.
+  my @first_date = split(/,/, $lines[$#lines]);
+  my @last_date = split(/,/, $lines[0]);
+
+  if ($first_date[0] ne $sdate) { return($FALSE); }
+
+  foreach (reverse(@lines)) {
+    my @elements = split(/,/);
+    $p_hps->{$s}{$elements[0]} = $elements[$#elements - 2];  ### This gets the actual close
+  }
+
+  my $cdate = $last_date[0];
+  if ($cdate ne $edate) {
+    printf(STDERR "WARNING: Filling in incomplete lookup history for <%s> from <%s> to <%s> at date <%s>.\n", $s, $sdate, $edate, $cdate);
+  }
+  while ($cdate lt $edate) {
+    $p_hps->{$s}{$last_date[0]} = $last_date[$#last_date - 2];  ### This gets the actual close
+    my ($my,$mm,$md) = Add_Delta_Days(substr($cdate,0,4),substr($cdate,5,2),substr($cdate,8,2),1);
+    $cdate = sprintf("%04d-%02d-%02d", $my,$mm,$md);
+  }
+  return($TRUE);
+}
+
+#######################################################################################################
+# extrapolate_prices
+#   Calculate prices for a stock based solely on transaction prices at the end points.
+#
+# Parameters
+#   $p_hps -- Pointer to hash of symbols, dates, prices.
+#   $p_tps -- Pointer to hash of symbols, each symbol has hash of dates, each date is a transaction price.
+#   $s -- Symbol.
+#   $sdate -- Start date.
+#   $edate -- End date.
+#
+sub extrapolate_prices {
+  my ($p_hps, $p_tps, $s, $sdate, $edate) = @_;
+
+  my $sprice = $p_tps->{$s}{$sdate};
+  my $eprice = $p_tps->{$s}{$edate};
+  if (! defined($sprice)) { printf("WARNING: Undefined value in transaction_prices <%s->%s>\n", $s, $sdate); }
+  if (! defined($eprice)) { printf("WARNING: Undefined value in transaction_prices <%s->%s>\n", $s, $edate); }
+  my $sy = substr($sdate,0,4);
+  my $sm = substr($sdate,5,2);
+  my $sd = substr($sdate,8,2);
+  my $ey = substr($edate,0,4);
+  my $em = substr($edate,5,2);
+  my $ed = substr($edate,8,2);
+  my $days = Delta_Days($sy,$sm,$sd,$ey,$em,$ed);
+  my $step_price = ($eprice - $sprice) / $days;
+
+  for (my $i = 0; $i <= $days; $i++) {
+    my ($my,$mm,$md) = Add_Delta_Days($sy,$sm,$sd,$i);
+    my $mdate = sprintf("%04d-%02d-%02d", $my,$mm,$md);
+    $p_hps->{$s}{$mdate} = $sprice + ($i * $step_price);
+  }
+}
+
+#######################################################################################################
+# get_symbol_prices
+#   Get historical prices for each symbol indexed in the symbol history dates.
+#
+# Parameters
+#   $p_hps -- Pointer to hash of symbols, historical prices.
+#   $p_shd -- Pointer to hash of symbols, each symbol contains list of 2-element lists (start,end).
+#   $p_tps -- Pointer to hash of symbols, each symbol contains a hash of dates whose elements are transaction prices on those dates.
+#   
+# Returns pointer to hash containing historical prices for each symbol index. 
+#
+sub get_symbol_prices {
+  my ($p_hps, $p_shd, $p_tps) = @_;
+
+  my $good_lookup = $FALSE;
+
+  foreach my $s (keys %{$p_shd}) {
+    for (my $i = 0; $i <= $#{$p_shd->{$s}}; $i++) {
+      $good_lookup = $FALSE;
+      if (! ($s =~ /-X$/)) {
+        $good_lookup = lookup_history($p_hps, $s, $p_shd->{$s}[$i][0], $p_shd->{$s}[$i][1]);
+      }
+
+      if (! $good_lookup) {
+        if ($flag_verbose) { printf(STDERR "VERBOSE:   BEG--Extrapolating prices for <%s> from <%s> to <%s>\n", $s, $p_shd->{$s}[$i][0], $p_shd->{$s}[$i][1]); }
+        extrapolate_prices($p_hps, $p_tps, $s, $p_shd->{$s}[$i][0], $p_shd->{$s}[$i][1]);
+        if ($flag_verbose) { printf(STDERR "VERBOSE:   END--Extrapolating prices for <%s> from <%s> to <%s>\n", $s, $p_shd->{$s}[$i][0], $p_shd->{$s}[$i][1]); }
+      }
+    }
+  }
+}
+
+#######################################################################################################
+# get_port_history
+#   Create port history entries from port changes hash and symbol prices hash.
+#
+# Parameters
+#   $p_pc -- Pointer to port changes hash.
+#   $p_hps -- Pointer to symbol prices hash.
+#   
+# Returns pointer to hash containing port history hash.
+#
+sub get_port_history {
+  my ($p_pc, $p_hps) = @_;
+  my @port_history;
+  my $total;
+  my $s;
+  my $curr_date;
+  my $next_date;
+  my $cash;
+  my $p_positions;
+
+  my $p = 0;
+  my @dates = sort(keys(%{$p_pc}));
+  for (my $d = 0; $d <= $#dates; $d++) {
+    $curr_date = $dates[$d];
+    $cash = $p_pc->{$curr_date}{'cash'};
+    $p_positions = $p_pc->{$curr_date}{'positions'};
+    $next_date = ($dates[$d + 1]) ? $dates[$d + 1] : $STRFTIME_YESTERDAY;
+    while ($curr_date lt $next_date) {
+      if (!(   (($opt_start) && ($curr_date lt $start_db_date))
+            || (($opt_end)   && ($curr_date gt $end_db_date))
+            || (! $p_hps->{'^GSPC'}{$curr_date})   )) {
+        ### Calculate an entry in port history.
+        $port_history[$p]{'date'} = $curr_date;
+        $port_history[$p]{'cash'} = $cash;
+        $total = $cash;
+        foreach $s (keys %{$p_positions}) {
+          if ($p_positions->{$s} == 0) { next; }
+          if (! defined($p_hps->{$s}{$curr_date})) {
+            printf(STDERR "WARNING: No price found for <%s> on <%s>\n", $s, $curr_date);
+            $total += ($p_positions->{$s} * $p_hps->{$s}{$curr_date});
+          } else {
+            $total += ($p_positions->{$s} * $p_hps->{$s}{$curr_date});
+          }
+        }
+        $port_history[$p]{'total'} = $total;
+        $p++;
+      }
+
+      # increment the date
+      #$curr_date = strftime($DB_DATE_FMT, localtime(parsedate($curr_date) + $secs_per_day + 3600));
+      my ($my,$mm,$md) = Add_Delta_Days(substr($curr_date,0,4),substr($curr_date,5,2),substr($curr_date,8,2),1);
+      $curr_date = sprintf("%04d-%02d-%02d", $my,$mm,$md);
+    }
+  }
+
+  return(\@port_history);
+}
+
+#######################################################################################################
+# print_ph_entry
+#   Print a line that compares the two port history entries.
+#
+# Parameters
+#   $l -- Line number for use by Excel.
+#   $d -- DB PH entry number to print (-1 means skip it).
+#   $p_dph -- Pointer to DB PH list
+#   $g -- GEN PH entry number to print (-1 means skip it).
+#   $p_gph -- Pointer to GEN PH list
+#   
+sub print_ph_entry {
+  my ($l, $d, $p_dph, $g, $p_gph) = @_;
+
+  my $date = '';
+  my $dcash = '';
+  my $dtotal = '';
+  if ($d >= 0) {
+    $date = $p_dph->[$d]{'date'};
+    $dcash = $p_dph->[$d]{'cash'};
+    $dtotal = $p_dph->[$d]{'total'};
+  }
+  my $gcash = '';
+  my $gtotal = '';
+  if ($g >= 0) {
+    $date = $p_gph->[$g]{'date'};
+    $gcash = $p_gph->[$g]{'cash'};
+    $gtotal = $p_gph->[$g]{'total'};
+  }
+
+  $dcash = ($dcash) ? sprintf("%.4f", $dcash) : $dcash;
+  $dtotal = ($dtotal) ? sprintf("%.4f", $dtotal) : $dtotal;
+  $gcash = ($gcash) ? sprintf("%.4f", $gcash) : $gcash;
+  $gtotal = ($gtotal) ? sprintf("%.4f", $gtotal) : $gtotal;
+  printf("%s,%s,%s,%s,%s,,=B%d-D%d,=C%d-E%d\n", $date, $dcash, $dtotal, $gcash, $gtotal, $l, $l, $l, $l);
+}
+
+#######################################################################################################
+# print_comparison
+#   Print a comparison of generated port_history to DB port_history.
+#
+# Parameters
+#   $p_ph -- Pointer to port history list
+#   
+sub print_comparison {
+  my ($p_gph) = @_;
+
+  my %tli;
+  my @dbrow;
+  my @dph;
+  my $p_dph = \@dph;
+  
+  ### Use describe to get field indexes for each field of port_history.
+  my $query = 'DESCRIBE port_history';
+  my $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $r = 0;
+  while (@dbrow = $sth->fetchrow_array()) {
+    $tli{$dbrow[0]} = $r++;
+  }
+
+  $query = "SELECT * FROM port_history WHERE (fileportname = '$opt_fpn') order by date";
+  $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+  $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+  my $i = 0;
+  while (@dbrow = $sth->fetchrow_array()) {
+    $p_dph->[$i]{'date'} = $dbrow[$tli{'date'}];
+    $p_dph->[$i]{'cash'} = $dbrow[$tli{'cash'}];
+    $p_dph->[$i]{'total'} = $dbrow[$tli{'total'}];
+    $p_dph->[$i]{'id'} = $dbrow[$tli{'id'}];
+    $i++;
+  }
+
+  my $dfirst = 0;
+  my $gfirst = 0;
+  my $dlast = $#{$p_dph};
+  my $glast = $#{$p_gph};
+
+  if ($start_db_date) {
+    if ($start_db_date lt $p_gph->[0]{'date'}) {
+      printf(STDERR "ERROR: Start date must be within generated date range <%s> to <%s>\n", $p_gph->[0]{'date'}, $p_gph->[$#{$p_gph}]{'date'});
+      exit(1);
+    }
+    while ($p_gph->[$gfirst]{'date'} lt $start_db_date) { $gfirst++; }
+    while ($p_dph->[$dfirst]{'date'} lt $start_db_date) { $dfirst++; }
+  }
+
+  if ($end_db_date) {
+    if ($end_db_date gt $p_gph->[$#{$p_gph}]{'date'}) {
+      printf(STDERR "ERROR: End date must be within generated date range <%s> to <%s>\n", $p_gph->[0]{'date'}, $p_gph->[$#{$p_gph}]{'date'});
+      exit(1);
+    }
+    while ($p_gph->[$glast]{'date'} gt $end_db_date) { $glast--; }
+    while (($dlast >= 0) && ($p_dph->[$dlast]{'date'} gt $end_db_date)) { $dlast--; }
+  }
+
+  my $l = 1;          ### This is the line number for use by Excel.
+  my $d = $dfirst;
+  my $g = $gfirst;
+  while (($d <= $dlast) || ($g <= $glast)) {
+    if      (($g > $glast) || ($p_dph->[$d]{'date'} lt $p_gph->[$g]{'date'})) { 
+      ### print only DB PH entry
+      print_ph_entry($l, $d, $p_dph, -1, $p_gph);
+      $d++;
+    } elsif (($d > $dlast) || ($p_gph->[$g]{'date'} lt $p_dph->[$d]{'date'})) {
+      ### print only GEN PH entry
+      print_ph_entry($l, -1, $p_dph, $g, $p_gph);
+      $g++;
+    } else {
+      ### print both entries
+      print_ph_entry($l, $d, $p_dph, $g, $p_gph);
+      $d++;
+      $g++;
+    }
+    $l++;
+  }
+
+  my $dbcmd;
+  my @dbcmds;
+  my $cash;
+  my $total;
+
+  if ($flag_cashoverride) {
+    if (($dlast - $dfirst) != ($glast - $gfirst)) {
+      printf(STDERR "ERROR: Incompatible range sizes for DB and GEN port histories.\n");
+      exit(1);
+    }
+    for ($d = $dfirst, $g = $gfirst; $d <= $dlast; $d++, $g++) {
+      $cash = $p_gph->[$g]{'cash'};
+      $total = $p_dph->[$d]{'total'} + ($cash - $p_dph->[$d]{'cash'});
+      $dbcmd = sprintf("UPDATE port_history SET cash='%.4f',total='%.4f' WHERE (id = '%d')", $cash, $total, $p_dph->[$d]{'id'});
+      push(@dbcmds, $dbcmd);
+    }
+    foreach $dbcmd (@dbcmds) {
+      printf("%s\n", $dbcmd);
+    }
+    printf("<ENTER> to continue, <CTRL-C> to quit.\n");
+    getc;
+
+    foreach $query (@dbcmds) {
+      $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+      $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+    }
+  }
+
+  if ($flag_totaloverride) {
+    if (($dlast - $dfirst) != ($glast - $gfirst)) {
+      printf(STDERR "ERROR: Incompatible range sizes for DB and GEN port histories.\n");
+      exit(1);
+    }
+    for ($d = $dfirst, $g = $gfirst; $d <= $dlast; $d++, $g++) {
+      $total = $p_gph->[$g]{'total'};
+      $dbcmd = sprintf("UPDATE port_history SET total='%.4f' WHERE (id = '%d')", $total, $p_dph->[$d]{'id'});
+      push(@dbcmds, $dbcmd);
+    }
+    foreach $dbcmd (@dbcmds) {
+      printf("%s\n", $dbcmd);
+    }
+    printf("<ENTER> to continue, <CTRL-C> to quit.\n");
+    getc;
+
+    foreach $query (@dbcmds) {
+      $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+      $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+    }
+  }
+
+  if ($flag_override) {
+    if (($dlast - $dfirst) != ($glast - $gfirst)) {
+      printf(STDERR "ERROR: Incompatible range sizes for DB and GEN port histories.\n");
+      exit(1);
+    }
+    for ($d = $dfirst, $g = $gfirst; $d <= $dlast; $d++, $g++) {
+      $cash = $p_gph->[$g]{'cash'};
+      $total = $p_gph->[$g]{'total'};
+      $dbcmd = sprintf("UPDATE port_history SET cash='%.4f',total='%.4f' WHERE (id = '%d')", $cash, $total, $p_dph->[$d]{'id'});
+      push(@dbcmds, $dbcmd);
+    }
+    foreach $dbcmd (@dbcmds) {
+      printf("%s\n", $dbcmd);
+    }
+    printf("<ENTER> to continue, <CTRL-C> to quit.\n");
+    getc;
+
+    foreach $query (@dbcmds) {
+      $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+      $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+    }
+  }
+
+  if ($flag_force) {
+    $dbcmd = sprintf("DELETE FROM port_history WHERE ((fileportname = '%s') && (date >= '%s') && (date <= '%s'))", $opt_fpn, $p_gph->[$gfirst]{'date'}, $p_gph->[$glast]{'date'});
+    push(@dbcmds, $dbcmd);
+    for ($g = $gfirst; $g <= $glast; $g++) {
+      $cash = $p_gph->[$g]{'cash'};
+      $total = $p_gph->[$g]{'total'};
+      $dbcmd = sprintf("INSERT INTO port_history SET fileportname='%s',cash='%.4f',total='%.4f',date='%s'", $opt_fpn, $cash, $total, $p_gph->[$g]{'date'});
+      push(@dbcmds, $dbcmd);
+    }
+    foreach $dbcmd (@dbcmds) {
+      printf("%s\n", $dbcmd);
+    }
+    printf("<ENTER> to continue, <CTRL-C> to quit.\n");
+    getc;
+
+    foreach $query (@dbcmds) {
+      $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
+      $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
+    }
+  }
+}
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+
+### Build the hash of dates for which the port changed.
+our %symbol_history_dates;
+our %transaction_prices;
+our %historical_prices;
+if ($flag_verbose) { printf(STDERR "VERBOSE: BEG--Build of hash of dates for which <%s> changed.\n", $opt_fpn); }
+our $p_port_changes = get_db_transactions(\%symbol_history_dates, \%transaction_prices);
+if ($flag_verbose) { printf(STDERR "VERBOSE: END--Build of hash of dates for which <%s> changed.\n", $opt_fpn); }
+if (! $p_port_changes) { printf(STDERR "ERROR: %s - Something is wrong.\n", $opt_fpn); exit(1); }
+
+### Get historical prices for all the necessary symbols.
+if ($flag_verbose) { printf(STDERR "VERBOSE: BEG--Getting historical prices.\n", $opt_fpn); }
+get_symbol_prices(\%historical_prices, \%symbol_history_dates, \%transaction_prices);
+if ($flag_verbose) { printf(STDERR "VERBOSE: END--Getting historical prices.\n", $opt_fpn); }
+if (! keys %historical_prices) { printf(STDERR "ERROR: Problem w/ historical price lookup.\n"); exit(1); }
+
+### Create port_history list from port change hash.
+if ($flag_verbose) { printf(STDERR "VERBOSE: BEG--Generating port history.\n", $opt_fpn); }
+our $p_port_history = get_port_history($p_port_changes, \%historical_prices);
+if ($flag_verbose) { printf(STDERR "VERBOSE: END--Generating port history.\n", $opt_fpn); }
+
+print_comparison($p_port_history);
+
+our $junk = 1;

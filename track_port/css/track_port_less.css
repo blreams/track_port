@@ -1,0 +1,293 @@
+h2 {
+  color: #ffffff;
+  font-size: 10pt;
+  font-family: Arial, Verdana, sans-serif;
+}
+th {
+  color: #000000;
+  font-size: 10pt;
+  font-weight: bold;
+  font-family: Arial, Verdana, sans-serif;
+  padding: 0em;
+}
+td {
+  color: #000000;
+  font-size: 8pt;
+  font-family: Arial, Verdana, sans-serif;
+  padding: 0em;
+}
+td.right {
+  text-align: right;
+}
+td.center {
+  text-align: center;
+}
+td.left {
+  text-align: left;
+}
+th.right {
+  text-align: right;
+}
+th.center {
+  text-align: center;
+}
+th.left {
+  text-align: left;
+}
+tr.heading {
+  color: #000000;
+  text-align: center;
+  font: bolder 9pt Arial, Verdana, sans-serif;
+}
+.top_tab {
+  border: 2px solid #000000;
+  padding: 0px;
+  margin: 0px;
+  background: #95c2af;
+}
+.sum_tab {
+  border: 2px solid #000000;
+  padding: 0px;
+  margin: 0px;
+  background: #99a4c2;
+}
+.sum_tab th {
+  border-style: groove;
+  margin: 0px;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  background: #ffe7b4;
+}
+.sum_tab td {
+  border: 1px solid #000000;
+  border-style: inset;
+  margin: 0px;
+  font-weight: normal;
+  color: #ffffff;
+  text-align: right;
+}
+.sum_tab th.left {
+  text-align: left;
+}
+.sum_tab th.center {
+  text-align: center;
+}
+.sum_tab th.right {
+  text-align: right;
+}
+.sum_tab td.left {
+  text-align: left;
+}
+.sum_tab td.center {
+  text-align: center;
+}
+.sum_tab td.right {
+  text-align: right;
+}
+.sum_tab td.total {
+  text-align: left;
+  color: #000000;
+  background: #cbbc9c;
+}
+.sum_tab td.totalcenter {
+  text-align: center;
+  color: #000000;
+  background: #cbbc9c;
+}
+.sum_tab tr.total {
+  text-align: left;
+  color: #000000;
+  background: #cbbc9c;
+}
+.tick_tab {
+  padding: 0px;
+  background: transparent;
+}
+.tick_tab th {
+  border-style: groove;
+  padding: 0px;
+  margin: 0px;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+  background: #ffe7b4;
+}
+.tick_tab td {
+  border-style: ridge;
+  padding: 0px;
+  margin: 0px;
+  font-weight: normal;
+  color: #000000;
+  text-align: left;
+}
+.tick_tab th.left {
+  text-align: left;
+}
+.tick_tab th.center {
+  text-align: center;
+}
+.tick_tab th.right {
+  text-align: right;
+}
+.tick_tab td.left {
+  text-align: left;
+}
+.tick_tab td.center {
+  text-align: center;
+}
+.tick_tab td.right {
+  text-align: right;
+}
+.highlight {
+  background: #ffe7b4 !important;
+}
+/* Styling the main table */
+.mainTable th {
+  background: #ffe7b4;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 16px;
+  border: 2px inset #cbbc9c;
+}
+.mainTable th.headerSortDown {
+  color: #ffffff;
+  background: #7d4bae url(/images/up_arrow.png) no-repeat 98% 7px;
+}
+.mainTable th.headerSortUp {
+  color: #ffffff;
+  background: #7d4bae url(/images/down_arrow.png) no-repeat 98% 5px;
+}
+.mainTable th:hover {
+  background: #7d4bae;
+  color: #000000;
+  font-weight: bold;
+  border: 2px outset #cbbc9c;
+}
+.mainTable tr.even {
+  background: #b4c4f3;
+}
+.mainTable tr.odd {
+  background: #dde5ff;
+}
+.mainTable td.cashcell {
+  color: #ffffff;
+  background: #49ae83;
+}
+.mainTable td.totalcell {
+  color: #000000;
+  background: #cbbc9c;
+  font-weight: bold;
+}
+/* Styling for the sold=TRUE */
+.soldTable th {
+  background: #ffe7b4;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 16px;
+  border: 2px inset #cbbc9c;
+}
+.soldTable th.headerSortDown {
+  background: #7d4bae url(/images/up_arrow.png) no-repeat 98% 7px;
+}
+.soldTable th.headerSortUp {
+  background: #7d4bae url(/images/down_arrow.png) no-repeat 98% 5px;
+}
+.soldTable th:hover {
+  background: #7d4bae;
+  color: #000000;
+  font-weight: bold;
+  border: 2px outset #cbbc9c;
+}
+.soldTable tr.even {
+  background: #b4c4f3;
+}
+.soldTable tr.odd {
+  background: #dde5ff;
+}
+/* Styling for port_edit.cgi tables. */
+.opens_tab {
+  border: 0px inset #cbbc9c;
+}
+.opens_tab th {
+  color: #f6f8ff;
+  background: #4c65ae;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 16px;
+  border: 0px inset #cbbc9c;
+}
+.opens_tab th.headerSortDown {
+  color: #000000;
+  background: #ffe7b4 url(/images/up_arrow.png) no-repeat 98% 7px;
+}
+.opens_tab th.headerSortUp {
+  color: #000000;
+  background: #ffe7b4 url(/images/down_arrow.png) no-repeat 98% 5px;
+}
+.opens_tab th:hover {
+  background: #ffe7b4;
+  color: #000000;
+  font-weight: bold;
+  border: 0px outset #cbbc9c;
+}
+.opens_tab tr.even {
+  background: #d3b1f3;
+}
+.opens_tab tr.odd {
+  background: #eddbff;
+}
+.opens_title_tab,
+.opens_title_tab td.table_title {
+  font: bolder 14pt Arial, Verdana, sans-serif;
+  text-align: left;
+  color: #f6f8ff;
+  background: #4c65ae;
+}
+.ot_left {
+  font: 8pt Arial, Verdana, sans-serif;
+  text-align: left;
+  color: #ffffff;
+  background: #4c65ae;
+}
+.opens_tab input[type=submit] {
+  font: 10px Arial, Verdana, sans-serif;
+}
+.cash_tab th {
+  color: #f6f8ff;
+  background: #4c65ae;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 16px;
+  border: 2px inset #cbbc9c;
+}
+.cash_tab th.headerSortDown {
+  color: #000000;
+  background: #ffe7b4 url(/images/up_arrow.png) no-repeat 98% 7px;
+}
+.cash_tab th.headerSortUp {
+  color: #000000;
+  background: #ffe7b4 url(/images/down_arrow.png) no-repeat 98% 5px;
+}
+.cash_tab th:hover {
+  background: #ffe7b4;
+  color: #000000;
+  font-weight: bold;
+  border: 2px outset #cbbc9c;
+}
+.cash_tab tr.even {
+  background: #acf4d5;
+}
+.cash_tab tr.odd {
+  background: #d8ffee;
+}
+.cash_title_tab,
+.cash_title_tab td.table_title {
+  font: bolder 14pt Arial, Verdana, sans-serif;
+  text-align: left;
+  color: #f6f8ff;
+  background: #4c65ae;
+}
+.cash_tab input[type=submit] {
+  font: 10px Arial, Verdana, sans-serif;
+}

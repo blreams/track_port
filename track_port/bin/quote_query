@@ -1,0 +1,948 @@
+#!/usr/bin/env perl
+# Copyright 2008 BLR.
+# All rights reserved.
+# This is unpublished, confidential BLR proprietary
+# information.  Do not reproduce without written permission.
+#
+# $Id: put_db_quotes 93 2010-06-23 14:54:06Z blreams $
+#
+# file:         quote_query
+#
+# description:
+#   The purpose of this script is to determine the list of symbols to query and perform
+#   a finance::quote query to lookup the information online.  The returned data is 
+#   stored in the DB in the finance_quote table.
+# 
+# TODO
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 07/23/11  1.0   blreams   initial
+# 07/25/11  1.0a  blreams   changed mktcap format in DB to be decimal and pre-scaled to thousands.
+# 01/05/13  2.0   blreams   adding ability to fetch options, also added --nodelete param
+# 01/05/13  2.1   blreams   fixed bug where @list_options not cleared on each loop, duplicate options added each time through.
+# 02/23/13  2.2   blreams   added check for market holiday.
+# 02/25/13  2.3   blreams   added 'short' as possibility for transaction_list descriptor.
+# 02/25/13  2.4   blreams   for option quotes, use bid/ask average for last.
+# 04/04/13  2.5   blreams   fixed query for list_symbols that excludes option underlyings.
+# 08/23/13  2.6   blreams   added a check for parts of option quote not returned properly.
+# 08/23/13  2.6a  blreams   fixed a minor typo in the code added below.
+# 08/23/13  2.7   blreams   added optionlast command line parameter to use LAST price instead of average(BID,ASK) for options.
+# 01/18/14  2.8   blreams   added skipmktchk command line parameter similar to put_db_quotes.
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+use strict;
+use warnings;
+use Readonly;
+use Time::CTime;
+use Time::ParseDate;
+use Finance::Quote;
+#use Finance::QuoteOptions;
+use DBI;
+
+our $script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+our $script_ver = '2.8';
+our $min_args = 2;
+our $max_args = 14;
+
+sub usage {
+  my $spaces = ' ' x length($script_name);
+  printf(STDERR "\n");
+  printf(STDERR "USAGE: %s [--help][--version][--debug][--verbose]\n", $script_name);
+  printf(STDERR "USAGE: %s [--nodelete][--aq altquote][--end end][--wait wait] --maxper maxper [--domf][--optionlast][--skipmktchk]\n", $spaces);
+  printf(STDERR "USAGE:   [--help]        - help information\n");
+  printf(STDERR "USAGE:   [--version]     - version information\n");
+  printf(STDERR "USAGE:   [--debug]       - print debug messages\n");
+  printf(STDERR "USAGE:   [--verbose]     - print verbose messages\n");
+  printf(STDERR "USAGE:   [--nodelete]    - optional, don't delete current quote data from DB\n");
+  printf(STDERR "USAGE:   [--aq aq]       - use alternate quote method (yahoo|google)\n");
+  printf(STDERR "USAGE:   --end end       - time when updates should be terminated\n");
+  printf(STDERR "USAGE:   --wait wait     - seconds to wait between lookups\n");
+  printf(STDERR "USAGE:   --maxper maxper - max number of symbols to include per fq lookup\n");
+  printf(STDERR "USAGE:   [--domf]        - do mutual funds on 2nd and subsequent loops\n");
+  printf(STDERR "USAGE:   [--optionlast]  - use LAST price for options instead of bid/ask average\n");
+  printf(STDERR "USAGE:   [--skipmktchk]  - skip checking for market close\n");
+  printf(STDERR "USAGE: \n");
+  printf(STDERR "USAGE: The --end parameter can be fairly free-form (valid examples below) \n");
+  printf(STDERR "USAGE: If the --end parameter is not specified or specified as already \n");
+  printf(STDERR "USAGE: elapsed, the script will perform a single update and terminate. \n");
+  printf(STDERR "USAGE: The --wait parameter must be specified as a positive integer.  The \n");
+  printf(STDERR "USAGE: default value is 15 (seconds).\n");
+  printf(STDERR "USAGE: \n");
+  printf(STDERR "USAGE: EXAMPLES\n");
+  printf(STDERR "USAGE:   $script_name --maxper 50 --end 4:00pm --wait 30\n");
+  printf(STDERR "USAGE:   $script_name --maxper 25 --end noon\n");
+  printf(STDERR "USAGE:   $script_name --maxper 100 --end 'now + 8 hours'\n");
+  printf(STDERR "USAGE:   $script_name --maxper 250 --end 16:30\n");
+  printf(STDERR "USAGE:   $script_name --maxper 500\n");
+  printf(STDERR "\n");
+}
+
+#########################################################################################
+### Globals are declared here.
+#########################################################################################
+our $dbh;
+
+Readonly our $FALSE => 0;
+Readonly our $TRUE  => 1;
+
+our $quote_date = '';
+our $today_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+
+#########################################################################################
+# market_closed
+#   Check if today market is closed.  Return 1 if closed, 0 if open.
+#
+#   Market observes the following 9 holidays in addition to being closed on Sat/Sun:
+#     o New Year's Day             (January 1)
+#     o MLK Day                    (3rd Monday in January)
+#     o Presidents Day             (3rd Monday in February)
+#     o Good Friday                (Friday before Easter where Easter is 1st Sunday after 1st full moon after vernal equinox)
+#     o Memorial Day               (Last Monday in May)
+#     o Independence Day           (July 4)
+#     o Labor Day                  (1st Monday in September)
+#     o Thanksgiving Day           (4th Thursday in November)
+#     o Christmas                  (December 25)
+#  If the holiday falls on a Saturday, the market will close on the preceding Friday unless that Friday is the end of a 
+#  monthly or annual accounting period.  If the holiday falls on a Sunday, the market will close on the following Monday.
+#  
+#  Because of the complexity, I decided this needed a manual element, so the holidays are stored in a table in the DB
+#  that can be automatically filled or manually edited.  This sub will simply look for today's date in the table.
+#
+sub market_closed {
+  my $todays_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+  my $todays_day = strftime("%a", localtime(parsedate('now')));
+
+  if (($todays_day eq 'Sat') || ($todays_day eq 'Sun')) { return(1); }
+
+  my $query = sprintf(qq/SELECT date FROM market_holiday WHERE (date = '%s');/, $todays_date);
+  my $p_holiday = $dbh->selectcol_arrayref($query);
+  return((scalar(@{$p_holiday}) > 0) ? 1 : 0);
+}
+
+#########################################################################################
+# elapsed_days
+#   Calculate the number of days elapsed from argument to today.
+sub elapsed_days {
+  my ($earlier_date) = @_;
+  my $today_string;
+  my $seconds_today;
+  my $seconds_earlier_date;
+  my $seconds_per_day = 24 * 3600;
+  my $edays;
+
+  $today_string = strftime("%D", localtime(time)) . ' 2am';
+  $seconds_today = parsedate($today_string, NO_RELATIVE => 1);
+  $seconds_earlier_date = parsedate("$earlier_date 2am", NO_RELATIVE => 1);
+  $edays = int(($seconds_today - $seconds_earlier_date) / $seconds_per_day);
+  return($edays);
+}
+
+#########################################################################################
+# get_quote_data
+#   Fetches are done using finance::quote fetch method.  The number of symbols per fetch
+#   is limited to opt_maxper.  After the fetch, each symbol is checked for valid data.
+#   If any symbol has bad data, the fetch is repeated up to 25 times.  If necessary,
+#   any symbols with bad data are fetched using an alternate quote method.
+#   
+#   Three parameters are passed:
+#     p_finance_quotes -- Pointer to the fetched results.
+#     p_list_symbols   -- Pointer to list of the fetched symbols.
+#     p_hash_put_stats -- Pointer to put_stats hash.
+sub get_quote_data {
+  my ($p_finance_quotes, $p_list_symbols, $p_hash_put_stats) = @_;
+  my $rv = $TRUE;
+  my $service = $main::opt_aq;
+  my $maxper = $main::opt_maxper;
+  my $verbose = $main::flag_verbose;
+  my $ts = $main::time_stamp;
+  my @lookup_list_symbols;
+  my %hash_fq_fetch;
+
+  %{$p_finance_quotes} = ();
+
+  if (! $service) { $service = 'yahoo'; }
+
+  $p_hash_put_stats->{'fetch_iterations'} = 0;
+  $p_hash_put_stats->{'num_errors'} = 0;
+  $p_hash_put_stats->{'num_aqs'} = 0;
+
+  my $begin_symbol_index = 0;
+  my $end_symbol_index = $#{$p_list_symbols};
+  my $fetch_success;
+  my $fetch_count;
+  my $cmd;
+  my $cout;
+  my @cout;
+
+  $p_hash_put_stats->{'query_stime'} = strftime("%H:%M:%S", localtime(parsedate('now')));
+  while ($begin_symbol_index < $#{$p_list_symbols}) {
+    $end_symbol_index = $begin_symbol_index + $maxper - 1;
+    if ($end_symbol_index > $#{$p_list_symbols}) { $end_symbol_index = $#{$p_list_symbols}; }
+
+    @lookup_list_symbols = @{$p_list_symbols}[$begin_symbol_index..$end_symbol_index];
+
+    ### Get quotes...check for good fetch on all symbols
+    $fetch_success = $FALSE;
+    $fetch_count = 0;
+    while ((! $fetch_success) && ($fetch_count < 25)) {
+      if ($verbose) { printf(STDERR "NOTE: %d -- Fetch[%d] quote data for %d symbols.\n", (parsedate('now')-$ts), $fetch_count, scalar(@lookup_list_symbols)); }
+      my $qh = Finance::Quote->new;
+      ### Trying an experiment using failover
+      $qh->failover(0);
+      %hash_fq_fetch = $qh->fetch("usa", @lookup_list_symbols);
+      $p_hash_put_stats->{'fetch_iterations'}++;
+      #if (scalar(keys(%hash_fq_fetch)) > 0) { $p_hash_put_stats->{'fetch_iterations'} = $fetch_count + 1; last; }
+      for (my $i = $#lookup_list_symbols; $i >= 0; $i--) {
+        if (   (! $hash_fq_fetch{$lookup_list_symbols[$i], 'success'}) 
+            || (! defined($hash_fq_fetch{$lookup_list_symbols[$i], 'close'}))
+            || (! ($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} > 0))
+            || ($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} > 10000000)
+            || ($hash_fq_fetch{$lookup_list_symbols[$i], 'last'} > 10000000)
+           ) { 
+          $fetch_success = $FALSE;
+	  last;
+        }
+	$fetch_success = $TRUE;
+      }
+      $fetch_count++;
+    }
+    
+    for (my $i = $#lookup_list_symbols; $i >= 0; $i--) {
+      if (   (! $hash_fq_fetch{$lookup_list_symbols[$i], 'success'}) 
+          || (! defined($hash_fq_fetch{$lookup_list_symbols[$i], 'close'}))
+          || (! ($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} > 0))
+          || ($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} > 10000000)
+          || ($hash_fq_fetch{$lookup_list_symbols[$i], 'last'} > 10000000)
+         ) {
+        my $bad_fetch_symbol = $lookup_list_symbols[$i];
+        $cmd = sprintf("/home/blreams/bin/get_a_quote --service %s --symbol %s", $service, $bad_fetch_symbol);
+        if ($main::flag_verbose) { printf(STDERR "NOTE: %d -- Calling for alternate quote [index=%3d] <%s>.\n", (parsedate('now')-$main::time_stamp), $i, $cmd); }
+        $cout = `$cmd`;
+        @cout = split(/\s+/, $cout);
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'close'} = $cout[0];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'last'} = $cout[1];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'high'} = $cout[2];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'low'} = $cout[3];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'year_range'} = sprintf("%.2f - %.2f", $cout[4], $cout[5]);
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'volume'} = $cout[6];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'pe'} = $cout[7];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'success'} = $TRUE;
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'method'} = 'alternate';
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'net'} = $cout[8];
+        $hash_fq_fetch{$lookup_list_symbols[$i], 'p_change'} = $cout[9];
+        ($p_hash_put_stats->{'num_aqs'})++;
+    
+        if ($hash_fq_fetch{$lookup_list_symbols[$i], 'last'} < 0.01) {
+          $rv = $FALSE;
+          ($p_hash_put_stats->{'num_errors'})++;
+          if ($main::flag_verbose) { printf(STDERR "WARNING: %d -- Alternate quote <%s> returned bad LAST <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd, $cout[1]); }
+        }
+      }
+    }
+    
+    @{$p_finance_quotes}{ keys %hash_fq_fetch } = values %hash_fq_fetch; # Merge hash_fq_fetch values into %{$p_finance_quotes}
+    $begin_symbol_index = $end_symbol_index + 1;
+  }
+  $p_hash_put_stats->{'query_etime'} = strftime("%H:%M:%S", localtime(parsedate('now')));
+
+  ### One last alternate quote lookup for ^DJI
+  my $s = '^DJI';
+  $cmd = sprintf("/home/blreams/bin/get_a_quote --service %s --symbol %s", $service, $s);
+  if ($main::flag_verbose) { printf(STDERR "NOTE: %d -- Calling for alternate quote [^DJI] <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd); }
+  $cout = `$cmd`;
+  @cout = split(/\s+/, $cout);
+  $p_finance_quotes->{$s, 'close'} = $cout[0];
+  $p_finance_quotes->{$s, 'last'} = $cout[1];
+  $p_finance_quotes->{$s, 'high'} = $cout[2];
+  $p_finance_quotes->{$s, 'low'} = $cout[3];
+  $p_finance_quotes->{$s, 'year_range'} = sprintf("%.2f - %.2f", $cout[4], $cout[5]);
+  $p_finance_quotes->{$s, 'volume'} = $cout[6];
+  $p_finance_quotes->{$s, 'pe'} = $cout[7];
+  $p_finance_quotes->{$s, 'success'} = $TRUE;
+  $p_finance_quotes->{$s, 'method'} = 'alternate';
+  $p_finance_quotes->{$s, 'net'} = $cout[8];
+  $p_finance_quotes->{$s, 'p_change'} = $cout[9];
+  push(@{$p_list_symbols}, $s);
+  return($rv);
+}
+
+#########################################################################################
+# get_quote_data1
+#   Fetches are done using finance::quote fetch method.  The difference between this
+#   function and get_quote_data is that this method works better when finance::quote
+#   returns a mix of good and bad data on a symbol basis.  Empirically, here is what I
+#   observed.  Assume we are fetching data for 500 symbols:
+#     o After the first fetch, anywhere from 150-300 symbols would have bad data.
+#     o Subsequent fetches would get a mix of good and bad data, but not the same symbols 
+#       each time.
+#     o Some symbols seemed resistant to getting good fetches.
+#
+#   Given that, here is the proposed algorithm:
+#     1. Attempt a fetch of all symbols.
+#     2. Loop through each symbol and determine if fetch was good or bad.
+#        a. If bad, delete that symbol from the fetch hash.
+#        b. Save the symbol for the next iteration.
+#     3. Merge the resulting fetch hash into the accumulate fetch hash.
+#     3. Delete bad symbols from the original list to be fetched and goto 1.
+#     4. Repeat the above loop, N times or exit the loop if there are no bad symbols.
+#     5. If there are still bad symbols, use aq method to fetch and fill accumulate
+#        fetch hash.
+#   
+#   Three parameters are passed:
+#     p_finance_quotes -- Pointer to the accumulate fetch hash (assume it was emptied before the call).
+#     p_list_symbols   -- Pointer to list of symbols to fetch (NOTE: ^DJI is added to this list after aq fetch).
+#     p_hash_put_stats -- Pointer to put_stats hash.
+sub get_quote_data1 {
+  my ($p_finance_quotes, $p_list_symbols, $p_hash_put_stats) = @_;
+  my $rv = $TRUE;
+  my $service = $main::opt_aq;
+  my $maxper = $main::opt_maxper;
+  my $verbose = $main::flag_verbose;
+  my $ts = $main::time_stamp;
+  my @lookup_list_symbols;        # Starts out as copy of @{$p_list_symbols}, after each iteration contains only symbols that still need to be fetched.
+  my %hash_fq_fetch;              # This is where raw fetch data is put, bad fetch data is removed, then it is merged into %{$p_finance_quote}.
+
+  @lookup_list_symbols = @{$p_list_symbols};
+
+  if (! $service) { $service = 'yahoo'; }
+
+  $p_hash_put_stats->{'fetch_iterations'} = 0;
+  $p_hash_put_stats->{'num_errors'} = 0;
+  $p_hash_put_stats->{'num_aqs'} = 0;
+
+  my $fetch_count = 0;
+  my $bad_symbol_fetches = 0;
+  my $cmd;
+  my $cout;
+  my @cout;
+  my $remaining_iterations = $maxper;
+  my $secs_per_day = 3600 * 24;
+  my $aq_date = strftime("%D", localtime(parsedate('now')));
+  my $aq_time = strftime("%R", localtime(parsedate('now')));
+  my $todays_date = strftime("%Y-%m-%d", localtime(parsedate('now')));
+  my $yesterdays_date = strftime("%Y-%m-%d", localtime(parsedate('now') - $secs_per_day));
+# my $earliest_allowed_seconds = parsedate(sprintf("%s %s", $todays_date, '9:15am'));  ### TODO Figure what to do about days when market is closed
+  my $earliest_allowed_seconds = parsedate(sprintf("%s %s", $yesterdays_date, '3:30pm'));  ### TODO Figure what to do about days when market is closed
+
+  $p_hash_put_stats->{'query_stime'} = strftime("%H:%M:%S", localtime(parsedate('now')));
+
+  while (($remaining_iterations > 0) && (scalar(@lookup_list_symbols) > 0)) {
+    ### Get quotes...figure out which ones were good.
+    $fetch_count++;
+    $p_hash_put_stats->{'fetch_iterations'}++;
+    $remaining_iterations--;
+    if ($verbose) { printf(STDERR "NOTE: %d -- Fetch[%d] quote data for %d symbols.\n", (parsedate('now')-$ts), $fetch_count, scalar(@lookup_list_symbols)); }
+    my $qh = Finance::Quote->new;
+    %hash_fq_fetch = $qh->fetch("usa", @lookup_list_symbols);
+    my @bad_symbols = ();
+
+    for (my $i = $#lookup_list_symbols; $i >= 0; $i--) {
+      #my $fetch_seconds = parsedate(sprintf("%s %s", $hash_fq_fetch{$lookup_list_symbols[$i], 'date'}, $hash_fq_fetch{$lookup_list_symbols[$i], 'time'}));
+      if (   ($hash_fq_fetch{$lookup_list_symbols[$i], 'success'}) 
+          && (defined($hash_fq_fetch{$lookup_list_symbols[$i], 'close'}))
+          && (($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} > 0))
+          && ($hash_fq_fetch{$lookup_list_symbols[$i], 'close'} < 10000000)
+          && ($hash_fq_fetch{$lookup_list_symbols[$i], 'last'} < 10000000)
+          && ((my $fetch_seconds = parsedate(sprintf("%s %s", $hash_fq_fetch{$lookup_list_symbols[$i], 'date'}, $hash_fq_fetch{$lookup_list_symbols[$i], 'time'})) > $earliest_allowed_seconds))
+         ) {
+        ### If you are here, then we determined that this particular symbol fetched good.
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'symbol'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'symbol'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'name'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'name'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'last'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'last'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'high'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'high'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'low'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'low'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'date'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'date'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'time'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'time'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'net'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'net'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'p_change'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'p_change'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'volume'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'volume'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'avg_vol'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'avg_vol'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'bid'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'bid'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'ask'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'ask'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'close'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'close'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'open'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'open'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'day_range'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'day_range'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'year_range'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'year_range'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'eps'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'eps'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'pe'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'pe'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'div_date'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'div_date'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'div'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'div'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'div_yield'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'div_yield'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'cap'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'cap'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'ex_div'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'ex_div'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'nav'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'nav'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'yield'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'yield'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'exchange'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'exchange'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'success'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'success'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'errormsg'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'errormsg'};
+        $p_finance_quotes->{$lookup_list_symbols[$i], 'method'} = $hash_fq_fetch{$lookup_list_symbols[$i], 'method'};
+      } else {
+        ### If you are here, then we determined that this particular symbol fetched bad.
+        $bad_symbol_fetches++;
+        push(@bad_symbols, $lookup_list_symbols[$i]);
+      }
+    }
+
+    @lookup_list_symbols = @bad_symbols;
+  }
+
+  for (my $i = $#lookup_list_symbols; $i >= 0; $i--) {
+    my $bad_fetch_symbol = $lookup_list_symbols[$i];
+    $cmd = sprintf("/home/blreams/bin/get_a_quote --service %s --symbol %s", $service, $bad_fetch_symbol);
+    if ($main::flag_verbose) { printf(STDERR "NOTE: %d -- Calling for alternate quote [index=%3d] <%s>.\n", (parsedate('now')-$main::time_stamp), $i, $cmd); }
+    $cout = `$cmd`;
+    @cout = split(/\s+/, $cout);
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'close'} = $cout[0];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'last'} = $cout[1];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'high'} = $cout[2];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'low'} = $cout[3];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'year_range'} = sprintf("%.2f - %.2f", $cout[4], $cout[5]);
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'volume'} = $cout[6];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'pe'} = $cout[7];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'success'} = $TRUE;
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'method'} = 'alternate';
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'net'} = $cout[8];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'p_change'} = $cout[9];
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'date'} = $aq_date;
+    $p_finance_quotes->{$lookup_list_symbols[$i], 'time'} = $aq_time;
+    ($p_hash_put_stats->{'num_aqs'})++;
+
+    if ($p_finance_quotes->{$lookup_list_symbols[$i], 'last'} < 0.01) {
+      $rv = $FALSE;
+      ($p_hash_put_stats->{'num_errors'})++;
+      if ($main::flag_verbose) { printf(STDERR "WARNING: %d -- Alternate quote <%s> returned bad LAST <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd, $cout[1]); }
+    }
+  }
+
+  $p_hash_put_stats->{'query_etime'} = strftime("%H:%M:%S", localtime(parsedate('now')));
+
+  ### One last alternate quote lookup for ^DJI
+  my $s = '^DJI';
+  $cmd = sprintf("/home/blreams/bin/get_a_quote --service %s --symbol %s", $service, $s);
+  if ($main::flag_verbose) { printf(STDERR "NOTE: %d -- Calling for alternate quote [^DJI] <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd); }
+  $cout = `$cmd`;
+  @cout = split(/\s+/, $cout);
+  $p_finance_quotes->{$s, 'close'} = $cout[0];
+  $p_finance_quotes->{$s, 'last'} = $cout[1];
+  $p_finance_quotes->{$s, 'high'} = $cout[2];
+  $p_finance_quotes->{$s, 'low'} = $cout[3];
+  $p_finance_quotes->{$s, 'year_range'} = sprintf("%.2f - %.2f", $cout[4], $cout[5]);
+  $p_finance_quotes->{$s, 'volume'} = $cout[6];
+  $p_finance_quotes->{$s, 'pe'} = $cout[7];
+  $p_finance_quotes->{$s, 'success'} = $TRUE;
+  $p_finance_quotes->{$s, 'method'} = 'alternate';
+  $p_finance_quotes->{$s, 'net'} = $cout[8];
+  $p_finance_quotes->{$s, 'p_change'} = $cout[9];
+  $p_finance_quotes->{$s, 'date'} = $aq_date;
+  $p_finance_quotes->{$s, 'time'} = $aq_time;
+  push(@{$p_list_symbols}, $s);
+  return($rv);
+}
+
+#########################################################################################
+# get_quoteoption_data
+#   Fetches are done using finance::quoteoption. 
+#   
+#   Two parameters are passed:
+#     p_finance_quotes -- Pointer to the accumulate fetch hash (assume it was emptied before the call.
+#     p_list_options   -- Pointer to list of options to fetch.
+sub get_quoteoption_data {
+  my ($p_finance_quotes, $p_list_options) = @_;
+  my $rv = $TRUE;
+  my $symbol;
+  my $expiration;
+  my $iscall;
+  my $strike;
+  my $p_option_data;
+  my $o = 0;
+
+  my $service = $main::opt_aq;
+  my $cmd;
+  my $cout;
+  my @cout;
+  my $aq_date = strftime("%D", localtime(parsedate('now')));
+  my $aq_time = strftime("%R", localtime(parsedate('now')));
+
+### This commented code attempted to use Finance::QuoteOptions, but could only retrieve the most recent expiration data.
+#  foreach my $option_symbol (@{$p_list_options}) {
+#    $option_symbol =~ /^([A-Z]+)(\d+)([CP])(\d{5})(\d{3})$/;
+#    $symbol = $1;
+#    $expiration = $2;
+#    if (substr($expiration,0,2) < 70) {
+#      $expiration = '20' . $expiration;
+#    } else {
+#      $expiration = '19' . $expiration;
+#    }
+#    $iscall = ($3 eq 'C') ? 1 : 0;
+#    $strike = sprintf("%.3f", "$4.$5");
+#    my $q = Finance::QuoteOptions->new($symbol);
+#    $q->retrieve(2);
+#    $p_option_data = $q->calls($expiration);
+#
+#    $o++;
+#  }
+
+  if (! $service) { $service = 'yahoo'; }
+
+  foreach my $option_symbol (@{$p_list_options}) {
+    $cmd = sprintf("/home/blreams/bin/get_a_quote --service %s --symbol %s", $service, $option_symbol);
+    if ($main::flag_verbose) { printf(STDERR "NOTE: %d -- Calling for option quote <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd); }
+    $cout = `$cmd`;
+    @cout = split(/\s+/, $cout);
+    $p_finance_quotes->{$option_symbol, 'close'} = $cout[0];
+    $p_finance_quotes->{$option_symbol, 'last'} = $cout[1];
+    $p_finance_quotes->{$option_symbol, 'high'} = $cout[2];
+    $p_finance_quotes->{$option_symbol, 'low'} = $cout[3];
+    $p_finance_quotes->{$option_symbol, 'year_range'} = sprintf("%.2f - %.2f", $cout[4], $cout[5]);
+    $p_finance_quotes->{$option_symbol, 'volume'} = $cout[6];
+    $p_finance_quotes->{$option_symbol, 'pe'} = $cout[7];
+    $p_finance_quotes->{$option_symbol, 'success'} = $TRUE;
+    $p_finance_quotes->{$option_symbol, 'method'} = 'alternate';
+    $p_finance_quotes->{$option_symbol, 'net'} = $cout[8];
+    $p_finance_quotes->{$option_symbol, 'p_change'} = $cout[9];
+    $p_finance_quotes->{$option_symbol, 'bid'} = $cout[10];
+    $p_finance_quotes->{$option_symbol, 'ask'} = $cout[11];
+    $p_finance_quotes->{$option_symbol, 'date'} = $aq_date;
+    $p_finance_quotes->{$option_symbol, 'time'} = $aq_time;
+
+    ### I've seen cases where either bid or ask (or maybe last) was N/A on quote page...if so just return (in priority order):
+    ###   0. last if (optionlast)
+    ###   1. average(bid, ask)
+    ###   2. last
+    ###   3. ask
+    ###   4. bid
+    if ($main::flag_optionlast) {
+      $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'last'};
+    } elsif ($p_finance_quotes->{$option_symbol, 'bid'} && ($p_finance_quotes->{$option_symbol, 'ask'})) {
+      $p_finance_quotes->{$option_symbol, 'last'} = ($p_finance_quotes->{$option_symbol, 'bid'} + $p_finance_quotes->{$option_symbol, 'ask'}) / 2;
+    } elsif ($p_finance_quotes->{$option_symbol, 'last'}) {
+      $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'last'};
+    } elsif ($p_finance_quotes->{$option_symbol, 'ask'}) {
+      $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'ask'};
+    } elsif ($p_finance_quotes->{$option_symbol, 'bid'}) {
+      $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'bid'};
+    }
+
+    if ($p_finance_quotes->{$option_symbol, 'last'} < 0.01) {
+      $rv = $FALSE;
+      if ($main::flag_verbose) { printf(STDERR "WARNING: %d -- Alternate quote <%s> returned bad LAST <%s>.\n", (parsedate('now')-$main::time_stamp), $cmd, $cout[1]); }
+    }
+  }
+  return($rv);
+}
+
+#########################################################################################
+# db_get_symbols
+#   One parameters are returned:
+#     p_list_symbols        -- Pointer to list symbols.
+sub db_get_symbols {
+  my ($p_list_symbols, $p_list_options) = @_;
+  my $sth;
+  my @dbrow;
+  my $fetch_mf = $main::fetch_mf;
+  my %hash_options;
+
+  ### First thing is to generate the list of symbols.
+  my $query = "SELECT symbol FROM transaction_list WHERE ((position in ('long', 'short')) && (descriptor = 'stock') && (NOT closed) && (symbol <> '^DJI')) UNION SELECT symbol FROM ticker_symbols WHERE (symbol <> '^DJI') ORDER BY symbol";
+  my $p_ls = $dbh->selectcol_arrayref($query);
+
+  if ($fetch_mf) {
+    @{$p_list_symbols} = @{$p_ls};
+  } else {
+    @{$p_list_symbols} = grep(!/^....X$/, @{$p_ls});
+  }
+
+  ### Next thing is to generate the list of options.
+  @{$p_list_options} = ();  # Need to initialize list so it doesn't grow on each loop.
+  $query = "SELECT id,symbol,descriptor,strike,expiration FROM transaction_list WHERE ((position in ('long', 'short')) && (NOT closed) && (descriptor in ('call','put')))";
+  my $p_options_query = $dbh->selectall_hashref($query, 'id');
+  foreach my $id (keys %{$p_options_query}) {
+    my $symbol = $p_options_query->{$id}{symbol};
+    my $descriptor = $p_options_query->{$id}{descriptor};
+    my $strike = $p_options_query->{$id}{strike};
+    my $expiration = $p_options_query->{$id}{expiration};
+    my $option_symbol = $symbol . substr($expiration,2,2) . substr($expiration,5,2) . substr($expiration,8,2);
+    $option_symbol .= ($descriptor eq 'call') ? 'C' : 'P';
+    $option_symbol .= sprintf("%05d", int($strike)) . sprintf("%03d", int(($strike - int($strike)) * 1000));
+    if (!$hash_options{$option_symbol}) { 
+      $hash_options{$option_symbol} = 1; 
+      push(@{$p_list_options}, $option_symbol);
+    }
+  }
+}
+
+
+#########################################################################################
+# execute_query_finance_quote
+#   Three parameters are passed in:
+#     symbol
+#     p_qh -- handle to the DBI query.
+#     p_fq -- pointer to the finance_quotes hash.
+#     
+sub execute_query_finance_quote {
+  my ($symbol, $p_qh, $p_fq) = @_;
+  my $name = $p_fq->{$symbol, 'name'};
+  my $seconds;
+  my $date;
+  my $time;
+  my $div_date;
+  my $ex_div;
+  my $cap;
+  
+  if (! $name) { $name = $symbol; }
+  $name = substr($name, 0, 30);
+  if (defined($p_fq->{$symbol, 'date'})) {
+    $seconds = parsedate(sprintf("%s %s", $p_fq->{$symbol, 'date'}, $p_fq->{$symbol, 'time'}));
+    $date = strftime("%Y-%m-%d", localtime($seconds));
+    $time = strftime("%T", localtime($seconds));
+  } else {
+    $date = 'NULL';
+    $time = 'NULL';
+  }
+
+  if ($symbol eq '^GSPC') { $quote_date = $date; }
+
+  if (defined($p_fq->{$symbol, 'div_date'})) {
+    $seconds = parsedate($p_fq->{$symbol, 'div_date'});
+    $div_date = strftime("%Y-%m-%d", localtime($seconds));
+  } else {
+    $div_date = 'NULL';
+  }
+  if (defined($p_fq->{$symbol, 'ex_div'})) {
+    $seconds = parsedate($p_fq->{$symbol, 'ex_div'});
+    $ex_div  = strftime("%Y-%m-%d", localtime($seconds));
+  } else {
+    $ex_div = 'NULL';
+  }
+  $cap = $p_fq->{$symbol, 'cap'};
+  if (defined($cap)) {
+    $cap =~ s/T/e12/;
+    $cap =~ s/B/e9/;
+    $cap =~ s/M/e6/;
+    $cap =~ s/K/e3/;
+  } else {
+    $cap = 0.0;
+  }
+  $cap /= 1000.0;
+
+  return($p_qh->execute(
+    $symbol,
+    sprintf("'%s'", $name),
+    (defined($p_fq->{$symbol, 'last'})       ? sprintf("%s", $p_fq->{$symbol, 'last'})         : 0),
+    (defined($p_fq->{$symbol, 'high'})       ? sprintf("%s", $p_fq->{$symbol, 'high'})         : 0),
+    (defined($p_fq->{$symbol, 'low'})        ? sprintf("%s", $p_fq->{$symbol, 'low'})          : 0),
+    sprintf("%s", $date),
+    sprintf("%s", $time),
+    (defined($p_fq->{$symbol, 'net'})        ? sprintf("%s", $p_fq->{$symbol, 'net'})          : 0),
+    (defined($p_fq->{$symbol, 'p_change'})   ? sprintf("%s", $p_fq->{$symbol, 'p_change'})     : 0),
+    (defined($p_fq->{$symbol, 'volume'})     ? sprintf("%s", $p_fq->{$symbol, 'volume'})       : 0),
+    (defined($p_fq->{$symbol, 'avg_vol'})    ? sprintf("%s", $p_fq->{$symbol, 'avg_vol'})      : 0),
+    (defined($p_fq->{$symbol, 'bid'})        ? sprintf("%s", $p_fq->{$symbol, 'bid'})          : 0),
+    (defined($p_fq->{$symbol, 'ask'})        ? sprintf("%s", $p_fq->{$symbol, 'ask'})          : 0),
+    (defined($p_fq->{$symbol, 'close'})      ? sprintf("%s", $p_fq->{$symbol, 'close'})        : 0),
+    (defined($p_fq->{$symbol, 'open'})       ? sprintf("%s", $p_fq->{$symbol, 'open'})         : 0),
+    (defined($p_fq->{$symbol, 'day_range'})  ? sprintf("'%s'", $p_fq->{$symbol, 'day_range'})  : undef),
+    (defined($p_fq->{$symbol, 'year_range'}) ? sprintf("'%s'", $p_fq->{$symbol, 'year_range'}) : undef),
+    (defined($p_fq->{$symbol, 'eps'})        ? sprintf("%s", $p_fq->{$symbol, 'eps'})          : 0),
+    (defined($p_fq->{$symbol, 'pe'})         ? sprintf("%s", $p_fq->{$symbol, 'pe'})           : 0),
+    (defined($p_fq->{$symbol, 'div_date'})   ? sprintf("%s", $div_date)                        : undef),
+    (defined($p_fq->{$symbol, 'div'})        ? sprintf("%s", $p_fq->{$symbol, 'div'})          : 0),
+    (defined($p_fq->{$symbol, 'div_yield'})  ? sprintf("%s", $p_fq->{$symbol, 'div_yield'})    : 0),
+    sprintf("%.2f", $cap),
+    (defined($p_fq->{$symbol, 'ex_div'})     ? sprintf("%s", $ex_div)                          : undef),
+    (defined($p_fq->{$symbol, 'nav'})        ? sprintf("%s", $p_fq->{$symbol, 'nav'})          : 0),
+    (defined($p_fq->{$symbol, 'yield'})      ? sprintf("%s", $p_fq->{$symbol, 'yield'})        : 0),
+    (defined($p_fq->{$symbol, 'exchange'})   ? sprintf("'%s'", $p_fq->{$symbol, 'exchange'})   : undef),
+    (defined($p_fq->{$symbol, 'success'})    ? sprintf("%d", $p_fq->{$symbol, 'success'})      : 0),
+    (defined($p_fq->{$symbol, 'errormsg'})   ? sprintf("'%s'", $p_fq->{$symbol, 'errormsg'})   : undef),
+    (defined($p_fq->{$symbol, 'method'})     ? sprintf("'%s'", $p_fq->{$symbol, 'method'})     : undef),
+  ));
+}
+
+#########################################################################################
+# execute_query_put_stats
+#   Three parameters are passed in:
+#     p_ps -- pointer to port_stats hash.
+#     p_qh -- handle to the DBI query.
+#     
+sub execute_query_put_stats {
+  my ($p_ps, $p_qh) = @_;
+
+  return($p_qh->execute(
+    0,
+    $p_ps->{'put_version'},
+    $p_ps->{'put_date'},
+    $p_ps->{'put_time'},
+    $p_ps->{'query_date'},
+    $p_ps->{'query_stime'},
+    $p_ps->{'query_etime'},
+    $p_ps->{'num_symbols'},
+    $p_ps->{'num_aqs'},
+    $p_ps->{'num_errors'},
+    $p_ps->{'fetch_iterations'},
+  ));
+}
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+our $num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+our $time_stamp = parsedate('now');
+our $end_seconds;
+our $delay_seconds = 0;
+our $flag_help = $FALSE;
+our $flag_version = $FALSE;
+our $flag_debug = $FALSE;
+our $flag_verbose = $FALSE;
+our $flag_nodelete = $FALSE;
+our $opt_aq = '';
+our $opt_end = 'now + 1 second';
+our $opt_wait = 15;
+our $opt_maxper = 0;
+our $flag_domf = $FALSE;
+our $flag_optionlast = $FALSE;
+our $flag_skipmktchk = $FALSE;
+our $arg;
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') { usage; exit(0); }
+  if ($arg eq '--version') { printf(STDERR "%s v%s\n", $script_name, $script_ver); exit(0); }
+  if ($arg eq '--debug') { $flag_debug = $TRUE; next; }
+  if ($arg eq '--verbose') { $flag_verbose = $TRUE; next; }
+  if ($arg eq '--nodelete') { $flag_nodelete = $TRUE; next; }
+  if ($arg eq '--aq') { $opt_aq = shift; next; }
+  if ($arg eq '--end') { $opt_end = shift; next; }
+  if ($arg eq '--wait') { $opt_wait = shift; next; }
+  if ($arg eq '--maxper') { $opt_maxper = shift; next; }
+  if ($arg eq '--domf') { $flag_domf = $TRUE; next; }
+  if ($arg eq '--optionlast') { $flag_optionlast = $TRUE; next; }
+  if ($arg eq '--skipmktchk') { $flag_skipmktchk = $TRUE; next; }
+}
+
+if (! $opt_maxper) {
+  printf("ERROR: Required argument <--maxper %s>, must be positive integer.\n", $opt_maxper);
+  exit(1);
+}
+if ($opt_aq && ($opt_aq ne 'yahoo') && ($opt_aq ne 'google')) {
+  printf("ERROR: Bad argument <--aq %s> if specified, must be [yahoo|google].\n", $opt_aq);
+  exit(1);
+}
+if (! ($end_seconds = parsedate($opt_end))) {
+  printf("WARNING: Unable to parse <--end %s>, set to 'now + 1 second'\n", $opt_end);
+  $opt_end = 'now + 1 second';
+}
+if ($opt_wait < 1) {
+  printf("WARNING: Bad argument <--wait %s>, set to default 15 seconds.\n", $opt_wait);
+  $opt_wait = 15;
+}
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+### Declarations
+our $i;
+our @raw_transactions;
+our @parsed_transactions;
+our %port_params;
+our @list_symbols;
+our @list_options;
+our @transaction_report;
+our %finance_quotes;
+our $p_tr_entry;
+our $result;
+our $key;
+our $fetch_mf = $TRUE; # This starts out true, after first iteration it gets value from $flag_domf cmd line option.
+
+# The following is used for put_stats table.
+our %hash_put_stats = ('put_version' => $script_ver);
+
+Readonly our @db_cols_finance_quote => (
+  'symbol',
+  'name',
+  'last',
+  'high',
+  'low',
+  'date',
+  'time',
+  'net',
+  'p_change',
+  'volume',
+  'avg_vol',
+  'bid',
+  'ask',
+  'close',
+  'open',
+  'day_range',
+  'year_range',
+  'eps',
+  'pe',
+  'div_date',
+  'dividend',
+  'div_yield',
+  'cap',
+  'ex_div',
+  'nav',
+  'yield',
+  'exchange',
+  'success',
+  'errormsg',
+  'method',
+);
+
+### Build LOCK/UNLOCK TABLES query and handle for finance_quote
+our $lock_handle_finance_quote;
+our $lock_query_finance_quote = 'LOCK TABLES finance_quote WRITE';
+our $unlock_handle_finance_quote;
+our $unlock_query_finance_quote = 'UNLOCK TABLES';
+
+### Build DELETE query and handle for finance_quote
+#our $truncate_handle_finance_quote;
+#our $truncate_query_finance_quote = 'TRUNCATE TABLE finance_quote';
+our $delete_handle_finance_quote;
+our $delete_query_finance_quote = 'DELETE FROM finance_quote';
+
+### Build REPLACE query for finance_quote table
+our $replace_handle_finance_quote;
+our $replace_query_finance_quote = 'REPLACE INTO finance_quote (';
+our $query_tail = '';
+for ($i = 0; $i <= $#db_cols_finance_quote; $i++) {
+  $replace_query_finance_quote .= sprintf("%s,", $db_cols_finance_quote[$i]);
+  $query_tail .= '?,';
+}
+chop($replace_query_finance_quote);
+chop($query_tail);
+$replace_query_finance_quote .= ') VALUES (';
+$replace_query_finance_quote .= $query_tail;
+$replace_query_finance_quote .= ')';
+
+### Build INSERT query for put_stats table
+our $insert_handle_put_stats;
+our $insert_query_put_stats = 'INSERT INTO put_stats (id,put_version,put_date,put_time,query_date,query_stime,query_etime,num_symbols,num_aqs,num_errors,fetch_iterations) VALUES (?,?,?,?,?,?,?,?,?,?,?)';
+
+### Build DELETE query for put_stats table
+our $delete_handle_put_stats;
+our $delete_query_put_stats = "DELETE FROM put_stats WHERE (put_date < 'xxx')";
+
+### Connect to database.
+$dbh = DBI->connect('dbi:mysql:track_port', 'blreams') or die "ERROR: Connection error: $DBI::errstr\n";
+$dbh->{AutoCommit} = 0;
+$replace_handle_finance_quote = $dbh->prepare_cached($replace_query_finance_quote);
+die "ERROR: Could not prepare finance_quote replace query, aborting.\n" unless defined $replace_handle_finance_quote;
+$insert_handle_put_stats = $dbh->prepare_cached($insert_query_put_stats);
+die "ERROR: Could not prepare put_stats insert query, aborting.\n" unless defined $insert_handle_put_stats;
+
+# Check for holiday
+if (!$flag_skipmktchk && market_closed()) { 
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Aborting, market closed...\n", (parsedate('now')-$time_stamp)); }
+  exit(0); 
+}
+
+our $first_loop = $TRUE;
+while ($end_seconds >= parsedate('now')) {
+  if (! $first_loop) { $fetch_mf = $flag_domf; }
+  ($hash_put_stats{'put_date'}, $hash_put_stats{'put_time'}) = split(/ /, strftime("%Y-%m-%d %H:%M:%S", localtime(parsedate('now'))));
+
+  if ($delay_seconds) { sleep($delay_seconds); $delay_seconds = 0; }
+  if (! $first_loop) { 
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Waiting...\n", (parsedate('now')-$time_stamp)); }
+    sleep($opt_wait); 
+  }
+
+  ### Delete rows from put_stats older than one month.
+  if ($first_loop) {
+    our $date_thirty_days_ago = strftime("%Y-%m-%d", (localtime(parsedate('now') - (30 * 24 * 3600))));
+    $delete_query_put_stats =~ s/xxx/$date_thirty_days_ago/;
+    $delete_handle_put_stats = $dbh->do($delete_query_put_stats);
+  }
+
+  ### Parse the transactions and create list of symbols.
+  db_get_symbols(\@list_symbols, \@list_options);
+
+  ### First time through the loop, delete existing finance_quote info in DB.
+  if ((!$flag_nodelete) && $first_loop) { 
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Deleting existing finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+    $delete_handle_finance_quote = $dbh->do($delete_query_finance_quote);
+  }
+ 
+  ### Before we call either fetch routine, empty the current finance_quotes hash.
+  %finance_quotes = ();
+
+  ### Call for fetch of options data (if necessary)
+  if (scalar(@list_options) > 0) {
+    if (! get_quoteoption_data(\%finance_quotes, \@list_options)) {
+      printf(STDERR "WARNING: Unable to fetch all options quotes...\n");
+    }
+  }
+
+  ### Call for fetch of finance::quote data
+  $hash_put_stats{'num_symbols'} = scalar(@list_symbols);
+# if (! get_quote_data(\%finance_quotes, \@list_symbols, \%hash_put_stats)) {
+  if (! get_quote_data1(\%finance_quotes, \@list_symbols, \%hash_put_stats)) {
+    printf(STDERR "WARNING: Unable to fetch all quotes...\n");
+  }
+  $hash_put_stats{'query_date'} = strftime("%Y-%m-%d", localtime(parsedate($finance_quotes{$list_symbols[0],'date'})));
+  
+  ######################################## Start DB operations ###################################################
+  ###########################
+  ### finance_quote table ###
+  ###########################
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Locking finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+  $lock_handle_finance_quote = $dbh->do($lock_query_finance_quote);
+ 
+  ### Insert quote info into database
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing replace queries on finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+  our $success = $TRUE;
+  foreach our $symbol (@list_symbols) {
+    #if ($symbol eq 'JD') {
+    #  printf("Putting info for %s...\n", $symbol);
+    #}
+    $success &&= execute_query_finance_quote($symbol, $replace_handle_finance_quote, \%finance_quotes);
+    if (! $success) {
+      printf(STDERR "Check FQ data for symbol %s...\n", $symbol);
+      $success = $TRUE;
+    }
+  }
+
+  if (! $success) {
+    printf(STDERR "Something bad happened...");
+  }
+ 
+  ### Insert option quote info into database
+  if (scalar(@list_options) > 0) {
+    if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing replace queries for options on finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+    foreach our $symbol (@list_options) {
+      $success &&= execute_query_finance_quote($symbol, $replace_handle_finance_quote, \%finance_quotes);
+    }
+  }
+ 
+  ### Commit quote info to database
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Committing replaces to finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+  $result = ($success ? $dbh->commit : $dbh->rollback);
+ 
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Unlocking finance_quote table.\n", (parsedate('now')-$time_stamp)); }
+  $unlock_handle_finance_quote = $dbh->do($unlock_query_finance_quote);
+ 
+  ### Insert current put_stats.
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Performing insert queries on put_stats table.\n", (parsedate('now')-$time_stamp)); }
+  $success &&= execute_query_put_stats(\%hash_put_stats, $insert_handle_put_stats);
+
+
+  ### Below is loop maintenance stuff, checking time, remaining seconds, etc.
+  $first_loop = $FALSE;
+  if ($flag_verbose) { printf(STDERR "NOTE: %d -- Remaining seconds <%d>\n", (parsedate('now')-$time_stamp), ((($end_seconds - parsedate('now')) >= 0) ? ($end_seconds - parsedate('now')) : 0)); }
+#} while ($end_seconds >= parsedate('now'));
+}
+
+$dbh->disconnect;
+our $junk = 1;

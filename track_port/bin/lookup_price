@@ -1,0 +1,242 @@
+#!/usr/bin/env perl
+# Copyright 2007 Intel Corporation.
+# All rights reserved.
+# This is unpublished, confidential Intel proprietary
+# information.  Do not reproduce without written permission.
+#
+# file:         lookup_price
+#
+# description:
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 05/04/07  1.0   blreams   initial
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+require LWP::UserAgent;
+use Time::CTime;
+use Time::ParseDate;
+
+$script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+$script_ver = '1.0';
+$min_args = 5;
+$max_args = 11;
+
+sub usage {
+  print(STDERR "\n");
+  print(STDERR "USAGE: $script_name  [--help] [--version] [--debug] [--verbose] \n");
+  print(STDERR "USAGE:               [--high|--low|--last|--avg] --symbol symbol --date date \n");
+  print(STDERR "USAGE:               --showdate \n");
+  printf(stderr "USAGE:   [--help]          - help\n");
+  printf(stderr "USAGE:   [--version]       - version\n");
+  printf(stderr "USAGE:   [--debug]         - debug\n");
+  printf(stderr "USAGE:   [--verbose]       - verbose\n");
+  printf(stderr "USAGE:   --high            - return high price\n");
+  printf(stderr "USAGE:   --low             - return low price\n");
+  printf(stderr "USAGE:   --avg             - return average of high and low price\n");
+  printf(stderr "USAGE:   --last            - return last price\n");
+  printf(stderr "USAGE:   --symbol symbol   - specify symbol to lookup\n");
+  printf(stderr "USAGE:   --date date       - specify date to lookup\n");
+  printf(stderr "USAGE:   --showdate        - return the date (mm/dd/yyyy)\n");
+  printf(stderr "USAGE:   --showsymbol      - return the symbol\n");
+  printf(stderr "\n");
+}
+
+#-----------------------------------------------------------------------------
+# Assign constants
+#-----------------------------------------------------------------------------
+$FALSE = 0;
+$TRUE = 1;
+
+$seconds_per_minute = 60;
+$seconds_per_hour = 60 * $seconds_per_minute;
+$seconds_per_day = 24 * $seconds_per_hour;
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+$num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+$flag_help = $FALSE;
+$flag_version = $FALSE;
+$flag_debug = $FALSE;
+$flag_verbose = $FALSE;
+$flag_high = $FALSE;
+$flag_low = $FALSE;
+$flag_last = $FALSE;
+$flag_avg = $FALSE;
+$opt_symbol = '';
+$opt_date = '';
+$flag_showdate = $FALSE;
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') {
+    usage;
+    exit(0);
+  }
+  if ($arg eq '--version') {
+    printf(stderr "%s v%s\n", $script_name, $script_ver);
+    exit(0);
+  }
+  if ($arg eq '--debug') {
+    $flag_debug = $TRUE;
+    next;
+  }
+  if ($arg eq '--verbose') {
+    $flag_verbose = $TRUE;
+    next;
+  }
+  if ($arg eq '--high') {
+    $flag_high = $TRUE;
+    next;
+  }
+  if ($arg eq '--low') {
+    $flag_low = $TRUE;
+    next;
+  }
+  if ($arg eq '--last') {
+    $flag_last = $TRUE;
+    next;
+  }
+  if ($arg eq '--avg') {
+    $flag_avg = $TRUE;
+    next;
+  }
+  if ($arg eq '--symbol') {
+    $opt_symbol = shift;
+    next;
+  }
+  if ($arg eq '--date') {
+    $opt_date = shift;
+    next;
+  }
+  if ($arg eq '--showdate') {
+    $flag_showdate = $TRUE;
+    next;
+  }
+  if ($arg eq '--showsymbol') {
+    $flag_showsymbol = $TRUE;
+    next;
+  }
+}
+
+if (! ($flag_high || $flag_low || $flag_last || $flag_avg)) {
+  printf(stderr "ERROR: Missing required argument, one of <--high|--low|--last|--avg>\n");
+  exit(1);
+}
+if (! $opt_symbol) {
+  printf(stderr "ERROR: Missing required argument <--symbol>\n");
+  exit(1);
+}
+if (! $opt_date) {
+  printf(stderr "ERROR: Missing required argument <--date>\n");
+  exit(1);
+}
+
+$symbol = $opt_symbol;
+if (! ($date_secs = parsedate($opt_date))) {
+  printf(stderr "ERROR: Unable to parse <--date %s>.\n", $opt_date);
+  exit(1);
+}
+
+#-----------------------------------------------------------------------------
+# Process the arguments passed to this script and
+# setup initial variables.
+#-----------------------------------------------------------------------------
+# The following statements are an example of how to open a file or die trying.
+# $fn = $ARGV[0]; ### Assign appropriate file name to $fn.
+# open(F1, $fn) || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+
+### Check to see if date is at least one day in the past.
+$yesterday_secs = time - $seconds_per_day;
+$yesterday_date = sprintf("%02d/%02d/%04d", strftime("%m", localtime($yesterday_secs)),
+                                            strftime("%e", localtime($yesterday_secs)),
+                                            strftime("%Y", localtime($yesterday_secs)) );
+$yesterday_secs = parsedate($yesterday_date);
+if ($date_secs > $yesterday_secs) {
+  printf(stderr "ERROR: <--date %s> must be at least 1 day in the past.\n", $opt_date);
+  exit(1);
+}
+
+### Build request: 7 days before date through date.
+$m2 = sprintf("%02d", strftime("%m", localtime($date_secs)) - 1);
+$d2 = sprintf("%02d", strftime("%e", localtime($date_secs)));
+$y2 = sprintf("%04d", strftime("%Y", localtime($date_secs)));
+
+$m1 = sprintf("%02d", strftime("%m", localtime($date_secs - (7 * $seconds_per_day))) - 1);
+$d1 = sprintf("%02d", strftime("%e", localtime($date_secs - (7 * $seconds_per_day))));
+$y1 = sprintf("%04d", strftime("%Y", localtime($date_secs - (7 * $seconds_per_day))));
+
+$ua = LWP::UserAgent->new(env_proxy => 1, keep_alive => 1, timeout => 10);
+$request = "http://table.finance.yahoo.com/table.csv?s=$symbol&a=$m1&b=$d1&c=$y1&d=$m2&e=$d2&f=$y2&y=0&g=d&ignore=.csv";
+$response = $ua->get($request);
+
+@lines = split(/\n/, $response->content);
+
+if ($response->headers->title =~ /404 Not Found/) {
+  ### Try a lookup using date range from requested date to yesterday.
+  $m2 = sprintf("%02d", strftime("%m", localtime($yesterday_secs)) - 1);
+  $d2 = sprintf("%02d", strftime("%e", localtime($yesterday_secs)));
+  $y2 = sprintf("%04d", strftime("%Y", localtime($yesterday_secs)));
+
+  $m1 = sprintf("%02d", strftime("%m", localtime($date_secs - (7 * $seconds_per_day))) - 1);
+  $d1 = sprintf("%02d", strftime("%e", localtime($date_secs - (7 * $seconds_per_day))));
+  $y1 = sprintf("%04d", strftime("%Y", localtime($date_secs - (7 * $seconds_per_day))));
+
+  $request = "http://table.finance.yahoo.com/table.csv?s=$symbol&a=$m1&b=$d1&c=$y1&d=$m2&e=$d2&f=$y2&y=0&g=d&ignore=.csv";
+  $response = $ua->get($request);
+
+  if ($response->headers->title =~ /404 Not Found/) {
+    ### Indicates a bad lookup, bad symbol, bad date range, etc.
+    printf(stderr "ERROR: Bad lookup, check symbol, date range, etc.\n");
+    printf("0\n");
+    exit(1);
+  }
+
+  ### If you made it this far, then the lookup was successful.  At this point the content array contains
+  ### the earliest date for which there is data at the last index.  What I want to do now is splice out
+  ### everything except that index.  Then massage $date_secs so that the comparison below will always be
+  ### true (ie. set $date_secs = $yesterday_secs.
+  @lines = split(/\n/, $response->content);
+  splice(@lines, 0, $#lines);
+  $date_secs = $yesterday_secs;
+}
+
+$found = $FALSE;
+foreach (@lines) {
+  ($date, $open, $high, $low, $close, $volume, $adjclose) = split(/,/);
+  if ($date eq 'Date') { next; }
+  if (($line_secs = parsedate($date)) && ($line_secs <= $date_secs)) { $found = $TRUE; last; }
+}
+
+if (! $found) {
+  printf(stderr "ERROR: Unable to find target date in returned data.\n");
+  printf("0\n");
+  exit(1);
+}
+
+$rv = '';
+if ($flag_high) { $rv .= sprintf("%7.2f\t", ($high / $close)                  * $adjclose); }
+if ($flag_low)  { $rv .= sprintf("%7.2f\t", ($low  / $close)                  * $adjclose); }
+if ($flag_avg)  { $rv .= sprintf("%7.2f\t", ((($high + $low) / 2.0) / $close) * $adjclose); }
+if ($flag_last) { $rv .= sprintf("%7.2f\t", $adjclose);                                     }
+
+if ($flag_showdate)   { $rv .= sprintf("%s ", strftime("%m/%d/%Y", localtime(parsedate($date)))); }
+if ($flag_showsymbol) { $rv .= sprintf("%s ", $opt_symbol); }
+
+printf("%s\n", $rv);
+
+$junk = 1;

@@ -1,0 +1,143 @@
+h2 {
+  color: white;
+  font-size: 10pt;
+  font-family: Arial, Verdana, sans-serif;
+}
+th {
+  color: black;
+  font-size: 10pt;
+  font-weight: bold;
+  font-family: Arial, Verdana, sans-serif;
+  padding: 0em;
+}
+td {
+  color: black;
+  font-size: 8pt;
+  font-family: Arial, Verdana, sans-serif;
+  padding: 0em;
+}
+td.right  { text-align: right }
+td.center { text-align: center }
+td.left   { text-align: left }
+th.right  { text-align: right }
+th.center { text-align: center }
+th.left   { text-align: left }
+tr.heading {
+  color: black;
+  text-align: center;
+  font: bolder 9pt Arial, Verdana, sans-serif;
+}
+.sum_tab {
+  border: 2px solid black;
+  padding: 0px;
+  margin: 0px;
+  background-color: #A8A8A8;
+}
+.sum_tab th {
+  border-style: groove;
+  margin: 0px;
+  font-weight: bold;
+  color: black;
+  text-align: center;
+}
+.sum_tab td {
+  border: 1px solid black;
+  border-style: inset;
+  margin: 0px;
+  font-weight: normal;
+  color: white;
+  text-align: right;
+}
+.sum_tab th.left   { text-align: left }
+.sum_tab th.center { text-align: center }
+.sum_tab th.right  { text-align: right }
+.sum_tab td.left   { text-align: left }
+.sum_tab td.center { text-align: center }
+.sum_tab td.right  { text-align: right }
+.sum_tab td.total  { text-align: left; color: black; background-color: #C8C0A0;}
+.sum_tab td.totalcenter { text-align: center; color: black; background-color: #C8C0A0;}
+.sum_tab tr.total  { text-align: left; color: black; background-color: #C8C0A0;}
+.tick_tab {
+  padding: 0px;
+  background-color: transparent;
+}
+.tick_tab th {
+  border-style: groove;
+  padding: 0px;
+  margin: 0px;
+  font-weight: bold;
+  color: black;
+  text-align: center;
+}
+.tick_tab td {
+  border-style: ridge;
+  padding: 0px;
+  margin: 0px;
+  font-weight: normal;
+  color: black;
+  text-align: left;
+}
+.tick_tab th.left   { text-align: left }
+.tick_tab th.center { text-align: center }
+.tick_tab th.right  { text-align: right }
+.tick_tab td.left   { text-align: left }
+.tick_tab td.center { text-align: center }
+.tick_tab td.right  { text-align: right }
+.tick_tab td.total  { text-align: left; color: black; background-color: #C8C0A0;}
+.tick_tab tr.total  { text-align: left; color: black; background-color: #C8C0A0;}
+
+.highlight { background-color: #fc6 !important; }
+
+.opens_tab th.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: center; color: yellow; background-color: #865722; }
+.opens_tab th { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: white; background-color: #865722; }
+.opens_tab th a:link    { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: #ceecf5; background-color: #865722; }
+.opens_tab th a:visited { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: #ced8f6; background-color: #865722; }
+.opens_tab th a:hover   { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: white;   background-color: #865722; }
+.ot_left { font: 8pt Arial, Verdana, sans-serif; text-align: left; color: white; background-color: #865722; }
+
+.cash_tab th.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: center; color: yellow; background-color: #9a860e; }
+.cash_tab th { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: white; background-color: #9a860e; }
+.cash_tab th a:link    { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: #ceecf5; background-color: #9a860e; }
+.cash_tab th a:visited { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: #ced8f6; background-color: #9a860e; }
+.cash_tab th a:hover   { font: 8pt Arial, Verdana, sans-serif; text-align: center; color: white;   background-color: #9a860e; }
+
+/* Styling the main table */
+.mainTable th { background: #ebe7ce; text-align: left; cursor: pointer; padding-right: 16px; border: 2px outset #dfdfdf; }
+.mainTable th.headerSortDown { background: #a6b8c2 url(/images/up_arrow.png) no-repeat 98% 7px; }
+.mainTable th.headerSortUp   { background: #a6b8c2 url(/images/down_arrow.png)   no-repeat 98% 5px; }
+.mainTable tr.even { background-color: #c0c0ff; }
+.mainTable tr.odd  { background-color: #e0e0ff; }
+.mainTable th:hover  { background: yellow; color: black; font-weight: bold; border: 2px inset  #dfdfdf; }
+.mainTable td.cashcell { color: white; background-color: #336600; }
+.mainTable td.totalcell { color: black; background-color: #ebe7ce; font-weight: bold; }
+
+/* Styling the sold table */
+.soldTable th { background: #ebe7ce; text-align: left; cursor: pointer; padding-right: 16px; border: 2px outset #dfdfdf; }
+.soldTable th.headerSortDown { background: #a6b8c2 url(/images/up_arrow.png) no-repeat 98% 7px; }
+.soldTable th.headerSortUp   { background: #a6b8c2 url(/images/down_arrow.png)   no-repeat 98% 5px; }
+.soldTable tr.even { background-color: #c0c0ff; }
+.soldTable tr.odd  { background-color: #e0e0ff; }
+.soldTable th:hover  { background: yellow; color: black; font-weight: bold; border: 2px inset  #dfdfdf; }
+
+/* Styling the opens_tab table */
+.opens_tab th { background: #865722; text-align: left; cursor: pointer; padding-right: 16px; border: 2px outset #dfdfdf; }
+.opens_tab th.headerSortDown { background: #a6b8c2 url(/images/up_arrow.png) no-repeat 98% 7px; }
+.opens_tab th.headerSortUp   { background: #a6b8c2 url(/images/down_arrow.png)   no-repeat 98% 5px; }
+.opens_tab tr.even { background-color: #edd4ba; }
+.opens_tab tr.odd  { background-color: #dcab74; }
+.opens_tab th:hover  { background: yellow; color: black; font-weight: bold; border: 2px inset  #dfdfdf; }
+
+/* Styling the opens_title_tab */
+.opens_title_tab td.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: left; color: yellow; background-color: #865722; }
+
+/* Styling the cash_tab table */
+.cash_tab th { background: #9a860e; text-align: left; cursor: pointer; padding-right: 16px; border: 2px outset #dfdfdf; }
+.cash_tab th.headerSortDown { background: #9a860e url(/images/up_arrow.png) no-repeat 98% 7px; }
+.cash_tab th.headerSortUp   { background: #9a860e url(/images/down_arrow.png)   no-repeat 98% 5px; }
+.cash_tab tr.even { background-color: #f7edaf; }
+.cash_tab tr.odd  { background-color: #f1dc5f; }
+.cash_tab th:hover  { background: yellow; color: black; font-weight: bold; border: 2px inset  #dfdfdf; }
+
+/* Styling the cash_title_tab */
+.cash_title_tab td.table_title { font: bolder 14pt Arial, Verdana, sans-serif; text-align: left; color: yellow; background-color: #9a860e; }
+

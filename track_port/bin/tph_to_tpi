@@ -1,0 +1,192 @@
+#!/usr/bin/env perl
+# Copyright 2008 Intel Corporation.
+# All rights reserved.
+# This is unpublished, confidential Intel proprietary
+# information.  Do not reproduce without written permission.
+#
+# file:         tph_to_tpi
+#
+# description:
+#
+# Modification History
+#
+# when      ver   who       what
+# --------  ---   --------  -----------------------------------------
+# 09/30/08  1.0   blreams   initial
+# --------  ---   --------  -----------------------------------------
+#-----------------------------------------------------------------------------
+# Miscellaneous initialization
+#-----------------------------------------------------------------------------
+$script_name = $0; ($0 =~ /\//) && ($0 =~ /\/([^\/\s]*)\s*$/) && ($script_name = $1);
+$script_ver = '1.0';
+$min_args = 4;
+$max_args = 6;
+
+sub usage {
+  print(STDERR "\n");
+  print(STDERR "USAGE: $script_name  [--help] [--version] [--debug] [--verbose] --tph tph --tpi tpi \n");
+  printf(stderr "USAGE:   [--help]    - print help info\n");
+  printf(stderr "USAGE:   [--version] - print version info\n");
+  printf(stderr "USAGE:   [--debug]   - print debug info\n");
+  printf(stderr "USAGE:   [--verbose] - print verbose info\n");
+  printf(stderr "USAGE:   --tph tph   - tph file to use as input.\n");
+  printf(stderr "USAGE:   --tpi tpi   - tpi file to use as output.\n");
+  printf(stderr "\n");
+}
+
+#-----------------------------------------------------------------------------
+# Assign constants
+#-----------------------------------------------------------------------------
+$FALSE = 0;
+$TRUE = 1;
+
+#-----------------------------------------------------------------------------
+# Check for correct number of arguments
+#-----------------------------------------------------------------------------
+$num_args = $#ARGV + 1;
+if (($num_args != 1) && (($num_args < $min_args) || ($num_args > $max_args))) {
+  printf(STDERR "ERROR: %s:  Incorrect number of arguments.\n", $script_name);
+  &usage;
+  exit 1;
+}
+
+$flag_help = $FALSE;
+$flag_version = $FALSE;
+$flag_debug = $FALSE;
+$flag_verbose = $FALSE;
+$opt_tph = '';
+$opt_tpi = '';
+while ($#ARGV >= 0) {
+  $arg = shift;
+  if ($arg eq '--help') {
+    usage;
+    exit(0);
+  }
+  if ($arg eq '--version') {
+    printf(stderr "%s v%s\n", $script_name, $script_ver);
+    exit(0);
+  }
+  if ($arg eq '--debug') {
+    $flag_debug = $TRUE;
+    next;
+  }
+  if ($arg eq '--verbose') {
+    $flag_verbose = $TRUE;
+    next;
+  }
+  if ($arg eq '--tph') {
+    $opt_tph = shift;
+    next;
+  }
+  if ($arg eq '--tpi') {
+    $opt_tpi = shift;
+    next;
+  }
+}
+
+if (! $opt_tph) {
+  printf("ERROR: Missing required argument <--tph>\n");
+  exit(1);
+}
+if (! $opt_tpi) {
+  printf("ERROR: Missing required argument <--tpi>\n");
+  exit(1);
+}
+
+#-----------------------------------------------------------------------------
+# Process the arguments passed to this script and
+# setup initial variables.
+#-----------------------------------------------------------------------------
+# The following statements are an example of how to open a file or die trying.
+# $fn = $ARGV[0]; ### Assign appropriate file name to $fn.
+# open(F1, $fn) || die "ERROR: $script_name: Can't open $fn. OS msg: $!\n";
+
+$fn = $opt_tph;
+open(TPH, $fn) || die "ERROR: $script_name: Unable to open $opt_tph for read. OS msg: $!\n";
+
+$fn = "> $opt_tpi";
+open(TPI, $fn) || die "ERROR: $script_name: Unable to open $opt_tpi for write. OS msg: $!\n";
+
+
+#-----------------------------------------------------------------------------
+# Start perl_script
+#-----------------------------------------------------------------------------
+
+$l = 0;
+while (<TPH>) {
+  $l++;
+  ### Check for a delete comments.
+  if (s/#.*$//) {
+    if ($flag_verbose) { printf(stderr "NOTE: Found comment on line %d.\n", $l); }
+  }
+  ### Collapse whitespace.
+  if (s/\s+/ /g) {
+    if ($flag_verbose) { printf(stderr "NOTE: Collapsing white space on line %d.\n", $l); }
+  }
+  ### Remove leading whitespace.
+  if (s/^\s+//) {
+    if ($flag_verbose) { printf(stderr "NOTE: Removing leading whitespace on line %d.\n", $l); }
+  }
+  ### Remove trailing whitespace.
+  if (s/\s+$//) {
+    if ($flag_verbose) { printf(stderr "NOTE: Removing trailing whitespace on line %d.\n", $l); }
+  }
+  ### Check for blank line, skip to next.
+  if (//) {
+    if ($flag_verbose) { printf(stderr "NOTE: skipping blank line %d.\n", $l); }
+    next;
+  }
+  ### Check for valid line.
+  if ($flag_verbose) { printf(stderr "NOTE: processing line %d.\n", $l); }
+  split;
+  if ($#_ != 4) {
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, ill-formed.\n", $l); }
+    next;
+  }
+  if (! ($portname = $_[0]) =~ /:$/) { 
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, port name %s is not valid.\n", $l, $_[0]); }
+    next;
+  }
+  if (! ($symbol = $_[1]) =~ /^\^*[A-Za-z-]+$/) {
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, symbol %s is not valid.\n", $l, $_[1]); }
+    next;
+  }
+  if (! ($date = $_[2]) =~ /^[01]\d\/[0123]\d\/\d\d\d\d$/) {
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, date %s is not valid.\n", $l, $_[2]); }
+    next;
+  }
+  if (! ($quantity = $_[3]) =~ /^[0-9.]+$/) {
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, quantity %s is not valid.\n", $l, $_[3]); }
+    next;
+  }
+  if (! ($price = $_[4]) =~ /^[0-9.]+$/) {
+    if ($flag_verbose) { printf(stderr "WARNING: skipping line %d, price %s is not valid.\n", $l, $_[4]); }
+    next;
+  }
+
+  ### Handle new port name if needed.
+  $portname =~ s/://;
+  if (! $hash_ports{$portname}) {
+    $hash_ports{$portname} = 1;
+    push(@list_ports, $portname);
+    $hash_port_list{$portname}{'num_symbols'} = 0;
+  }
+
+  ### Add symbol to hash of lists.
+  $i = $hash_port_list{$portname}{'num_symbols'};
+  $hash_port_list{$portname}{'symbols'}[$i] = $symbol;
+  ($hash_port_list{$portname}{'num_symbols'})++;
+}
+
+### Create tpi file
+foreach $portname (@list_ports) {
+  $c = 0;
+  $s = sprintf("[%s]\n", $portname);
+  for ($i = 1; $i <= $hash_port_list{$portname}{'num_symbols'}; $i++) {
+    $s .= sprintf("%s ", $hash_port_list{$portname}{'symbols'}[$i-1]);
+    if (($i % 10) == 0) { $s .= sprintf("\n"); }
+  }
+  printf(TPI "%s\n\n", $s);
+}
+$junk = 1;
+
