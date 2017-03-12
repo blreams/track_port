@@ -7,6 +7,7 @@ import cgitb; cgitb.enable() # for troubleshooting
 import os
 import re
 import jinja2
+import datetime
 
 from collections import OrderedDict
 from decimal import Decimal
@@ -56,7 +57,7 @@ def handle_cols():
     headings = OrderedDict()
     if args.addcols:
         for heading in possible_headings:
-            if heading.lower() in args.addcols or heading.lower() in [h.lower() for h in default_headings]:
+            if '_all_' in args.addcols or heading.lower() in args.addcols or heading.lower() in [h.lower() for h in default_headings]:
                 headings[heading] = possible_headings[heading]
     else:
         for heading in default_headings:
@@ -320,12 +321,13 @@ class Position(object):
             quote.hl52_pct = Decimal(0.0)
 
     def gen_report_line(self, quote):
+        #import pdb;pdb.set_trace()
         datefmt = '%Y-%m-%d'
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
         report = OrderedDict()
+        report['Symb'] = ('{}', self.symbol)
         report['Shrs'] = ('{:.0f}', self.shares)
         report['Purch'] = ('{:.2f}', self.open_price)
-        report['Symb'] = ('{}', self.symbol)
         report['Last'] = ('{:.2f}', quote.last)
         report['Chg'] = ('{:+.2f}', quote.net)
         report['Day%'] = ('{:+.2f}%', quote.p_change)
@@ -338,11 +340,11 @@ class Position(object):
         report['Low'] = ('{:.2f}', quote.low)
         report['High'] = ('{:.2f}', quote.high)
         report['HL%'] = ('{:.1f}%', quote.hl_pct)
-        report['Days'] = ('{:d}', 1) #TODO
+        report['Days'] = ('{:d}', (datetime.date.today() - self.open_date).days)
         report['PurDate'] = ('{:s}', self.open_date.strftime(datefmt))
         report['P/E'] = ('{:.2f}', quote.pe)
         report['Vol'] = ('{:d}', quote.volume)
-        report['MkCap'] = ('{:d}', quote.cap)
+        report['MkCap'] = ('{:.0f}', quote.cap)
         report['Low52'] = ('{:.2f}', quote.low52)
         report['High52'] = ('{:.2f}', quote.high52)
         report['HL52%'] = ('{:.1f}%', quote.hl52_pct)
