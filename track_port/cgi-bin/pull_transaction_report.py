@@ -324,7 +324,7 @@ class Position(object):
         #import pdb;pdb.set_trace()
         datefmt = '%Y-%m-%d'
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
-        report = OrderedDict()
+        report = {}
         report['Symb'] = ('{}', self.symbol)
         report['Shrs'] = ('{:.0f}', self.shares)
         report['Purch'] = ('{:.2f}', self.open_price)
@@ -352,6 +352,39 @@ class Position(object):
         report['DIV'] = ('{:.2f}', quote.dividend)
         report['YLD'] = ('{:.2f}', quote.div_yield)
         report['ExDiv'] = ('{:s}', ex_div)
+
+        report['transactions'] = []
+        if len(self.transactions) > 1:
+            for transaction in self.transactions:
+                subreport = {}
+                subreport['Symb'] = ('{}', '')
+                subreport['Shrs'] = ('{:.0f}', transaction.shares)
+                subreport['Purch'] = ('{:.2f}', transaction.open_price)
+                subreport['Last'] = ('{}', '')
+                subreport['Chg'] = ('{}', '')
+                subreport['Day%'] = ('{}', '')
+                subreport['Day'] = ('{:+.2f}', transaction.shares * quote.net)
+                subreport['MktVal'] = ('{:+.2f}', transaction.shares * quote.last)
+                subreport['Gain'] = ('{:+.2f}', transaction.shares * (quote.last - transaction.open_price))
+                subreport['Gain%'] = ('{:+.1f}%', (((transaction.shares * quote.last) / (transaction.shares * transaction.open_price)) - Decimal(1.0)) * Decimal(100.0))
+                subreport['Basis'] = ('{:.2f}', transaction.shares * transaction.open_price)
+                subreport['Port%'] = ('{}', '')
+                subreport['Low'] = ('{}', '')
+                subreport['High'] = ('{}', '')
+                subreport['HL%'] = ('{}', '')
+                subreport['Days'] = ('{:d}', (datetime.date.today() - transaction.open_date).days)
+                subreport['PurDate'] = ('{:s}', transaction.open_date.strftime(datefmt))
+                subreport['P/E'] = ('{}', '')
+                subreport['Vol'] = ('{}', '')
+                subreport['MkCap'] = ('{}', '')
+                subreport['Low52'] = ('{}', '')
+                subreport['High52'] = ('{}', '')
+                subreport['HL52%'] = ('{}', '')
+                subreport['CAGR'] = ('{}', '')
+                subreport['DIV'] = ('{}', '')
+                subreport['YLD'] = ('{}', '')
+                subreport['ExDiv'] = ('{}', '')
+                report['transactions'].append(subreport)
 
         #TODO Figure out how to show purchase that happened today
 

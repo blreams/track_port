@@ -68,8 +68,8 @@
         <tr>
         {% for key in lheadings %}
             {% if key == 'Symb' %}
-                {% if tldict[fileportname].combined_positions['longs'][symbol].transactions|length > 1 %}
-                    <td rowspan="{{tldict[fileportname].combined_positions['longs'][symbol].transactions|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</a></td>
+                {% if tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length > 1 %}
+                    <td rowspan="{{tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</a></td>
                 {% else %}
                     <td>{{tldict[fileportname].combined_positions['longs'][symbol].report[key][0].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][1])}}</td>
                 {% endif %}
@@ -78,29 +78,18 @@
             {% endif %}
         {% endfor %}
         </tr>
-    <!-- Transactions Within A Position -->
-    {% if tldict[fileportname].combined_positions['longs'][symbol].transactions|length > 1 %}
-    {% for transaction in tldict[fileportname].combined_positions['longs'][symbol].transactions %}
-    <tr class="tablesorter-childRow">
-    {% for key in lheadings %}
-    {% if key != 'Symb' %}
-        <td>
-        {% if key == 'Shrs' %}{{transaction.shares}}
-        {% elif key == 'Purch' %}{{transaction.open_price}}
-        {% elif key == 'Chg' %}{{transaction.net}}
-        {% elif key == 'Day' %}{{transaction.shares * transaction.net}}
-        {% elif key == 'MktVal' %}{{transaction.shares * transaction.last}}
-        {% elif key == 'Gain%' %}TODO
-        {% elif key == 'Gain' %}{{transaction.shares * (transaction.last - transaction.open_price)}}
-        {% elif key == 'Basis' %}{{transaction.shares * transaction.open_price}}
-        {% elif key == 'Port%' %}TODO
+        <!-- Transactions Within A Position -->
+        {% if tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length > 1 %}
+            {% for subreport in tldict[fileportname].combined_positions['longs'][symbol].report['transactions'] %}
+                <tr class="tablesorter-childRow">
+                {% for key in lheadings %}
+                    {% if key != 'Symb' %}
+                        <td>{{subreport[key][0].format(subreport[key][1])}}</td>
+                    {% endif %}
+                {% endfor %}
+                </tr>
+            {% endfor %}
         {% endif %}
-        </td>
-    {% endif %}
-    {% endfor %}
-    </tr>
-    {% endfor %}
-    {% endif %}
     {% endfor %}
     </tbody>
     {% endif %}
