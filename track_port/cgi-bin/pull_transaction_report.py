@@ -16,54 +16,9 @@ from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-possible_headings = OrderedDict([
-        ('Symb', 'text'),
-        ('Shrs', 'digit'),
-        ('Purch', 'digit'),
-        ('Last', 'digit'),
-        ('Chg', 'digit'),
-        ('Day%', 'percent'),
-        ('Day', 'digit'),
-        ('MktVal', 'digit'),
-        ('Gain%', 'percent'),
-        ('Gain', 'digit'),
-        ('Basis', 'digit'),
-        ('Port%', 'percent'),
-        ('Low', 'digit'),
-        ('HL%', 'percent'),
-        ('High', 'digit'),
-        ('Days', 'digit'),
-        ('PurDate', 'isoDate'),
-        ('P/E', 'digit'),
-        ('Vol', 'digit'),
-        ('MkCap', 'digit'),
-        ('Low52', 'digit'),
-        ('HL52%', 'percent'),
-        ('High52', 'digit'),
-        ('CAGR', 'percent'),
-        ('DIV', 'digit'),
-        ('YLD', 'percent'),
-        ('ExDiv', 'isoDate'),
-        ])
-
-default_headings = ['Symb', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'Port%',]
-
-def handle_cols():
-    """Return an OrderedDict indexed by column headings whose values are the
-    tablesorter sort mode parameter accordingly:
-      1. If no addcols args were specified, then return default_headings.
-      2. Otherwise return default_headings plus others in addcols.
-    """
-    headings = OrderedDict()
-    if args.addcols:
-        for heading in possible_headings:
-            if '_all_' in args.addcols or heading.lower() in args.addcols or heading.lower() in [h.lower() for h in default_headings]:
-                headings[heading] = possible_headings[heading]
-    else:
-        for heading in default_headings:
-            headings[heading] = possible_headings[heading]
-    return headings
-
+##############################################################################
+# This section of code handles database access.
+##############################################################################
 #time.sleep(20)
 engine = create_engine('mysql://blreams@localhost/track_port')
 Base = declarative_base(engine)
@@ -133,6 +88,59 @@ class TransactionLists(Base):
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
 
+##############################################################################
+# This section of code deals with arguments, whether command line or CGI.
+##############################################################################
+# This is the preferred order of headings along with the tablesorter sort type.
+possible_headings = OrderedDict([
+        ('Symb', 'text'),
+        ('Shrs', 'digit'),
+        ('Purch', 'digit'),
+        ('Last', 'digit'),
+        ('Chg', 'digit'),
+        ('Day%', 'percent'),
+        ('Day', 'digit'),
+        ('MktVal', 'digit'),
+        ('Gain%', 'percent'),
+        ('Gain', 'digit'),
+        ('Basis', 'digit'),
+        ('Port%', 'percent'),
+        ('Low', 'digit'),
+        ('HL%', 'percent'),
+        ('High', 'digit'),
+        ('Days', 'digit'),
+        ('PurDate', 'isoDate'),
+        ('P/E', 'digit'),
+        ('Vol', 'digit'),
+        ('MkCap', 'digit'),
+        ('Low52', 'digit'),
+        ('HL52%', 'percent'),
+        ('High52', 'digit'),
+        ('CAGR', 'percent'),
+        ('DIV', 'digit'),
+        ('YLD', 'percent'),
+        ('ExDiv', 'isoDate'),
+        ])
+
+# Use these headings when no columns are specified.
+default_headings = ['Symb', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'Port%',]
+
+def handle_cols():
+    """Return an OrderedDict indexed by column headings whose values are the
+    tablesorter sort mode parameter accordingly:
+      1. If no addcols args were specified, then return default_headings.
+      2. Otherwise return default_headings plus others in addcols.
+    """
+    headings = OrderedDict()
+    if args.addcols:
+        for heading in possible_headings:
+            if '_all_' in args.addcols or heading.lower() in args.addcols or heading.lower() in [h.lower() for h in default_headings]:
+                headings[heading] = possible_headings[heading]
+    else:
+        for heading in default_headings:
+            headings[heading] = possible_headings[heading]
+    return headings
+
 def handle_cgi_args(arguments):
     argdict = {}
     known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname')
@@ -160,14 +168,22 @@ def handle_cgi_args(arguments):
             pass
     return argdict
 
-def render(tpl_path, context):
-    path, filename = os.path.split(tpl_path)
-    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(filename).render(context)
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--simulate', action='store_true', default=False, help="Used from command line to force arguments")
+    parser.add_argument('--fpns', action='append', default=[], help="Add fileportname for querying db")
+    parser.add_argument('-a', '--addcols', action='append', default=[], help="Add columns to the default list")
+    args = parser.parse_args()
+    if not args.fpns:
+        args.fpns = ['port:fluffgazer']
+    return args
 
 ###############################################################################
-# classes related to TransactionReport
+# classes supporting track_port access.
 ###############################################################################
 class FinanceQuote(object):
+    """These objects are effectively rows of the finance_quote table.
+    """
     fieldlist = [
             'symbol', 'name', 'last', 'high', 'low', 'date', 'time', 'net', 'p_change', 'volume',
             'avg_vol', 'bid', 'ask', 'close', 'open', 'day_range', 'year_range', 'eps', 'pe',
@@ -180,6 +196,9 @@ class FinanceQuote(object):
             self.__setattr__(field, quote_obj.__getattribute__(field))
 
 class FinanceQuoteList(object):
+    """Container class that is essentially a dict indexed by symbol whose
+    values are FinanceQuote objects.
+    """
     def __init__(self):
         self._data = {}
         fqq = session.query(FinanceQuotes).all()
@@ -187,10 +206,16 @@ class FinanceQuoteList(object):
             self._data[fq.symbol] = FinanceQuote(fq)
 
     def get_by_symbol(self, symbol):
+        """Simple lookup in _data by symbol.
+        """
         return self._data[symbol]
 
 class Transaction(object):
+    """These objects are effectively rows of the transaction_list table.
+    """
     def __init__(self, trl_obj):
+        # I did not create this as a class attribute because each instance gets
+        # extended to include FinanceQuote.fieldlist columns.
         self.fieldlist = [
                 'symbol', 'fileportname', 'sector', 'position', 'descriptor', 'shares', 'open_price',
                 'open_date', 'closed', 'close_price', 'close_date', 'expiration', 'strike',
@@ -199,17 +224,25 @@ class Transaction(object):
             self.__setattr__(field, trl_obj.__getattribute__(field))
 
     def apply_quote(self, fq_obj):
+        """For a given transaction, this is how the quote data for the
+        corresponding symbol is added.
+        """
         for field in fq_obj.fieldlist:
             if field not in self.fieldlist:
                 self.__setattr__(field, fq_obj.__getattribute__(field))
         self.fieldlist.extend(fq_obj.fieldlist[1:])
 
 class TransactionList(object):
+    """Container class that will eventually hold all the data used to create
+    the web page.
+    """
     def __init__(self, fileportname):
         self.fileportname = fileportname
         self.combined_positions = {'longs': {}, 'shorts': {}, 'options': {}, 'cash': {}, 'closed': {}}
 
     def query_positions(self, quotes):
+        """This gets all the open, long transactions.
+        """
         self.open_positions = []
         tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, closed=False, position='long').all()
         for t in tlq:
@@ -217,18 +250,28 @@ class TransactionList(object):
             self.open_positions[-1].apply_quote(quotes.get_by_symbol(t.symbol))
 
     def query_cash(self):
+        """This gets all the cash transactions.
+        """
         self.cash_positions = []
         tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, position='cash').all()
         for t in tlq:
             self.cash_positions.append(Transaction(t))
 
     def query_closed(self):
+        """This gets all the closed transactions.
+        """
         self.closed_positions = []
         tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, closed=True).all()
         for t in tlq:
             self.closed_positions.append(Transaction(t))
 
     def combine_positions(self):
+        """Aggregates transactions for like symbols into combined positions.
+        A position can be one or more transactions for the same symbol. Along
+        the way, we also aggregate cash and openvalue (the current value of
+        open positions). At the end we total up the portfolio value into
+        totalvalue.
+        """
         self.cash = 0
         self.openvalue = 0
 
@@ -268,14 +311,25 @@ class TransactionList(object):
         self.totalvalue = self.cash + self.openvalue
 
     def finalize_positions(self, quotes):
+        """Because we cannot calculate port_pct until we know the portfolio
+        totalvalue, this is where that happens (must be called AFTER calling
+        combine_positions().
+        """
         for positiontype in ('longs', 'shorts', 'options'):
             for symbol in self.combined_positions[positiontype]:
                 position = self.combined_positions[positiontype][symbol]
                 position.port_pct = Decimal(100.0) * position.shares * quotes.get_by_symbol(symbol).last / self.totalvalue
                 position.gen_report_line(quotes.get_by_symbol(symbol))
-            
 
+
+##############################################################################
+# Classes supporting position and transaction calculations.
+##############################################################################
 class Position(object):
+    """These objects are what gets reported on the web page. A position is one
+    or more transactions for the same symbol. This is where the magic happens
+    for combining multiple transactions into a single position.
+    """
     def __init__(self, symbol):
         self.symbol = symbol
         self.shares = 0
@@ -289,14 +343,24 @@ class Position(object):
         return 'symb={sy},shs={sh},bs={b},mv={mv},op={op},od={od}'.format(sy=self.symbol, sh=self.shares, b=self.basis, od=self.open_date, op=self.open_price, mv=self.mktval)
 
     def parse_range(self, quoterange, part='low'):
-        if not quoterange:
-            return Decimal(0.0)
-        rangematch = re.match(r"'(?P<low>\d+\.?\d*) - (?P<high>\d+\.?\d*)'", quoterange)
-        if rangematch:
-            return Decimal(rangematch.group(part))
-        return Decimal(0.0)
+        """Helper function that takes a quote range string and returns the
+        designated part (high/low).
+        """
+        rv = Decimal(0.0)
+        if quoterange:
+            rangematch = re.match(r"'(?P<low>\d+\.?\d*) - (?P<high>\d+\.?\d*)'", quoterange)
+            if rangematch:
+                rv = Decimal(rangematch.group(part))
+        return rv
 
     def add_transaction(self, transaction):
+        """This is where the combining happens.
+        1. Add shares.
+        2. Add to basis.
+        3. Calculate new open_price as basis / shares.
+        4. Only set open_date if it is earlier.
+        5. Append the transaction to list.
+        """
         self.shares += transaction.shares
         self.basis += transaction.shares * transaction.open_price
         self.open_price = self.basis / self.shares
@@ -307,6 +371,8 @@ class Position(object):
         self.transactions.append(transaction)
 
     def normalize_quote(self, quote):
+        """This is where we fill in other quote-based fields as needed.
+        """
         quote.low = self.parse_range(quote.day_range, part='low')
         quote.high = self.parse_range(quote.day_range, part='high')
         if quote.high != quote.low:
@@ -321,6 +387,13 @@ class Position(object):
             quote.hl52_pct = Decimal(0.0)
 
     def gen_report_line(self, quote):
+        """A report item is a tuple that contains the value to be displayed
+        along with a string formatter to tell how to display it. The tuple is
+        (format, value).
+
+        Along the way we also create subreport items which are done when a
+        position has multiple transactions.
+        """
         #import pdb;pdb.set_trace()
         datefmt = '%Y-%m-%d'
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
@@ -391,6 +464,9 @@ class Position(object):
         self.report = report
 
 class CashPosition(Position):
+    """Position subclass specifically for cash positions.
+    """
+    #TODO This is a work-in-progress.
     def add_transaction(self, transaction):
         self.shares += transaction.open_price
         self.basis = self.shares
@@ -407,20 +483,19 @@ class CashPosition(Position):
 
 
 class ClosedPosition(Position):
+    """Position subclass specifically for closed positions.
+    """
+    #TODO This is a work-in-progress.
     def add_transaction(self, transaction):
         self.basis += transaction.shares * transaction.open_price
         self.mktval += transaction.shares * transaction.close_price
         self.transactions.append(transaction)
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--simulate', action='store_true', default=False, help="Used from command line to force arguments")
-    parser.add_argument('--fpns', action='append', default=[], help="Add fileportname for querying db")
-    parser.add_argument('-a', '--addcols', action='append', default=[], help="Add columns to the default list")
-    args = parser.parse_args()
-    if not args.fpns:
-        args.fpns = ['port:fluffgazer']
-    return args
+def render(tpl_path, context):
+    """Helper function to render page using Jinja2.
+    """
+    path, filename = os.path.split(tpl_path)
+    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(filename).render(context)
 
 def main():
     global args
