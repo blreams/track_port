@@ -20,10 +20,21 @@ from sqlalchemy.orm import sessionmaker
 # This section of code handles database access.
 ##############################################################################
 #time.sleep(20)
-engine = create_engine('mysql://blreams@localhost/track_port')
+
+try:
+    host = os.uname()[1]
+except:
+    host = None
+
+if host and host == 'jkt-myth':
+    engine = create_engine('mysql://blreams@localhost/track_port')
+else:
+    engine = create_engine('sqlite:///track_port.db')
+
 Base = declarative_base(engine)
 metadata = MetaData()
-finance_quotes = Table('finance_quote', metadata, autoload=True, autoload_with=engine)
+#finance_quotes = Table('finance_quote', metadata, autoload=True, autoload_with=engine)
+
 
 def load_session():
     """
