@@ -535,12 +535,14 @@ def main():
     context = {
         'tldict': tldict,
         'lheadings': lheadings,
+        'simulate': args.simulate,
         }
 
     #import pdb;pdb.set_trace()
     result = render(r'ptr_layout.html', context)
-    print "Content-type: text/html"
-    print
+    if not args.simulate:
+        print "Content-type: text/html"
+        print
     print result
 
 

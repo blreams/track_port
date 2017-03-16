@@ -9,10 +9,10 @@
   <!--
   <link rel="stylesheet" type="text/css" href="/css/track_port_less.css" />
   -->
-  <link rel="stylesheet" type="text/css" href="/js/jquery-ui-1.12.1.custom/jquery-ui.min.css" />
-  <link rel="stylesheet" type="text/css" href="/css/theme.jui.css">
-  <link rel="stylesheet" type="text/css" href="/css/theme.ice.css">
-  <link rel="stylesheet" type="text/css" href="/css/theme.grey.css">
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/js/jquery-ui-1.12.1.custom/jquery-ui.min.css" />
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/theme.jui.css">
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/theme.ice.css">
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/theme.grey.css">
   {% block head_jquery_block %}
   <!--
   <script type="text/javascript" src="/js/jquery.js"></script>
