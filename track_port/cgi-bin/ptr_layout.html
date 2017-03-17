@@ -5,6 +5,7 @@
     $(document).ready(function() { 
       $('.mainTable').tablesorter({
         debug: true,
+        theme: 'ice',
         cssChildRow: "tablesorter-childRow",
         sortInitialOrder: "desc",
         widgets:['zebra'],
@@ -51,18 +52,18 @@
 
 {% block body_block %}
 <div>
-<table class="mainTable tablesorter tablesorter-grey" border="1">
+<table class="mainTable tablesorter" border="1">
     <!-- Header Row -->
     <thead><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></thead>
     <tfoot><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></tfoot>
 
     {% for fileportname in tldict %}
     <!-- Non-sorting Name Row -->
-    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">{{fileportname}}</th></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
 
     <!-- Long Positions -->
     {% if tldict[fileportname].combined_positions['longs']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Long Positions</th></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['longs'] %}
         <tr>

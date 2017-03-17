@@ -18,6 +18,11 @@
 }
 
 /* header */
+/*
+ * Applies to <th> rows, but not <th> within <thead>, <tfoot>
+ *   non-sorting rows with colspan portfolio name
+ *   non-sorting rows with colspan position type
+ */
 .tablesorter-ice th,
 .tablesorter-ice thead td {
 	font: 12px/18px Arial, Sans-serif;
@@ -33,9 +38,16 @@
 	padding: 4px;
 	vertical-align: top;
 }
+/*
+ * Applies to actual header <th> rows
+ *   Column headers with click to sort buttons
+ */
 .tablesorter-ice .header,
 .tablesorter-ice .tablesorter-header {
+    /*
 	background-color: #f6f8f9;
+    */
+	background-color: #f66869;
 	background-position: center right;
 	background-repeat: no-repeat;
 	background-image: url(data:image/gif;base64,R0lGODlhDAAMAMQAAAJEjAJCiwJBigJAiANFjgNGjgNEjQRIkQRHkANIkAVMlAVQmAZWnQZUnAdYoAhdpAhZoAlhqQlepQliqQppsApmrQxutgtutQtutAxwtwxwtg1yug1zugxtsw1yuP8A/yH5BAEAAB8ALAAAAAAMAAwAAAUx4Cd+3GiOW4ado2d9VMVm1xg9ptadTsP+QNZEcjoQTBDGCAFgLRSfQgCYMAiCn8EvBAA7);
