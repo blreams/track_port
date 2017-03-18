@@ -7,6 +7,7 @@
         debug: true,
         theme: 'ice',
         cssChildRow: "tablesorter-childRow",
+        cssInfoBlock: "tablesorter-no-sort",
         sortInitialOrder: "desc",
         widgets:['zebra'],
         widgetOptions: {
@@ -97,7 +98,7 @@
 
     <!-- Short Positions -->
     {% if tldict[fileportname].combined_positions['shorts']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Short Positions</th></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['shorts'] %}
     <tr>
@@ -111,7 +112,7 @@
 
     <!-- Option Positions -->
     {% if tldict[fileportname].combined_positions['options']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><th colspan="{{lheadings|length}}">Option Positions</th></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['options'] %}
     <tr>

@@ -2,6 +2,11 @@
   Ice Theme (by thezoggy)
  *************/
 /* overall */
+/*
+ * port name row
+ * positions indicator row
+ * footer row, except for sorted column
+ */
 .tablesorter-ice {
 	width: 100%;
 	background-color: #fff;
@@ -11,7 +16,18 @@
 	border: #ccc 1px solid;
 	border-width: 1px 0 0 1px;
 }
-.tablesorter-ice th,
+
+/*
+ * border for header cells: <th>
+ */
+.tablesorter-ice th {
+	border: #ccc 1px solid;
+	border-width: 0 1px 1px 0;
+}
+
+/*
+ * border for non-header cells: <td>
+ */
 .tablesorter-ice td {
 	border: #ccc 1px solid;
 	border-width: 0 1px 1px 0;
@@ -19,11 +35,20 @@
 
 /* header */
 /*
- * Applies to <th> rows, but not <th> within <thead>, <tfoot>
- *   non-sorting rows with colspan portfolio name
- *   non-sorting rows with colspan position type
+ * N/A because I don't have any <th> outside <thead>
  */
-.tablesorter-ice th,
+.tablesorter-ice th {
+	font: 12px/18px Arial, Sans-serif;
+	color: #555;
+	background-color: #f6f8f9;
+	border-collapse: collapse;
+	padding: 4px;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/*
+ * N/A because I don't have any <td> inside <thead>
+ */
 .tablesorter-ice thead td {
 	font: 12px/18px Arial, Sans-serif;
 	color: #555;
@@ -32,30 +57,56 @@
 	padding: 4px;
 	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
-.tablesorter-ice tbody td,
-.tablesorter-ice tfoot th,
+
+/*
+ * port name row
+ * positions indicator row
+ */
+.tablesorter-ice tbody td {
+	padding: 4px;
+	vertical-align: top;
+}
+
+/*
+ * footer row, except for sorted column
+ */
+.tablesorter-ice tfoot th {
+	color: #fff;
+	background-color: #f6f8f9;
+	background-color: #464849;
+	padding: 4px;
+	vertical-align: top;
+}
+
+/*
+ * N/A
+ */
 .tablesorter-ice tfoot td {
 	padding: 4px;
 	vertical-align: top;
 }
+
 /*
- * Applies to actual header <th> rows
- *   Column headers with click to sort buttons
+ * header row, except for sorted column
  */
 .tablesorter-ice .header,
 .tablesorter-ice .tablesorter-header {
-    /*
-	background-color: #f6f8f9;
-    */
-	background-color: #f66869;
+	color: #fff;
+	background-color: #464849;
 	background-position: center right;
 	background-repeat: no-repeat;
+    /*
 	background-image: url(data:image/gif;base64,R0lGODlhDAAMAMQAAAJEjAJCiwJBigJAiANFjgNGjgNEjQRIkQRHkANIkAVMlAVQmAZWnQZUnAdYoAhdpAhZoAlhqQlepQliqQppsApmrQxutgtutQtutAxwtwxwtg1yug1zugxtsw1yuP8A/yH5BAEAAB8ALAAAAAAMAAwAAAUx4Cd+3GiOW4ado2d9VMVm1xg9ptadTsP+QNZEcjoQTBDGCAFgLRSfQgCYMAiCn8EvBAA7);
-	/* background-image: url(images/ice-unsorted.gif) */
+    */
+	background-image: url(images/ice-unsorted.png);
 	padding: 4px 20px 4px 4px;
 	white-space: normal;
 	cursor: pointer;
 }
+
+/*
+ * header cell of sorted column when ascending
+ */
 .tablesorter-ice .headerSortUp,
 .tablesorter-ice .tablesorter-headerSortUp,
 .tablesorter-ice .tablesorter-headerAsc {
@@ -63,9 +114,15 @@
 	background-color: #ebedee;
 	background-position: center right;
 	background-repeat: no-repeat;
+    /*
 	background-image: url(data:image/gif;base64,R0lGODlhDAAMANUAAAJCiwNHkANFjgNEjQRIkQNJkQRMlARKkwRKkgVPlwZSmgdaogdYnwhfpghcowlhqgliqglgqAlgpwljqwporwpmrQplrAtsswtqsgtrsgtqsQxttAtvtQtttAxyuQxwtwxxtwxvtg10uw1zuQ1xuP8A/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAACUALAAAAAAMAAwAAAY6wJKwJBoahyNQ6Dj0fDoZCpPEuWgqk4jxs8FQLI+Gg8Esm5kQydFQMC7IwkOAqUiUCAIzIjA4lwBlQQA7);
-	/* background-image: url(images/ice-desc.gif) */
+    */
+	background-image: url(images/ice-desc.png);
 }
+
+/*
+ * header cell of sorted column when descending
+ */
 .tablesorter-ice .headerSortDown,
 .tablesorter-ice .tablesorter-headerSortDown,
 .tablesorter-ice .tablesorter-headerDesc {
@@ -73,9 +130,15 @@
 	background-color: #ebedee;
 	background-position: center right;
 	background-repeat: no-repeat;
+    /*
 	background-image: url(data:image/gif;base64,R0lGODlhDAAMANUAAAE/iAJBigNFjgNEjQNFjQNDiwRHkQRHjwNHjwROlgRMlQRMlARJkgRKkgZQmAVPlgZWnQZSmgZRmAdXoAdXnwdUnAdbogdZoQhbowlhqAlepglkrAliqQtstAtqsQxyugxyuQxwuAxxuAxxtwxwtgxvtQ10vA12vA10u/8A/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAACkALAAAAAAMAAwAAAY6wJQwdRoah6bP6DhEiVIdDxNEGm4yxlDpiJkwv2AmR2OhVCSJBsJ4gUQeCwOB6VAwBAXwYRAIpwBfQQA7);
-	/* background-image: url(images/ice-asc.gif); */
+    */
+	background-image: url(images/ice-asc.png);
 }
+
+/*
+ * N/A
+ */
 .tablesorter-ice thead .sorter-false {
 	background-image: none;
 	cursor: default;
@@ -83,6 +146,9 @@
 }
 
 /* tfoot */
+/*
+ * footer cell of sorted column when ascending
+ */
 .tablesorter-ice tfoot .tablesorter-headerSortUp,
 .tablesorter-ice tfoot .tablesorter-headerSortDown,
 .tablesorter-ice tfoot .tablesorter-headerAsc,
@@ -91,18 +157,48 @@
 }
 
 /* tbody */
+/*
+ * port name row
+ * positions indicator row
+ * footer row, except for sorted column
+ */
 .tablesorter-ice td {
 	color: #333;
 }
 
 /* hovered row colors */
-.tablesorter-ice tbody > tr.hover > td,
-.tablesorter-ice tbody > tr:hover > td,
-.tablesorter-ice tbody > tr.even:hover > td,
+/*
+ * N/A
+ */
+.tablesorter-ice tbody > tr.hover > td {
+	background-color: #ebf2fa;
+}
+
+/*
+ * hover port name row
+ * hover positions indicator row
+ */
+.tablesorter-ice tbody > tr:hover > td {
+	background-color: #ebf2fa;
+}
+
+/*
+ * hover sorted even rows
+ */
+.tablesorter-ice tbody > tr.even:hover > td {
+	background-color: #ebf2fa;
+}
+
+/*
+ * hover sorted odd rows
+ */
 .tablesorter-ice tbody > tr.odd:hover > td {
 	background-color: #ebf2fa;
 }
 
+/*
+ * N/A
+ */
 /* table processing indicator */
 .tablesorter-ice .tablesorter-processing {
 	background-position: center center !important;
@@ -112,9 +208,16 @@
 }
 
 /* Zebra Widget - row alternating colors */
+/*
+ * sorted odd rows
+ */
 .tablesorter-ice tr.odd > td {
 	background-color: #dfdfdf;
 }
+
+/*
+ * sorted even rows
+ */
 .tablesorter-ice tr.even > td {
 	background-color: #efefef;
 }
