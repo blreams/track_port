@@ -96,8 +96,15 @@ class TransactionLists(Base):
     __tablename__ = 'transaction_list'
     __table_args__ = {'autoload': True}
 
+class ColorSchemes(Base):
+    """
+    """
+    __tablename__ = 'color_scheme'
+    __table_args__ = {'autoload': True}
+
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
+csq = session.query(ColorSchemes).all()
 
 ##############################################################################
 # This section of code deals with arguments, whether command line or CGI.
@@ -508,17 +515,6 @@ def render(tpl_path, context):
     path, filename = os.path.split(tpl_path)
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(filename).render(context)
 
-color_schemes = {
-    'purple': {
-        'base': {'color': '#fff', 'background-color': '#591270',},
-        'position_row': {'color': '#333', 'background-color': '#efd4f8',},
-    },
-    'darkgreen': {
-        'base': {'color': '#fff', 'background-color': '#127059',},
-        'position_row': {'color': '#333', 'background-color': '#c0f0e4',},
-    },
-}
-
 def main():
     global args
     global quotes
@@ -534,7 +530,7 @@ def main():
     quotes = FinanceQuoteList()
 
     tldict = {}
-    index = 0
+    csnum = 0
     for fpn in args.fpns:
         tldict[fpn] = TransactionList(fpn)
         tldict[fpn].query_positions(quotes)
@@ -542,13 +538,13 @@ def main():
         tldict[fpn].query_closed()
         tldict[fpn].combine_positions()
         tldict[fpn].finalize_positions(quotes)
-        color_scheme = color_schemes.keys()[index]
-        tldict[fpn].color_scheme = color_schemes[color_scheme]
-        index = (index + 1) % len(color_schemes)
+        tldict[fpn].csnum = csnum
+        csnum = (csnum + 1) % len(csq)
 
     #import pdb;pdb.set_trace()
     context = {
         'tldict': tldict,
+        'csq': csq,
         'lheadings': lheadings,
         'simulate': args.simulate,
         }
