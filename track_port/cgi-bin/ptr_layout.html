@@ -60,11 +60,11 @@
 
     {% for fileportname in tldict %}
     <!-- Non-sorting Name Row -->
-    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td style="color:{{tldict[fileportname].color_scheme['base']['color']}};background-color:{{tldict[fileportname].color_scheme['base']['background-color']}}" colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
 
     <!-- Long Positions -->
     {% if tldict[fileportname].combined_positions['longs']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td style="color:{{tldict[fileportname].color_scheme['position_row']['color']}};background-color:{{tldict[fileportname].color_scheme['position_row']['background-color']}};" colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['longs'] %}
         <tr>
