@@ -98,7 +98,7 @@
 
     <!-- Short Positions -->
     {% if tldict[fileportname].combined_positions['shorts']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td style="color:{{tldict[fileportname].color_scheme['position_row']['color']}};background-color:{{tldict[fileportname].color_scheme['position_row']['background-color']}};" colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['shorts'] %}
     <tr>
@@ -112,7 +112,7 @@
 
     <!-- Option Positions -->
     {% if tldict[fileportname].combined_positions['options']|length > 0 %}
-    <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
+    <tbody class="tablesorter-no-sort"><tr><td style="color:{{tldict[fileportname].color_scheme['position_row']['color']}};background-color:{{tldict[fileportname].color_scheme['position_row']['background-color']}};" colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['options'] %}
     <tr>
