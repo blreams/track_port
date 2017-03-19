@@ -32,7 +32,7 @@ def copy_table(src_engine, src_table_name, dst_engine):
             con.execute(dst_table.insert().values(**row))
     
 def main():
-    tables = ('finance_quote', 'port_param', 'transaction_list')
+    tables = ('finance_quote', 'port_param', 'transaction_list', 'color_scheme',)
     for table in tables:
         print "Copying {} from mysql to sqlite3.".format(table)
         copy_table(mengine, table, sengine)
@@ -40,34 +40,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-#scolumns = []
-#for column in mfinance_quotes.columns:
-#    column.table = None
-#    if str(column.type).startswith('TINYINT'):
-#        column.type = INTEGER()
-#    sfinance_quotes.append_column(column)
-#
-#if sengine.dialect.has_table(sengine.connect(), 'finance_quote'):
-#    sfinance_quotes.drop(sengine)
-#sfinance_quotes.create()
-#rows = mengine.execute(mfinance_quotes.select()).fetchall()
-#with sengine.begin() as con:
-#    for row in rows:
-#        con.execute(sfinance_quotes.insert().values(**row))
-#
-#scolumns = []
-#for column in mport_params.columns:
-#    column.table = None
-#    if str(column.type).startswith('TINYINT'):
-#        column.type = INTEGER()
-#    sport_params.append_column(column)
-#
-#if sengine.dialect.has_table(sengine.connect(), 'port_param'):
-#    sport_params.drop(sengine)
-#sport_params.create()
-#rows = mengine.execute(mport_params.select()).fetchall()
-#with sengine.begin() as con:
-#    for row in rows:
-#        con.execute(sport_params.insert().values(**row))
 
