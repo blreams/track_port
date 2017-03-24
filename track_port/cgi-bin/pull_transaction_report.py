@@ -169,14 +169,15 @@ def handle_cgi_args(arguments):
     argdict['addcols'] = []
     link_args = []
     for argkey in arguments.keys():
-        link_args.append("{}={}".format(argkey, arguments[argkey]))
         if argkey in known_argkeys:
             argdict[argkey] = arguments[argkey].value
+            link_args.append("{}={}".format(argkey, arguments[argkey].value))
         elif argkey == 'addcols':
             for argval in arguments.getlist(argkey):
                 argdict[argkey].append(argval.lower())
         elif argkey in knownfiles:
             for portname in arguments.getlist(argkey):
+                link_args.append("{}={}".format(argkey, portname))
                 if portname == '_ALL_':
                     for fpn in fpns:
                         if fpn.startswith(argkey + ':'):
