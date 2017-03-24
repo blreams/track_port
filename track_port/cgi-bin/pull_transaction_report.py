@@ -160,13 +160,17 @@ def handle_cols():
     return headings
 
 def handle_cgi_args(arguments):
+    global legacy_link
+    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
     argdict = {}
     known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname')
     fpns = [port_param.fileportname.replace('_combined', '') for port_param in ppq]
     knownfiles = set([fpn.split(':')[0] for fpn in fpns])
     argdict['fpns'] = []
     argdict['addcols'] = []
+    link_args = []
     for argkey in arguments.keys():
+        link_args.append("{}={}".format(argkey, arguments[argkey]))
         if argkey in known_argkeys:
             argdict[argkey] = arguments[argkey].value
         elif argkey == 'addcols':
@@ -184,6 +188,9 @@ def handle_cgi_args(arguments):
                         argdict['fpns'].append(fpn)
         else:
             pass
+
+    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
+    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?' + '&'.join(link_get_args)
     return argdict
 
 def parse_args():
@@ -543,6 +550,7 @@ def main():
 
     #import pdb;pdb.set_trace()
     context = {
+        'legacy_link': legacy_link,
         'tldict': tldict,
         'csq': csq,
         'lheadings': lheadings,
