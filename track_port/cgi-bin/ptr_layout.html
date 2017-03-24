@@ -125,6 +125,24 @@
     </tbody>
     {% endif %}
 
+    <!-- Cash Position -->
+    {% if tldict[fileportname].combined_positions['cash']|length > 0 %}
+    <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
+    <tbody>
+    {% for symbol in tldict[fileportname].combined_positions['cash'] %}
+    <tr>
+        {% for key in lheadings %}
+            {% if key in tldict[fileportname].combined_positions['cash'][symbol].report %}
+                <td>{{tldict[fileportname].combined_positions['cash'][symbol].report[key][0].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][1])}}</td>
+            {% else %}
+                <td>***BROKEN***</td>
+            {% endif %}
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+    {% endif %}
+
 {% endfor %}
 </table>
 </div>

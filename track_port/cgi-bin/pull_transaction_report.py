@@ -159,6 +159,7 @@ def handle_cols():
             headings[heading] = possible_headings[heading]
     return headings
 
+legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
 def handle_cgi_args(arguments):
     global legacy_link
     argdict = {}
@@ -216,8 +217,13 @@ class FinanceQuote(object):
             ]
 
     def __init__(self, quote_obj):
-        for field in self.fieldlist:
-            self.__setattr__(field, quote_obj.__getattribute__(field))
+        if isinstance(quote_obj, basestring):
+            self.__setattr__('symbol', 'CASH')
+            self.__setattr__('name', 'The Green Stuff')
+            self.__setattr__('last', Decimal(1.00))
+        else:
+            for field in self.fieldlist:
+                self.__setattr__(field, quote_obj.__getattribute__(field))
 
 class FinanceQuoteList(object):
     """Container class that is essentially a dict indexed by symbol whose
@@ -228,6 +234,7 @@ class FinanceQuoteList(object):
         fqq = session.query(FinanceQuotes).all()
         for fq in fqq:
             self._data[fq.symbol] = FinanceQuote(fq)
+        self._data['CASH'] = FinanceQuote('CASH')
 
     def get_by_symbol(self, symbol):
         """Simple lookup in _data by symbol.
@@ -339,7 +346,7 @@ class TransactionList(object):
         totalvalue, this is where that happens (must be called AFTER calling
         combine_positions().
         """
-        for positiontype in ('longs', 'shorts', 'options'):
+        for positiontype in ('longs', 'shorts', 'options', 'cash'):
             for symbol in self.combined_positions[positiontype]:
                 position = self.combined_positions[positiontype][symbol]
                 position.port_pct = Decimal(100.0) * position.shares * quotes.get_by_symbol(symbol).last / self.totalvalue
@@ -501,8 +508,15 @@ class CashPosition(Position):
             self.open_date = transaction.open_date
         self.transactions.append(transaction)
 
-    def gen_report_line(self):
-        report = OrderedDict()
+    def gen_report_line(self, quote):
+        report = {}
+        report['Symb'] = ('{}', self.symbol)
+        report['Shrs'] = ('{:.2f}', self.shares)
+        report['Purch'] = ('{}', self.open_price)
+        report['Last'] = ('{}', '1.00')
+        report['Chg'] = ('{}', '0.00')
+        report['MktVal'] = ('{:.2f}', self.shares)
+        report['Basis'] = ('{:.2f}', self.basis)
         self.report = report
 
 
