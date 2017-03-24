@@ -161,7 +161,6 @@ def handle_cols():
 
 def handle_cgi_args(arguments):
     global legacy_link
-    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
     argdict = {}
     known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname')
     fpns = [port_param.fileportname.replace('_combined', '') for port_param in ppq]
@@ -189,8 +188,7 @@ def handle_cgi_args(arguments):
         else:
             pass
 
-    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
-    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?' + '&'.join(link_get_args)
+    legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?' + '&'.join(link_args)
     return argdict
 
 def parse_args():
