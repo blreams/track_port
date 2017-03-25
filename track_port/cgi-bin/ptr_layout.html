@@ -130,15 +130,39 @@
     <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
     <tbody>
     {% for symbol in tldict[fileportname].combined_positions['cash'] %}
-    <tr>
+        <tr>
         {% for key in lheadings %}
-            {% if key in tldict[fileportname].combined_positions['cash'][symbol].report %}
-                <td>{{tldict[fileportname].combined_positions['cash'][symbol].report[key][0].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][1])}}</td>
+            {% if key == 'Symb' %}
+                {% if tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length > 1 %}
+                    <td rowspan="{{tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['cash'][symbol].report[key][0].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][1])}}</a></td>
+                {% else %}
+                    <td>{{tldict[fileportname].combined_positions['cash'][symbol].report[key][0].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][1])}}</td>
+                {% endif %}
             {% else %}
-                <td>***BROKEN***</td>
+                {% if key in tldict[fileportname].combined_positions['cash'][symbol].report %}
+                    <td>{{tldict[fileportname].combined_positions['cash'][symbol].report[key][0].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][1])}}</td>
+                {% else %}
+                    <td></td>
+                {% endif %}
             {% endif %}
         {% endfor %}
-    </tr>
+        </tr>
+        <!-- Cash sub transactions -->
+        {% if tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length > 1 %}
+            {% for subreport in tldict[fileportname].combined_positions['cash'][symbol].report['transactions'] %}
+                <tr class="tablesorter-childRow">
+                {% for key in lheadings %}
+                    {% if key != 'Symb' %}
+                        {% if key in subreport %}
+                            <td>{{subreport[key][0].format(subreport[key][1])}}</td>
+                        {% else %}
+                            <td></td>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                </tr>
+            {% endfor %}
+        {% endif %}
     {% endfor %}
     </tbody>
     {% endif %}

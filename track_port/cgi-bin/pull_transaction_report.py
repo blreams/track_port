@@ -351,10 +351,10 @@ class TransactionList(object):
 
         cashposition = self.combined_positions['cash'].get('CASH', CashPosition('CASH'))
         # Add a cash transaction representing invested capital.
-        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=-self.invested_capital, open_date=datetime.date.today())
+        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, sector='invested capital', position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=-self.invested_capital, open_date=datetime.date.today())
         cashposition.add_transaction(t)
         # Add a cash transaction representing realized gain.
-        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=self.realized_gain, open_date=datetime.date.today())
+        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, sector='realized gain', position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=self.realized_gain, open_date=datetime.date.today())
         cashposition.add_transaction(t)
 
         self.totalvalue = self.cash - self.invested_capital + self.realized_gain + self.openvalue
@@ -515,7 +515,6 @@ class Position(object):
 class CashPosition(Position):
     """Position subclass specifically for cash positions.
     """
-    #TODO This is a work-in-progress.
     def add_transaction(self, transaction):
         self.shares += transaction.open_price
         self.basis = self.shares
@@ -535,6 +534,18 @@ class CashPosition(Position):
         report['Chg'] = ('{}', '0.00')
         report['MktVal'] = ('{:.2f}', self.shares)
         report['Basis'] = ('{:.2f}', self.basis)
+
+        report['transactions'] = []
+        if len(self.transactions) > 1:
+            for transaction in self.transactions:
+                subreport = {}
+                subreport['Symb'] = ('{}', transaction.symbol)
+                subreport['Shrs'] = ('{}', transaction.sector.lower())
+                subreport['Purch'] = ('{}', transaction.open_price)
+                subreport['MktVal'] = ('{:.2f}', transaction.open_price)
+                subreport['Basis'] = ('{:.2f}', transaction.open_price)
+                report['transactions'].append(subreport)
+
         self.report = report
 
 
