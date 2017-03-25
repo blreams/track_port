@@ -244,15 +244,22 @@ class FinanceQuoteList(object):
 class Transaction(object):
     """These objects are effectively rows of the transaction_list table.
     """
-    def __init__(self, trl_obj):
+    def __repr__(self):
+        return "{fpn},{symbol},{shrs},{od}".format(fpn=self.fileportname, symbol=self.symbol, shrs=self.shares, od=self.open_date)
+
+    def __init__(self, trl_obj, **kwargs):
         # I did not create this as a class attribute because each instance gets
         # extended to include FinanceQuote.fieldlist columns.
         self.fieldlist = [
                 'symbol', 'fileportname', 'sector', 'position', 'descriptor', 'shares', 'open_price',
                 'open_date', 'closed', 'close_price', 'close_date', 'expiration', 'strike',
                               ]
-        for field in self.fieldlist:
-            self.__setattr__(field, trl_obj.__getattribute__(field))
+        if isinstance(trl_obj, TransactionLists):
+            for field in self.fieldlist:
+                self.__setattr__(field, trl_obj.__getattribute__(field))
+        elif isinstance(trl_obj, basestring):
+            for field in kwargs:
+                self.__setattr__(field, kwargs[field])
 
     def apply_quote(self, fq_obj):
         """For a given transaction, this is how the quote data for the
@@ -304,8 +311,11 @@ class TransactionList(object):
         totalvalue.
         """
         self.cash = 0
+        self.invested_capital = 0
+        self.realized_gain = 0
         self.openvalue = 0
 
+        #import pdb;pdb.set_trace()
         for t in self.open_positions:
             if not t.expiration:
                 if t.shares > 0:
@@ -324,8 +334,14 @@ class TransactionList(object):
             position.add_transaction(t)
             position.normalize_quote(quotes.get_by_symbol(t.symbol))
             self.combined_positions[positiontype][t.symbol] = position
-            self.cash -= t.open_price * t.shares
+            self.invested_capital += t.open_price * t.shares
             self.openvalue += t.shares * quotes.get_by_symbol(t.symbol).last
+
+        for t in self.closed_positions:
+            self.realized_gain += (t.close_price - t.open_price) * t.shares
+            closedposition = self.combined_positions['closed'].get(t.symbol, ClosedPosition(t.symbol))
+            closedposition.add_transaction(t)
+            self.combined_positions['closed'][t.symbol] = closedposition
 
         for t in self.cash_positions:
             self.cash += t.open_price
@@ -333,13 +349,15 @@ class TransactionList(object):
             cashposition.add_transaction(t)
             self.combined_positions['cash']['CASH'] = cashposition
 
-        for t in self.closed_positions:
-            self.cash += (t.close_price - t.open_price) * t.shares
-            closedposition = self.combined_positions['closed'].get(t.symbol, ClosedPosition(t.symbol))
-            closedposition.add_transaction(t)
-            self.combined_positions['closed'][t.symbol] = closedposition
+        cashposition = self.combined_positions['cash'].get('CASH', CashPosition('CASH'))
+        # Add a cash transaction representing invested capital.
+        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=-self.invested_capital, open_date=datetime.date.today())
+        cashposition.add_transaction(t)
+        # Add a cash transaction representing realized gain.
+        t = Transaction('CASH', symbol='CASH', fileportname=self.fileportname, position='cash', descriptor='intermediate', shares=Decimal(0.0), open_price=self.realized_gain, open_date=datetime.date.today())
+        cashposition.add_transaction(t)
 
-        self.totalvalue = self.cash + self.openvalue
+        self.totalvalue = self.cash - self.invested_capital + self.realized_gain + self.openvalue
 
     def finalize_positions(self, quotes):
         """Because we cannot calculate port_pct until we know the portfolio
