@@ -539,9 +539,10 @@ class CashPosition(Position):
         if len(self.transactions) > 1:
             for transaction in self.transactions:
                 subreport = {}
-                subreport['Symb'] = ('{}', transaction.symbol)
-                subreport['Shrs'] = ('{}', transaction.sector.lower())
-                subreport['Purch'] = ('{}', transaction.open_price)
+                subreport['Symb'] = ('{}', '')
+                subreport['Shrs'] = ('{}', transaction.symbol)
+                subreport['Last'] = ('{}', transaction.sector.lower())
+                subreport['Purch'] = ('{:.2f}', transaction.open_price)
                 subreport['MktVal'] = ('{:.2f}', transaction.open_price)
                 subreport['Basis'] = ('{:.2f}', transaction.open_price)
                 report['transactions'].append(subreport)
