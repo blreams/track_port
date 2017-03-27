@@ -14,9 +14,7 @@
             zebra: ["odd", "even"],
         },
         headers: {
-           {% for key in lheadings %}
-           {{loop.index0}}: { sorter: "{{lheadings[key]}}" },
-           {% endfor %}
+           {% for key in lheadings %}{{loop.index0}}: { sorter: "{{lheadings[key]}}" },{% endfor %}
         }
        });
       $('.tablesorter-childRow td').hide();

@@ -8,6 +8,7 @@ import os
 import re
 import jinja2
 import datetime
+import htmlmin
 
 from collections import OrderedDict
 from decimal import Decimal
@@ -163,7 +164,7 @@ legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?
 def handle_cgi_args(arguments):
     global legacy_link
     argdict = {}
-    known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname')
+    known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname', 'cashdetail')
     fpns = [port_param.fileportname.replace('_combined', '') for port_param in ppq]
     knownfiles = set([fpn.split(':')[0] for fpn in fpns])
     argdict['fpns'] = []
@@ -171,7 +172,12 @@ def handle_cgi_args(arguments):
     link_args = []
     for argkey in arguments.keys():
         if argkey in known_argkeys:
-            argdict[argkey] = arguments[argkey].value
+            if arguments[argkey].value.lower() == 'true':
+                argdict[argkey] = True
+            elif arguments[argkey].value.lower() == 'false':
+                argdict[argkey] = False
+            else:
+                argdict[argkey] = arguments[argkey].value
             link_args.append("{}={}".format(argkey, arguments[argkey].value))
         elif argkey == 'addcols':
             for argval in arguments.getlist(argkey):
@@ -195,9 +201,10 @@ def handle_cgi_args(arguments):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--simulate', action='store_true', default=False, help="Used from command line to force arguments")
+    parser.add_argument('--simulate', action='store_true', default=False, help="Used from command line to force arguments")
     parser.add_argument('--fpns', action='append', default=[], help="Add fileportname for querying db")
-    parser.add_argument('-a', '--addcols', action='append', default=[], help="Add columns to the default list")
+    parser.add_argument('--addcols', action='append', default=[], help="Add columns to the default list")
+    parser.add_argument('--cashdetail', action='store_true', default=False, help="Show cash detail sub transactions")
     args = parser.parse_args()
     if not args.fpns:
         args.fpns = ['port:fluffgazer']
@@ -534,18 +541,20 @@ class CashPosition(Position):
         report['Chg'] = ('{}', '0.00')
         report['MktVal'] = ('{:.2f}', self.shares)
         report['Basis'] = ('{:.2f}', self.basis)
+        report['Port%'] = ('{:+.1f}%', self.port_pct)
 
         report['transactions'] = []
-        if len(self.transactions) > 1:
-            for transaction in self.transactions:
-                subreport = {}
-                subreport['Symb'] = ('{}', '')
-                subreport['Shrs'] = ('{}', transaction.symbol)
-                subreport['Last'] = ('{}', transaction.sector.lower())
-                subreport['Purch'] = ('{:.2f}', transaction.open_price)
-                subreport['MktVal'] = ('{:.2f}', transaction.open_price)
-                subreport['Basis'] = ('{:.2f}', transaction.open_price)
-                report['transactions'].append(subreport)
+        if args.cashdetail:
+            if len(self.transactions) > 1:
+                for transaction in self.transactions:
+                    subreport = {}
+                    subreport['Symb'] = ('{}', '')
+                    subreport['Shrs'] = ('{}', transaction.symbol)
+                    subreport['Last'] = ('{}', transaction.sector.lower())
+                    subreport['Purch'] = ('{:.2f}', transaction.open_price)
+                    subreport['MktVal'] = ('{:.2f}', transaction.open_price)
+                    subreport['Basis'] = ('{:.2f}', transaction.open_price)
+                    report['transactions'].append(subreport)
 
         self.report = report
 
@@ -597,7 +606,7 @@ def main():
         'tldict': tldict,
         'csq': csq,
         'lheadings': lheadings,
-        'simulate': args.simulate,
+        'args': args,
         }
 
     #import pdb;pdb.set_trace()
@@ -605,6 +614,7 @@ def main():
     if not args.simulate:
         print "Content-type: text/html"
         print
+        result = htmlmin.minify(result)
     print result
 
 
