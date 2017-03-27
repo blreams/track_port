@@ -169,6 +169,7 @@ def handle_cgi_args(arguments):
     knownfiles = set([fpn.split(':')[0] for fpn in fpns])
     argdict['fpns'] = []
     argdict['addcols'] = []
+    argdict['cashdetail'] = False
     link_args = []
     for argkey in arguments.keys():
         if argkey in known_argkeys:
@@ -583,6 +584,7 @@ def main():
         cgi_args = handle_cgi_args(cgi.FieldStorage())
         args.fpns = cgi_args['fpns']
         args.addcols = cgi_args['addcols']
+        args.cashdetail = cgi_args['cashdetail']
 
     lheadings = handle_cols()
 
