@@ -164,6 +164,21 @@
     {% endfor %}
     </tbody>
     {% endif %}
+    <!-- Total Position -->
+    {% if tldict[fileportname].totals|length > 0 %}
+    <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Total</td></tr></tbody>
+    <tbody>
+        <tr>
+        {% for key in lheadings %}
+                {% if key in tldict[fileportname].totals %}
+                    <td>{{tldict[fileportname].totals[key][0].format(tldict[fileportname].totals[key][1])}}</td>
+                {% else %}
+                    <td></td>
+                {% endif %}
+        {% endfor %}
+        </tr>
+    </tbody>
+    {% endif %}
 
 {% endfor %}
 </table>

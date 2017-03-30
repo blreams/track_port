@@ -322,6 +322,7 @@ class TransactionList(object):
         self.invested_capital = 0
         self.realized_gain = 0
         self.openvalue = 0
+        self.daygain = 0
 
         #import pdb;pdb.set_trace()
         for t in self.open_positions:
@@ -344,6 +345,7 @@ class TransactionList(object):
             self.combined_positions[positiontype][t.symbol] = position
             self.invested_capital += t.open_price * t.shares
             self.openvalue += t.shares * quotes.get_by_symbol(t.symbol).last
+            self.daygain += t.shares * quotes.get_by_symbol(t.symbol).net
 
         for t in self.closed_positions:
             self.realized_gain += (t.close_price - t.open_price) * t.shares
@@ -372,11 +374,26 @@ class TransactionList(object):
         totalvalue, this is where that happens (must be called AFTER calling
         combine_positions().
         """
+        self.cum_port_pct = 0
         for positiontype in ('longs', 'shorts', 'options', 'cash'):
             for symbol in self.combined_positions[positiontype]:
                 position = self.combined_positions[positiontype][symbol]
                 position.port_pct = Decimal(100.0) * position.shares * quotes.get_by_symbol(symbol).last / self.totalvalue
                 position.gen_report_line(quotes.get_by_symbol(symbol))
+                self.cum_port_pct += position.port_pct
+
+    def create_totals(self):
+        """This is where we tot up columns. The only columns we total are
+        Day, MktVal, Gain, Port% and Basis. We also calculate Day% and Gain%.
+        """
+        self.totals = {}
+        self.totals['MktVal'] = ('{:.2f}', self.totalvalue)
+        self.totals['Gain'] = ('{:+.2f}', self.realized_gain)
+        self.totals['Basis'] = ('{:.2f}', self.invested_capital)
+        self.totals['Day'] = ('{:+.2f}', self.daygain)
+        self.totals['Port%'] = ('{:.1f%}', self.cum_port_pct)
+        self.totals['Day%'] = ('{+:.2f%}', self.daygain / self.totalvalue)
+        self.totals['Gain%'] = ('{+:.2f%}', self.realized_gain / self.totalvalue)
 
 
 ##############################################################################
@@ -600,6 +617,7 @@ def main():
         tldict[fpn].combine_positions()
         tldict[fpn].finalize_positions(quotes)
         tldict[fpn].csnum = csnum
+        tldict[fpn].create_totals()
         csnum = (csnum + 1) % len(csq)
 
     #import pdb;pdb.set_trace()
