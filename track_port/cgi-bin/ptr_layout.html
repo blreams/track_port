@@ -170,11 +170,11 @@
     <tbody>
         <tr>
         {% for key in lheadings %}
-                {% if key in tldict[fileportname].totals %}
-                    <td>{{tldict[fileportname].totals[key][0].format(tldict[fileportname].totals[key][1])}}</td>
-                {% else %}
-                    <td></td>
-                {% endif %}
+            {% if key in tldict[fileportname].totals %}
+            <td>{{tldict[fileportname].totals[key][0].format(tldict[fileportname].totals[key][1])}}</td>
+            {% else %}
+                <td></td>
+            {% endif %}
         {% endfor %}
         </tr>
     </tbody>

@@ -391,9 +391,9 @@ class TransactionList(object):
         self.totals['Gain'] = ('{:+.2f}', self.realized_gain)
         self.totals['Basis'] = ('{:.2f}', self.invested_capital)
         self.totals['Day'] = ('{:+.2f}', self.daygain)
-        self.totals['Port%'] = ('{:.1f%}', self.cum_port_pct)
-        self.totals['Day%'] = ('{+:.2f%}', self.daygain / self.totalvalue)
-        self.totals['Gain%'] = ('{+:.2f%}', self.realized_gain / self.totalvalue)
+        self.totals['Port%'] = ('{:.1f}%', self.cum_port_pct)
+        self.totals['Day%'] = ('{:+.2f}%', Decimal(100.0) * self.daygain / self.totalvalue)
+        self.totals['Gain%'] = ('{:+.2f}%', Decimal(100.0) * self.realized_gain / self.totalvalue)
 
 
 ##############################################################################
