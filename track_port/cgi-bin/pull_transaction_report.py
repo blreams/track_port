@@ -554,7 +554,7 @@ class CashPosition(Position):
     def gen_report_line(self, quote):
         report = {}
         report['Symb'] = (self.symbol, '{}', 'left', )
-        report['Shrs'] = (self.shares, '{:.2f}', 'center', )
+        report['Shrs'] = (self.shares, '{:.2f}', 'right', )
         report['Purch'] = (self.open_price, '{}', 'right', )
         report['Last'] = ('1.00', '{}', 'right', )
         report['Chg'] = ('0.00', '{}', 'right', )
