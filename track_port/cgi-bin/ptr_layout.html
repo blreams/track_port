@@ -3,9 +3,10 @@
 {% block head_js_block %}
   <script type="text/javascript">
     $(document).ready(function() { 
-      $('.mainTable-ice').tablesorter({
+      {% for scheme in schemes %}
+      $('.mainTable-{{scheme}}').tablesorter({
         debug: true,
-        theme: 'ice',
+        theme: '{{scheme}}',
         cssChildRow: "tablesorter-childRow",
         cssInfoBlock: "tablesorter-no-sort",
         sortInitialOrder: "desc",
@@ -17,25 +18,7 @@
            {% for key in lheadings %}{{loop.index0}}: { sorter: "{{lheadings[key]}}" },{% endfor %}
         }
        });
-      $('.tablesorter-childRow td').hide();
-      $('.tablesorter').delegate('.toggle', 'click', function() {
-        $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
-        return false;
-      });
-      $('.mainTable-grey').tablesorter({
-        debug: true,
-        theme: 'grey',
-        cssChildRow: "tablesorter-childRow",
-        cssInfoBlock: "tablesorter-no-sort",
-        sortInitialOrder: "desc",
-        widgets:['zebra'],
-        widgetOptions: {
-            zebra: ["odd", "even"],
-        },
-        headers: {
-           {% for key in lheadings %}{{loop.index0}}: { sorter: "{{lheadings[key]}}" },{% endfor %}
-        }
-       });
+      {% endfor %}
       $('.tablesorter-childRow td').hide();
       $('.tablesorter').delegate('.toggle', 'click', function() {
         $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
@@ -43,15 +26,7 @@
       });
     });
   </script>
-  <script type="text/javascript">
-    $(document).ready(function() { 
-      $('table.mainTable tbody tr').mouseover(function() { 
-        $(this).addClass('highlight'); 
-      }).mouseout(function() { 
-        $(this).removeClass('highlight'); 
-      });
-    });
-  </script>
+  <!--
   <script type="text/javascript">
     function ChangeColor(tableRow, highLight, outLight) {
       if (highLight) {
@@ -65,6 +40,7 @@
       window.open(theUrl,theName);
     }
   </script>
+  -->
 {% endblock %}
 
 
@@ -72,15 +48,15 @@
 <div><p><a href="{{legacy_link}}">{{legacy_link}}</a></p></div>
 <div>
     {% for fileportname in tldict %}
-        <table class="mainTable-ice tablesorter" border="1">
+        <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter" border="1">
             <!-- Header Row -->
             <thead><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></thead>
             <tfoot><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></tfoot>
             <!-- Non-sorting Name Row -->
-            <tbody class="tablesorter-no-sort"><tr><td style="color:{{csq[tldict[fileportname].csnum].portfg}};background-color:{{csq[tldict[fileportname].csnum].portbg}}" colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
+            <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
             <!-- Long Positions -->
             {% if tldict[fileportname].combined_positions['longs']|length > 0 %}
-                <tbody class="tablesorter-no-sort"><tr><td style="color:{{csq[tldict[fileportname].csnum].positionfg}};background-color:{{csq[tldict[fileportname].csnum].positionbg}};" colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
+                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['longs'] %}
                         <tr>
@@ -112,7 +88,7 @@
             
             <!-- Short Positions -->
             {% if tldict[fileportname].combined_positions['shorts']|length > 0 %}
-                <tbody class="tablesorter-no-sort"><tr><td style="color:{{csq[tldict[fileportname].csnum].positionfg}};background-color:{{csq[tldict[fileportname].csnum].positionbg}};" colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
+                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['shorts'] %}
                         <tr>
@@ -126,7 +102,7 @@
             
             <!-- Option Positions -->
             {% if tldict[fileportname].combined_positions['options']|length > 0 %}
-                <tbody class="tablesorter-no-sort"><tr><td style="color:{{csq[tldict[fileportname].csnum].positionfg}};background-color:{{csq[tldict[fileportname].csnum].positionbg}};" colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
+                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['options'] %}
                         <tr>

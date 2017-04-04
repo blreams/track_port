@@ -106,6 +106,7 @@ class ColorSchemes(Base):
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
 csq = session.query(ColorSchemes).all()
+schemes = ['ice', 'gray',]
 
 ##############################################################################
 # This section of code deals with arguments, whether command line or CGI.
@@ -625,6 +626,7 @@ def main():
         'legacy_link': legacy_link,
         'tldict': tldict,
         'csq': csq,
+        'schemes': schemes,
         'lheadings': lheadings,
         'args': args,
         }
