@@ -43,7 +43,6 @@
   -->
 {% endblock %}
 
-
 {% block body_block %}
 <div><p><a href="{{legacy_link}}">{{legacy_link}}</a></p></div>
 <div>
@@ -59,22 +58,23 @@
                 <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Long Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['longs'] %}
+                        {% set report = tldict[fileportname].combined_positions['longs'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
                                 {% if key == 'Symb' %}
-                                    {% if tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length > 1 %}
-                                        <td class="{{tldict[fileportname].combined_positions['longs'][symbol].report[key][2]}}" rowspan="{{tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][1].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][0])}}</a></td>
+                                    {% if report['transactions']|length > 1 %}
+                                        <td class="{{report[key][2]}}" rowspan="{{report['transactions']|length + 1}}"><a href="#" class="toggle">{{report[key][1].format(report[key][0])}}</a></td>
                                     {% else %}
-                                        <td class="{{tldict[fileportname].combined_positions['longs'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][1].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][0])}}</td>
+                                        <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                                     {% endif %}
                                 {% else %}
-                                    <td class="{{tldict[fileportname].combined_positions['longs'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['longs'][symbol].report[key][1].format(tldict[fileportname].combined_positions['longs'][symbol].report[key][0])}}</td>
+                                <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
                                 {% endif %}
                             {% endfor %}<!--key-->
                         </tr>
                         <!-- Transactions Within A Position -->
-                        {% if tldict[fileportname].combined_positions['longs'][symbol].report['transactions']|length > 1 %}
-                            {% for subreport in tldict[fileportname].combined_positions['longs'][symbol].report['transactions'] %}
+                        {% if report['transactions']|length > 1 %}
+                            {% for subreport in report['transactions'] %}
                                 <tr class="tablesorter-childRow">
                                     {% for key in lheadings %}
                                         {% if key != 'Symb' %}<td class="{{subreport[key][2]}}">{{subreport[key][1].format(subreport[key][0])}}</td>{% endif %}
@@ -91,9 +91,10 @@
                 <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Short Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['shorts'] %}
+                        {% set report = tldict[fileportname].combined_positions['shorts'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
-                                <td class="{{tldict[fileportname].combined_positions['shorts'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['shorts'][symbol].report[key][1].format(tldict[fileportname].combined_positions['shorts'][symbol].report[key][0])}}</td>
+                                <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
@@ -105,9 +106,10 @@
                 <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Option Positions</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['options'] %}
+                        {% set report = tldict[fileportname].combined_positions['options'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
-                                <td class="{{tldict[fileportname].combined_positions['options'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['options'][symbol].report[key][1].format(tldict[fileportname].combined_positions['options'][symbol].report[key][0])}}</td>
+                                <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
@@ -119,17 +121,18 @@
                 <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['cash'] %}
+                        {% set report = tldict[fileportname].combined_positions['cash'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
                                 {% if key == 'Symb' %}
-                                    {% if tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length > 1 %}
-                                        <td class="{{tldict[fileportname].combined_positions['cash'][symbol].report[key][2]}}" rowspan="{{tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length + 1}}"><a href="#" class="toggle">{{tldict[fileportname].combined_positions['cash'][symbol].report[key][1].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][0])}}</a></td>
+                                    {% if report['transactions']|length > 1 %}
+                                        <td class="{{report[key][2]}}" rowspan="{{report['transactions']|length + 1}}"><a href="#" class="toggle">{{report[key][1].format(report[key][0])}}</a></td>
                                     {% else %}
-                                        <td class="{{tldict[fileportname].combined_positions['cash'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['cash'][symbol].report[key][1].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][0])}}</td>
+                                        <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                                     {% endif %}
                                 {% else %}<!--key-->
-                                    {% if key in tldict[fileportname].combined_positions['cash'][symbol].report %}
-                                        <td class="{{tldict[fileportname].combined_positions['cash'][symbol].report[key][2]}}">{{tldict[fileportname].combined_positions['cash'][symbol].report[key][1].format(tldict[fileportname].combined_positions['cash'][symbol].report[key][0])}}</td>
+                                    {% if key in report %}
+                                        <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                                     {% else %}
                                         <td></td>
                                     {% endif %}
@@ -137,8 +140,8 @@
                             {% endfor %}<!--key-->
                         </tr>
                         <!-- Cash sub transactions -->
-                        {% if tldict[fileportname].combined_positions['cash'][symbol].report['transactions']|length > 1 %}
-                            {% for subreport in tldict[fileportname].combined_positions['cash'][symbol].report['transactions'] %}
+                        {% if report['transactions']|length > 1 %}
+                            {% for subreport in report['transactions'] %}
                                 <tr class="tablesorter-childRow">
                                     {% for key in lheadings %}
                                         {% if key != 'Symb' %}

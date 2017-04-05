@@ -469,6 +469,9 @@ class Position(object):
         Along the way we also create subreport items which are done when a
         position has multiple transactions.
         """
+        daycolor = calc_bgcolor(quote.p_change, 0.1, 10.0)
+        gainpct = ((self.shares * quote.last) - self.basis) * Decimal(100.0) / abs(self.basis)
+        gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
         #import pdb;pdb.set_trace()
         datefmt = '%Y-%m-%d'
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
@@ -476,13 +479,13 @@ class Position(object):
         report['Symb'] = (self.symbol, '{}', 'center', )
         report['Shrs'] = (self.shares, '{:.0f}', 'right', )
         report['Purch'] = (self.open_price, '{:.2f}', 'right', )
-        report['Last'] = (quote.last, '{:.2f}', 'right', )
-        report['Chg'] = (quote.net, '{:+.2f}', 'right', )
-        report['Day%'] = (quote.p_change, '{:+.2f}%', 'right', )
-        report['Day'] = (self.shares * quote.net, '{:+.2f}', 'right', )
+        report['Last'] = (quote.last, '{:.2f}', 'right', daycolor, )
+        report['Chg'] = (quote.net, '{:+.2f}', 'right', daycolor, )
+        report['Day%'] = (quote.p_change, '{:+.2f}%', 'right', daycolor, )
+        report['Day'] = (self.shares * quote.net, '{:+.2f}', 'right', daycolor, )
         report['MktVal'] = (self.shares * quote.last, '{:+.2f}', 'right', )
-        report['Gain'] = ((self.shares * quote.last) - self.basis, '{:+.2f}', 'right', )
-        report['Gain%'] = (((self.shares * quote.last) - self.basis) * Decimal(100.0) / abs(self.basis), '{:+.1f}%', 'right', )
+        report['Gain'] = ((self.shares * quote.last) - self.basis, '{:+.2f}', 'right', gaincolor, )
+        report['Gain%'] = (gainpct, '{:+.1f}%', 'right', gaincolor, )
         report['Basis'] = (self.basis, '{:.2f}', 'right', )
         report['Port%'] = (self.port_pct, '{:+.1f}%', 'right', )
         report['Low'] = (quote.low, '{:.2f}', 'right', )
@@ -586,6 +589,29 @@ class ClosedPosition(Position):
         self.basis += transaction.shares * transaction.open_price
         self.mktval += transaction.shares * transaction.close_price
         self.transactions.append(transaction)
+
+def calc_bgcolor(pct, minval, maxval):
+    #import pdb;pdb.set_trace()
+    pct = float(pct)
+    if pct <= minval and pct >= -minval:
+        red = 0xcc; grn = 0xcc; blu = 0xcc
+    elif pct >= maxval:
+        red = 0x00; grn = 0xf8; blu = 0x00
+    elif pct <= -maxval:
+        red = 0xf8; grn = 0x00; blu = 0x00
+    else:
+        if pct > 0.0:
+            normalizer = pct / maxval
+            red = 0xe0 - int(0xe0 * normalizer);
+            grn = 0xff
+            blu = 0xe0 - int(0xe0 * normalizer);
+        else:
+            normalizer = pct / -maxval
+            red = 0xf8
+            grn = 0xe0 - int(0xe0 * normalizer);
+            blu = 0xe0 - int(0xe0 * normalizer);
+
+    return "background-color: {bg}; color:{fg};".format(bg="#{red:02x}{grn:02x}{blu:02x}".format(red=red, grn=grn, blu=blu), fg="#000")
 
 def render(tpl_path, context):
     """Helper function to render page using Jinja2.
