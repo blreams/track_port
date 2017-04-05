@@ -171,6 +171,7 @@ def handle_cgi_args(arguments):
     argdict['fpns'] = []
     argdict['addcols'] = []
     argdict['cashdetail'] = False
+    argdict['sort'] = 'pct_chg'
     link_args = []
     for argkey in arguments.keys():
         if argkey in known_argkeys:
@@ -197,6 +198,8 @@ def handle_cgi_args(arguments):
                         argdict['fpns'].append(fpn)
         else:
             pass
+    if argdict['sort'] == 'pct_chg':
+        argdict['sort'] = 'Day%'
 
     legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?' + '&'.join(link_args)
     return argdict
@@ -207,6 +210,7 @@ def parse_args():
     parser.add_argument('--fpns', action='append', default=[], help="Add fileportname for querying db")
     parser.add_argument('--addcols', action='append', default=[], help="Add columns to the default list")
     parser.add_argument('--cashdetail', action='store_true', default=False, help="Show cash detail sub transactions")
+    parser.add_argument('--sort', dest='sortcol', default='Day%', help="Specify column for initial sort")
     args = parser.parse_args()
     if not args.fpns:
         args.fpns = ['port:fluffgazer']
@@ -629,8 +633,26 @@ def main():
         args.fpns = cgi_args['fpns']
         args.addcols = cgi_args['addcols']
         args.cashdetail = cgi_args['cashdetail']
+        args.sortcol = cgi_args['sort']
 
     lheadings = handle_cols()
+
+    headersvals = []
+    for i, heading in enumerate(lheadings.keys()):
+        if heading == args.sortcol:
+            sortlist = '[[{},1]]'.format(i)
+        headersvals.append('{key}: {{ sorter: "{stype}" }}'.format(key=i, stype=lheadings[heading]))
+
+    tsconfig = {
+            'debug': 'true',
+            'cssChildRow': '"tablesorter-childRow"',
+            'cssInfoBlock': '"tablesorter-no-sort"',
+            'sortInitialOrder': '"desc"',
+            'sortList': sortlist,
+            'widgets': '["zebra"]',
+            'widgetOptions': '{zebra: ["odd", "even"],}',
+            'headers': '{' + ','.join(headersvals) + '}',
+            }
 
     quotes = FinanceQuoteList()
 
@@ -655,6 +677,7 @@ def main():
         'schemes': schemes,
         'lheadings': lheadings,
         'args': args,
+        'tsconfig': tsconfig,
         }
 
     #import pdb;pdb.set_trace()

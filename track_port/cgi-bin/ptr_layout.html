@@ -5,18 +5,7 @@
     $(document).ready(function() { 
       {% for scheme in schemes %}
       $('.mainTable-{{scheme}}').tablesorter({
-        debug: true,
-        theme: '{{scheme}}',
-        cssChildRow: "tablesorter-childRow",
-        cssInfoBlock: "tablesorter-no-sort",
-        sortInitialOrder: "desc",
-        widgets:['zebra'],
-        widgetOptions: {
-            zebra: ["odd", "even"],
-        },
-        headers: {
-           {% for key in lheadings %}{{loop.index0}}: { sorter: "{{lheadings[key]}}" },{% endfor %}
-        }
+        {% for key in tsconfig %}{{key}}: {{tsconfig[key]}},{% endfor %}theme: "{{scheme}}",
        });
       {% endfor %}
       $('.tablesorter-childRow td').hide();
