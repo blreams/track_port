@@ -391,14 +391,18 @@ class TransactionList(object):
         """This is where we tot up columns. The only columns we total are
         Day, MktVal, Gain, Port% and Basis. We also calculate Day% and Gain%.
         """
+        daypct = Decimal(100.0) * self.daygain / self.totalvalue
+        daycolor = calc_bgcolor(daypct, 0.1, 5.0)
+        gainpct = Decimal(100.0) * self.realized_gain / self.totalvalue
+        gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
         self.totals = {}
         self.totals['MktVal'] = (self.totalvalue, '{:.2f}', 'right', )
-        self.totals['Gain'] = (self.realized_gain, '{:+.2f}', 'right', )
+        self.totals['Gain'] = (self.realized_gain, '{:+.2f}', 'right', gaincolor, )
         self.totals['Basis'] = (self.invested_capital, '{:.2f}', 'right', )
-        self.totals['Day'] = (self.daygain, '{:+.2f}', 'right', )
+        self.totals['Day'] = (self.daygain, '{:+.2f}', 'right', daycolor, )
         self.totals['Port%'] = (self.cum_port_pct, '{:.1f}%', 'right', )
-        self.totals['Day%'] = (Decimal(100.0) * self.daygain / self.totalvalue, '{:+.2f}%', 'right', )
-        self.totals['Gain%'] = (Decimal(100.0) * self.realized_gain / self.totalvalue, '{:+.2f}%', 'right', )
+        self.totals['Day%'] = (daypct, '{:+.2f}%', 'right', daycolor, )
+        self.totals['Gain%'] = (gainpct, '{:+.2f}%', 'right', gaincolor, )
 
 
 ##############################################################################
@@ -473,7 +477,7 @@ class Position(object):
         Along the way we also create subreport items which are done when a
         position has multiple transactions.
         """
-        daycolor = calc_bgcolor(quote.p_change, 0.1, 10.0)
+        daycolor = calc_bgcolor(quote.p_change, 0.1, 5.0)
         gainpct = ((self.shares * quote.last) - self.basis) * Decimal(100.0) / abs(self.basis)
         gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
         #import pdb;pdb.set_trace()

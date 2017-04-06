@@ -83,7 +83,7 @@
                         {% set report = tldict[fileportname].combined_positions['shorts'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
-                                <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
+                                <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
@@ -98,7 +98,7 @@
                         {% set report = tldict[fileportname].combined_positions['options'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
-                                <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
+                                <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
@@ -149,12 +149,13 @@
             {% endif %}<!--tldict-->
             <!-- Total Position -->
             {% if tldict[fileportname].totals|length > 0 %}
+                {% set totals = tldict[fileportname].totals %}
                 <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Total</td></tr></tbody>
                 <tbody>
                     <tr>
                         {% for key in lheadings %}
-                            {% if key in tldict[fileportname].totals %}
-                                <td class="{{tldict[fileportname].totals[key][2]}}">{{tldict[fileportname].totals[key][1].format(tldict[fileportname].totals[key][0])}}</td>
+                            {% if key in totals %}
+                                <td class="{{totals[key][2]}}"{% if totals[key]|length==4 %} style="{{totals[key][3]}}"{% endif %}>{{totals[key][1].format(totals[key][0])}}</td>
                             {% else %}
                                 <td></td>
                             {% endif %}
