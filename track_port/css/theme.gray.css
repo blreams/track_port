@@ -188,6 +188,7 @@
  */
 .tablesorter-gray tbody > tr.even:hover > td {
 	background-color: #ffe7b4; /* CHANGEME hover body row even */
+	color: #333; /* CHANGEME hover body row even */
 }
 
 /*
@@ -195,6 +196,7 @@
  */
 .tablesorter-gray tbody > tr.odd:hover > td {
 	background-color: #ffe7b4; /* CHANGEME hover body row odd */
+	color: #333; /* CHANGEME hover body row even */
 }
 
 /*
