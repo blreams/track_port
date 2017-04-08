@@ -3,7 +3,7 @@
 {% block head_js_block %}
   <script type="text/javascript">
     $(document).ready(function() { 
-      {% for scheme in schemes %}
+      {% for scheme in schemeset %}
       $('.mainTable-{{scheme}}').tablesorter({
         {% for key in tsconfig %}{{key}}: {{tsconfig[key]}},{% endfor %}theme: "{{scheme}}",
        });
@@ -153,7 +153,10 @@
             <!-- Total Position -->
             {% if tldict[fileportname].totals|length > 0 %}
                 {% set totals = tldict[fileportname].totals %}
+                <!--
                 <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Total</td></tr></tbody>
+                -->
+                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Total</td></tr></tbody>
                 <tbody>
                     <tr>
                         {% for key in lheadings %}

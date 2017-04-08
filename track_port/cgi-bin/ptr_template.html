@@ -16,7 +16,7 @@
   <link rel="stylesheet" type="text/css" href="{% if args.simulate %}..{% endif %}/css/theme.ice.css">
   <link rel="stylesheet" type="text/css" href="{% if args.simulate %}..{% endif %}/css/theme.grey.css">
   -->
-  {% for scheme in schemes %}
+  {% for scheme in schemeset %}
   <link rel="stylesheet" type="text/css" href="{% if args.simulate %}..{% endif %}/css/theme.{{scheme}}.css">
   {% endfor %}
   {% block head_jquery_block %}

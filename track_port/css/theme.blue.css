@@ -1,5 +1,5 @@
 /*************
-  Gray Theme (by thezoggy)
+  Blue Theme (by thezoggy)
  *************/
 /* overall */
 /*
@@ -7,7 +7,7 @@
  * positions indicator row
  * footer row, except for sorted column
  */
-.tablesorter-gray {
+.tablesorter-blue {
     width: 100%;
     background-color: #fff;
     margin: 10px 0 15px;
@@ -21,7 +21,7 @@
 /*
  * border for header cells: <th>
  */
-.tablesorter-gray th {
+.tablesorter-blue th {
     border: #ccc 1px solid;
     border-width: 0 1px 1px 0;
 }
@@ -29,7 +29,7 @@
 /*
  * border for non-header cells: <td>
  */
-.tablesorter-gray td {
+.tablesorter-blue td {
     border: #ccc 1px solid;
     border-width: 0 1px 1px 0;
 }
@@ -38,7 +38,7 @@
 /*
  * N/A because I don't have any <th> outside <thead>
  */
-.tablesorter-gray th {
+.tablesorter-blue th {
     font: 12px/18px Arial, Sans-serif;
     color: #555;
     background-color: #f6f8f9;
@@ -50,7 +50,7 @@
 /*
  * N/A because I don't have any <td> inside <thead>
  */
-.tablesorter-gray thead td {
+.tablesorter-blue thead td {
     font: 12px/18px Arial, Sans-serif;
     color: #555;
     background-color: #f6f8f9;
@@ -63,7 +63,7 @@
  * port name row
  * positions indicator row
  */
-.tablesorter-gray tbody td {
+.tablesorter-blue tbody td {
     padding: 1px;
     vertical-align: top;
 }
@@ -71,9 +71,9 @@
 /*
  * footer row, except for sorted column
  */
-.tablesorter-gray tfoot th {
+.tablesorter-blue tfoot th {
     color: #fff;
-    background-color: #3c3c3c; /* CHANGEME footer row */
+    background-color: #122970; /* CHANGEME footer row */
     padding: 4px;
     vertical-align: top;
 }
@@ -81,7 +81,7 @@
 /*
  * N/A
  */
-.tablesorter-gray tfoot td {
+.tablesorter-blue tfoot td {
     padding: 4px;
     vertical-align: top;
 }
@@ -89,10 +89,10 @@
 /*
  * header row, except for sorted column
  */
-.tablesorter-gray .header,
-.tablesorter-gray .tablesorter-header {
+.tablesorter-blue .header,
+.tablesorter-blue .tablesorter-header {
     color: #fff;
-    background-color: #3c3c3c; /* CHANGEME header row */
+    background-color: #121270; /* CHANGEME header row */
     background-position: center right;
     background-repeat: no-repeat;
     /*
@@ -107,11 +107,11 @@
 /*
  * header cell of sorted column when ascending
  */
-.tablesorter-gray .headerSortUp,
-.tablesorter-gray .tablesorter-headerSortUp,
-.tablesorter-gray .tablesorter-headerAsc {
+.tablesorter-blue .headerSortUp,
+.tablesorter-blue .tablesorter-headerSortUp,
+.tablesorter-blue .tablesorter-headerAsc {
     color: #333;
-    background-color: #dddddd; /* CHANGEME column header after sort asc */
+    background-color: #ebedee; /* CHANGEME column header after sort asc */
     background-position: center right;
     background-repeat: no-repeat;
     /*
@@ -123,11 +123,11 @@
 /*
  * header cell of sorted column when descending
  */
-.tablesorter-gray .headerSortDown,
-.tablesorter-gray .tablesorter-headerSortDown,
-.tablesorter-gray .tablesorter-headerDesc {
+.tablesorter-blue .headerSortDown,
+.tablesorter-blue .tablesorter-headerSortDown,
+.tablesorter-blue .tablesorter-headerDesc {
     color: #333;
-    background-color: #dddddd; /* CHANGEME column header after sort desc */
+    background-color: #ebedee; /* CHANGEME column header after sort desc */
     background-position: center right;
     background-repeat: no-repeat;
     /*
@@ -139,7 +139,7 @@
 /*
  * N/A
  */
-.tablesorter-gray thead .sorter-false {
+.tablesorter-blue thead .sorter-false {
     background-image: none;
     cursor: default;
     padding: 4px;
@@ -149,10 +149,10 @@
 /*
  * footer cell of sorted column when ascending
  */
-.tablesorter-gray tfoot .tablesorter-headerSortUp,
-.tablesorter-gray tfoot .tablesorter-headerSortDown,
-.tablesorter-gray tfoot .tablesorter-headerAsc,
-.tablesorter-gray tfoot .tablesorter-headerDesc {
+.tablesorter-blue tfoot .tablesorter-headerSortUp,
+.tablesorter-blue tfoot .tablesorter-headerSortDown,
+.tablesorter-blue tfoot .tablesorter-headerAsc,
+.tablesorter-blue tfoot .tablesorter-headerDesc {
     background-color: #ebedee;
 }
 
@@ -162,16 +162,16 @@
  * positions indicator row
  * footer row, except for sorted column
  */
-.tablesorter-gray td {
-    color: #eee; /* CHANGEME no-sort port name and position type */
-    background-color: #6d6d6d; /* CHANGEME no-sort port name and position type */
+.tablesorter-blue td {
+    color: #ccc; /* CHANGEME no-sort port name and position type */
+    background-color: #191970; /* CHANGEME no-sort port name and position type */
 }
 
 /* hovered row colors */
 /*
  * N/A
  */
-.tablesorter-gray tbody > tr.hover > td {
+.tablesorter-blue tbody > tr.hover > td {
     background-color: #ebf2fa;
 }
 
@@ -179,14 +179,14 @@
  * hover port name row
  * hover positions indicator row
  */
-.tablesorter-gray tbody > tr:hover > td {
+.tablesorter-blue tbody > tr:hover > td {
     background-color: #ebf2fa;
 }
 
 /*
  * hover sorted even rows
  */
-.tablesorter-gray tbody > tr.even:hover > td {
+.tablesorter-blue tbody > tr.even:hover > td {
     background-color: #ffe7b4; /* CHANGEME hover body row even */
     color: #333; /* CHANGEME hover body row even */
 }
@@ -194,7 +194,7 @@
 /*
  * hover sorted odd rows
  */
-.tablesorter-gray tbody > tr.odd:hover > td {
+.tablesorter-blue tbody > tr.odd:hover > td {
     background-color: #ffe7b4; /* CHANGEME hover body row odd */
     color: #333; /* CHANGEME hover body row even */
 }
@@ -203,7 +203,7 @@
  * N/A
  */
 /* table processing indicator */
-.tablesorter-gray .tablesorter-processing {
+.tablesorter-blue .tablesorter-processing {
     background-position: center center !important;
     background-repeat: no-repeat !important;
     /* background-image: url(images/loading.gif) !important; */
@@ -214,43 +214,45 @@
 /*
  * sorted odd rows
  */
-.tablesorter-gray tr.odd > td {
-    background-color: #9e9e9e; /* CHANGEME zebra odd */
+.tablesorter-blue tr.odd > td {
+    color: #333; /* CHANGME zebra odd */
+    background-color: #ebf0ff; /* CHANGME zebra odd */
 }
 
 /*
  * sorted even rows
  */
-.tablesorter-gray tr.even > td {
-    background-color: #8d8d8d; /* CHANGEME zebra even */
+.tablesorter-blue tr.even > td {
+    color: #333; /* CHANGME zebra even */
+    background-color: #e0e5f3; /* CHANGME zebra even */
 }
 
 /* Column Widget - column sort colors */
-.tablesorter-gray td.primary,
-.tablesorter-gray tr.odd td.primary {
+.tablesorter-blue td.primary,
+.tablesorter-blue tr.odd td.primary {
     background-color: #9ae5e5;
 }
-.tablesorter-gray tr.even td.primary {
+.tablesorter-blue tr.even td.primary {
     background-color: #c2f0f0;
 }
-.tablesorter-gray td.secondary,
-.tablesorter-gray tr.odd td.secondary {
+.tablesorter-blue td.secondary,
+.tablesorter-blue tr.odd td.secondary {
     background-color: #c2f0f0;
 }
-.tablesorter-gray tr.even td.secondary {
+.tablesorter-blue tr.even td.secondary {
     background-color: #d5f5f5;
 }
-.tablesorter-gray td.tertiary,
-.tablesorter-gray tr.odd td.tertiary {
+.tablesorter-blue td.tertiary,
+.tablesorter-blue tr.odd td.tertiary {
     background-color: #d5f5f5;
 }
-.tablesorter-gray tr.even td.tertiary {
+.tablesorter-blue tr.even td.tertiary {
     background-color: #ebfafa;
 }
 
 /* sticky headers */
-.tablesorter-gray.containsStickyHeaders thead tr:nth-child(1) th,
-.tablesorter-gray.containsStickyHeaders thead tr:nth-child(1) td {
+.tablesorter-blue.containsStickyHeaders thead tr:nth-child(1) th,
+.tablesorter-blue.containsStickyHeaders thead tr:nth-child(1) td {
     border-top: #ccc 1px solid;
 }
 
@@ -260,10 +262,10 @@ caption {
 }
 
 /* filter widget */
-.tablesorter-gray .tablesorter-filter-row {
+.tablesorter-blue .tablesorter-filter-row {
     background-color: #eee;
 }
-.tablesorter-gray .tablesorter-filter-row td {
+.tablesorter-blue .tablesorter-filter-row td {
     background-color: #eee;
     line-height: normal;
     text-align: center; /* center the input */
@@ -273,13 +275,13 @@ caption {
     transition: line-height 0.1s ease;
 }
 /* optional disabled input styling */
-.tablesorter-gray .tablesorter-filter-row .disabled {
+.tablesorter-blue .tablesorter-filter-row .disabled {
     opacity: 0.5;
     filter: alpha(opacity=50);
     cursor: not-allowed;
 }
 /* hidden filter row */
-.tablesorter-gray .tablesorter-filter-row.hideme td {
+.tablesorter-blue .tablesorter-filter-row.hideme td {
     /*** *********************************************** ***/
     /*** change this padding to modify the thickness     ***/
     /*** of the closed filter row (height = padding x 2) ***/
@@ -289,7 +291,7 @@ caption {
     line-height: 0;
     cursor: pointer;
 }
-.tablesorter-gray .tablesorter-filter-row.hideme * {
+.tablesorter-blue .tablesorter-filter-row.hideme * {
     height: 1px;
     min-height: 0;
     border: 0;
@@ -300,8 +302,8 @@ caption {
     filter: alpha(opacity=0);
 }
 /* filters */
-.tablesorter-gray input.tablesorter-filter,
-.tablesorter-gray select.tablesorter-filter {
+.tablesorter-blue input.tablesorter-filter,
+.tablesorter-blue select.tablesorter-filter {
     width: 98%;
     height: auto;
     margin: 0;

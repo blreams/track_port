@@ -106,7 +106,8 @@ class ColorSchemes(Base):
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
 csq = session.query(ColorSchemes).all()
-schemes = ['ice', 'gray',]
+schemes = ['blue', 'ice', 'gray', 'blue', ]
+schemeset = set(schemes)
 
 ##############################################################################
 # This section of code deals with arguments, whether command line or CGI.
@@ -679,6 +680,7 @@ def main():
         'tldict': tldict,
         'csq': csq,
         'schemes': schemes,
+        'schemeset': schemeset,
         'lheadings': lheadings,
         'args': args,
         'tsconfig': tsconfig,
