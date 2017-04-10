@@ -106,7 +106,7 @@ class ColorSchemes(Base):
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
 csq = session.query(ColorSchemes).all()
-schemes = ['blue', 'ice', 'gray', 'blue', ]
+schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
 schemeset = set(schemes)
 
 ##############################################################################
@@ -661,7 +661,7 @@ def main():
 
     quotes = FinanceQuoteList()
 
-    tldict = {}
+    tldict = OrderedDict()
     csnum = 0
     for fpn in args.fpns:
         tldict[fpn] = TransactionList(fpn)

@@ -110,7 +110,7 @@
             
             <!-- Cash Position -->
             {% if tldict[fileportname].combined_positions['cash']|length > 0 %}
-                <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
+                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
                 <tbody>
                     {% for symbol in tldict[fileportname].combined_positions['cash'] %}
                         {% set report = tldict[fileportname].combined_positions['cash'][symbol].report %}
@@ -153,9 +153,6 @@
             <!-- Total Position -->
             {% if tldict[fileportname].totals|length > 0 %}
                 {% set totals = tldict[fileportname].totals %}
-                <!--
-                <tbody class="tablesorter-no-sort"><tr><td style="color:white;background-color:green;" colspan="{{lheadings|length}}">Total</td></tr></tbody>
-                -->
                 <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Total</td></tr></tbody>
                 <tbody>
                     <tr>
