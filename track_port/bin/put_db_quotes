@@ -793,9 +793,12 @@ sub create_transaction_report {
     my $fq_last = $p_hash_fq->{$s}{last};
     if ($days_owned > 0) {
       if ($sign > 0.0) {
-        $cagr = (($p_hash_fq->{$s}{last} / $p_parsed_transactions->[$i]{purchase}) ** (1.0 / ($days_owned / 365.0)) - 1.0) * 100.0;
+        $cagr = (($fq_last / $p_parsed_transactions->[$i]{purchase}) ** (1.0 / ($days_owned / 365.0)) - 1.0) * 100.0;
       } else {
         $cagr = ($fq_last > 0.10) ? ((($p_parsed_transactions->[$i]{purchase} / $fq_last) ** (1.0 / ($days_owned / 365.0)) - 1.0) * 100.0) : 0.0;
+      }
+      if ($cagr > 100000.0) {
+          $cagr = 9999.99
       }
     }
 
