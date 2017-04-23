@@ -291,6 +291,7 @@ class TransactionList(object):
     def __init__(self, fileportname):
         self.fileportname = fileportname
         self.combined_positions = {'longs': {}, 'shorts': {}, 'options': {}, 'cash': {}, 'closed': {}}
+        (self.filename, self.portname) = fileportname.split(':')
 
     def query_positions(self, quotes):
         """This gets all the open, long transactions.
