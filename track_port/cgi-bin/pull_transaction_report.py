@@ -676,6 +676,13 @@ def main():
         csnum = (csnum + 1) % len(csq)
 
     #import pdb;pdb.set_trace()
+    lastweekday = datetime.date(datetime.date.today().year-1, 12, 31)
+    if (datetime.date.today() - lastweekday).days < 30:
+        lastweekday = datetime.date.today() - datetime.timedelta(days=90)
+    while lastweekday.weekday() >= 5:
+        lastweekday -= datetime.timedelta(days=1)
+    porteditstart = lastweekday.strftime('%m/%d/%Y')
+    porteditend = datetime.date.today().strftime('%m/%d/%Y')
     context = {
         'legacy_link': legacy_link,
         'tldict': tldict,
@@ -685,6 +692,8 @@ def main():
         'lheadings': lheadings,
         'args': args,
         'tsconfig': tsconfig,
+        'porteditstart': porteditstart,
+        'porteditend': porteditend,
         }
 
     #import pdb;pdb.set_trace()

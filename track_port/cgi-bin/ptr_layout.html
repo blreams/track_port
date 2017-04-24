@@ -39,7 +39,8 @@
         <div>
         <div style="display: inline-block; width: 100%;">
         <h3 style="display: inline;">{{tldict[fileportname].portname}}</h3>
-        <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?file={{tldict[fileportname].filename}}">EDIT</a></h6>
+        <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?action=show_transactions&fileportname={{fileportname}}">EDIT</a></h6>
+        <h6 style="display: inline;"><a href="/cgi-bin/port_chart.cgi?{% for fpn in tldict %}{{tldict[fpn].filename}}={{tldict[fpn].portname}}&{% endfor %}method=diff&start={{porteditstart}}&end={{porteditend}}">CHART</a></h6>
         </div>
         <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter" border="1">
             <!-- Header Row -->
