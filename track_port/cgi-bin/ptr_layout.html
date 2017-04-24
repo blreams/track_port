@@ -37,17 +37,16 @@
 <div>
     {% for fileportname in tldict %}
         <div>
-        <h3>{{tldict[fileportname].portname}}</h3>
+        <div style="display: inline-block; width: 100%;">
+        <h3 style="display: inline;">{{tldict[fileportname].portname}}</h3>
+        <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?file={{tldict[fileportname].filename}}">EDIT</a></h6>
+        </div>
         <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter" border="1">
             <!-- Header Row -->
             <thead><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></thead>
             <!-- Footer Row -->
             <!--
             <tfoot><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></tfoot>
-            -->
-            <!-- Non-sorting Name Row -->
-            <!--
-            <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">{{fileportname}}</td></tr></tbody>
             -->
             <!-- Long Positions -->
             {% if tldict[fileportname].combined_positions['longs']|length > 0 %}
