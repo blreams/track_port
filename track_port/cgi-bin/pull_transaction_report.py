@@ -105,7 +105,6 @@ class ColorSchemes(Base):
 
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
-csq = session.query(ColorSchemes).all()
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
 schemeset = set(schemes)
 
@@ -673,7 +672,6 @@ def main():
         tldict[fpn].finalize_positions(quotes)
         tldict[fpn].csnum = csnum
         tldict[fpn].create_totals()
-        csnum = (csnum + 1) % len(csq)
 
     #import pdb;pdb.set_trace()
     lastweekday = datetime.date(datetime.date.today().year-1, 12, 31)
@@ -686,7 +684,6 @@ def main():
     context = {
         'legacy_link': legacy_link,
         'tldict': tldict,
-        'csq': csq,
         'schemes': schemes,
         'schemeset': schemeset,
         'lheadings': lheadings,

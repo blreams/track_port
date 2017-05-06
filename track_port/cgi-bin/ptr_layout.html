@@ -114,8 +114,7 @@
             
             <!-- Cash Position -->
             {% if tldict[fileportname].combined_positions['cash']|length > 0 %}
-                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Cash Position</td></tr></tbody>
-                <tbody>
+                <tbody class="tablesorter-no-sort">
                     {% for symbol in tldict[fileportname].combined_positions['cash'] %}
                         {% set report = tldict[fileportname].combined_positions['cash'][symbol].report %}
                         <tr>
@@ -157,12 +156,13 @@
             <!-- Total Position -->
             {% if tldict[fileportname].totals|length > 0 %}
                 {% set totals = tldict[fileportname].totals %}
-                <tbody class="tablesorter-no-sort"><tr><td colspan="{{lheadings|length}}">Total</td></tr></tbody>
-                <tbody>
+                <tbody class="tablesorter-no-sort">
                     <tr>
                         {% for key in lheadings %}
                             {% if key in totals %}
                                 <td class="{{totals[key][2]}}"{% if totals[key]|length==4 %} style="{{totals[key][3]}}"{% endif %}>{{totals[key][1].format(totals[key][0])}}</td>
+                            {% elif key == 'Symb' %}
+                                <td>TOTALS</td>
                             {% else %}
                                 <td></td>
                             {% endif %}
