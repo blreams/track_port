@@ -33,7 +33,33 @@
 {% endblock %}
 
 {% block body_block %}
-<div><p><a href="{{legacy_link}}">{{legacy_link}}</a></p></div>
+<div style="width:50%">
+    <table class="mainTable-gray tablesorter" border="1">
+        {% for symbol in tickerdict %}
+        {% set ticker = tickerdict[symbol] %}
+        {% if loop.first %}
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                {% for key in ticker %}
+                <th>{{key}}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr>
+                <td>{{symbol}}</td>
+                {% for key in ticker %}
+                <td class="{{ticker[key][2]}}"{% if ticker[key]|length==4 %} style="{{ticker[key][3]}}"{% endif %}>{{ticker[key][1].format(ticker[key][0])}}</td>
+                {% endfor %}
+            </tr>
+        {% if loop.first %}
+        </tbody>
+        {% endif %}
+        {% endfor %}
+    </table>
+</div>
 <div>
     {% for fileportname in tldict %}
         <div>
@@ -41,6 +67,7 @@
         <h3 style="display: inline;">{{tldict[fileportname].portname}}</h3>
         <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?action=show_transactions&fileportname={{fileportname}}" target="_blank">EDIT</a></h6>
         <h6 style="display: inline;"><a href="/cgi-bin/port_chart.cgi?{% for fpn in tldict %}{{tldict[fpn].filename}}={{tldict[fpn].portname}}&{% endfor %}method=diff&start={{porteditstart}}&end={{porteditend}}" target="_blank">CHART</a></h6>
+        <h6 style="display: inline;"><a href="{{legacy_link}}" target="_blank">LEGACY</a></h6>
         </div>
         <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter" border="1">
             <!-- Header Row -->

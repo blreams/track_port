@@ -103,8 +103,16 @@ class ColorSchemes(Base):
     __tablename__ = 'color_scheme'
     __table_args__ = {'autoload': True}
 
+class TickerSymbols(Base):
+    """
+    """
+    __tablename__ = 'ticker_symbols'
+    __table_args__ = {'autoload': True}
+
 session = load_session()
 ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
+ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
+
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
 schemeset = set(schemes)
 
@@ -661,6 +669,17 @@ def main():
 
     quotes = FinanceQuoteList()
 
+    tickerdict = OrderedDict()
+    for symbol in ticker_symbols:
+        quote = quotes.get_by_symbol(symbol)
+        tickercolor = calc_bgcolor(quote.net, 0.1, 5.0)
+        tickerdict[symbol] = OrderedDict()
+        tickerdict[symbol]['Last'] = (quote.last, '{:.2f}', 'right')
+        tickerdict[symbol]['Chg'] = (quote.net, '{:.2f}', 'right', tickercolor)
+        tickerdict[symbol]['Chg%'] = (quote.p_change, '{:.2f}', 'right', tickercolor)
+        tickerdict[symbol]['High'] = (quote.high, '{:.2f}', 'right')
+        tickerdict[symbol]['Low'] = (quote.low, '{:.2f}', 'right')
+
     tldict = OrderedDict()
     csnum = 0
     for fpn in args.fpns:
@@ -683,6 +702,7 @@ def main():
     porteditend = datetime.date.today().strftime('%m/%d/%Y')
     context = {
         'legacy_link': legacy_link,
+        'tickerdict': tickerdict,
         'tldict': tldict,
         'schemes': schemes,
         'schemeset': schemeset,
