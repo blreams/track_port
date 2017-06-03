@@ -32,7 +32,7 @@ def copy_table(src_engine, src_table_name, dst_engine):
             con.execute(dst_table.insert().values(**row))
     
 def main():
-    tables = ('finance_quote', 'port_param', 'transaction_list', 'color_scheme',)
+    tables = ('finance_quote', 'port_param', 'transaction_list', 'color_scheme', 'ticker_symbols')
     for table in tables:
         print "Copying {} from mysql to sqlite3.".format(table)
         copy_table(mengine, table, sengine)
