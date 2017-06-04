@@ -55,10 +55,8 @@
                 <td class="{{ticker[key][2]}}"{% if ticker[key]|length==4 %} style="{{ticker[key][3]}}"{% endif %}>{{ticker[key][1].format(ticker[key][0])}}</td>
                 {% endfor %}
             </tr>
-        {% if loop.first %}
-        </tbody>
-        {% endif %}
         {% endfor %}
+        </tbody>
     </table>
 </div><!--
 --><div style="width:50%;display:inline-block;vertical-align:top">
@@ -82,10 +80,8 @@
                 <td class="{{summary[key][2]}}"{% if summary[key]|length==4 %} style="{{summary[key][3]}}"{% endif %}>{{summary[key][1].format(summary[key][0])}}</td>
                 {% endfor %}
             </tr>
-        {% if loop.first %}
-        </tbody>
-        {% endif %}
         {% endfor %}
+        </tbody>
     </table>
 </div>
 </div>

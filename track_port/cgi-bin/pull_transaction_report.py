@@ -695,12 +695,14 @@ def main():
 
         summarydict[fpn] = OrderedDict()
         daypct = Decimal(100.0) * tldict[fpn].daygain / tldict[fpn].totalvalue
+        daycolor = calc_bgcolor(daypct, 0.1, 5.0)
         gainpct = Decimal(100.0) * tldict[fpn].realized_gain / tldict[fpn].totalvalue
+        gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
         summarydict[fpn]['Total'] = (tldict[fpn].totalvalue, '{:.2f}', 'right', )
-        summarydict[fpn]['Day'] = (tldict[fpn].daygain, '{:+.2f}', 'right', )
-        summarydict[fpn]['Day%'] = (daypct, '{:+.2f}%', 'right', )
-        summarydict[fpn]['Gain'] = (tldict[fpn].realized_gain, '{:+.2f}', 'right', )
-        summarydict[fpn]['Gain%'] = (gainpct, '{:+.2f}%', 'right', )
+        summarydict[fpn]['Day'] = (tldict[fpn].daygain, '{:+.2f}', 'right', daycolor, )
+        summarydict[fpn]['Day%'] = (daypct, '{:+.2f}%', 'right', daycolor, )
+        summarydict[fpn]['Gain'] = (tldict[fpn].realized_gain, '{:+.2f}', 'right', gaincolor, )
+        summarydict[fpn]['Gain%'] = (gainpct, '{:+.2f}%', 'right', gaincolor, )
 
     #import pdb;pdb.set_trace()
     lastweekday = datetime.date(datetime.date.today().year-1, 12, 31)
