@@ -676,11 +676,12 @@ def main():
         tickerdict[symbol] = OrderedDict()
         tickerdict[symbol]['Last'] = (quote.last, '{:.2f}', 'right')
         tickerdict[symbol]['Chg'] = (quote.net, '{:.2f}', 'right', tickercolor)
-        tickerdict[symbol]['Chg%'] = (quote.p_change, '{:.2f}', 'right', tickercolor)
+        tickerdict[symbol]['Chg%'] = (quote.p_change, '{:.1f}%', 'right', tickercolor)
         tickerdict[symbol]['High'] = (quote.high, '{:.2f}', 'right')
         tickerdict[symbol]['Low'] = (quote.low, '{:.2f}', 'right')
 
     tldict = OrderedDict()
+    summarydict = OrderedDict()
     csnum = 0
     for fpn in args.fpns:
         tldict[fpn] = TransactionList(fpn)
@@ -691,6 +692,15 @@ def main():
         tldict[fpn].finalize_positions(quotes)
         tldict[fpn].csnum = csnum
         tldict[fpn].create_totals()
+
+        summarydict[fpn] = OrderedDict()
+        daypct = Decimal(100.0) * tldict[fpn].daygain / tldict[fpn].totalvalue
+        gainpct = Decimal(100.0) * tldict[fpn].realized_gain / tldict[fpn].totalvalue
+        summarydict[fpn]['Total'] = (tldict[fpn].totalvalue, '{:.2f}', 'right', )
+        summarydict[fpn]['Day'] = (tldict[fpn].daygain, '{:+.2f}', 'right', )
+        summarydict[fpn]['Day%'] = (daypct, '{:+.2f}%', 'right', )
+        summarydict[fpn]['Gain'] = (tldict[fpn].realized_gain, '{:+.2f}', 'right', )
+        summarydict[fpn]['Gain%'] = (gainpct, '{:+.2f}%', 'right', )
 
     #import pdb;pdb.set_trace()
     lastweekday = datetime.date(datetime.date.today().year-1, 12, 31)
@@ -703,6 +713,7 @@ def main():
     context = {
         'legacy_link': legacy_link,
         'tickerdict': tickerdict,
+        'summarydict': summarydict,
         'tldict': tldict,
         'schemes': schemes,
         'schemeset': schemeset,
