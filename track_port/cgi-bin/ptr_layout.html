@@ -34,7 +34,7 @@
 
 {% block body_block %}
 <div style="width:100%">
-<div style="width:50%;display:inline-block;vertical-align:top">
+<div style="display: table-cell;min-width=400px;vertical-align:top">
     <table class="mainTable-gray tablesorter" border="1">
         {% for symbol in tickerdict %}
         {% set ticker = tickerdict[symbol] %}
@@ -58,8 +58,8 @@
         {% endfor %}
         </tbody>
     </table>
-</div><!--
---><div style="width:50%;display:inline-block;vertical-align:top">
+</div>
+<div style="display:table-cell;width:100%;vertical-align:top">
     <table class="mainTable-blue tablesorter" border="1">
         {% for fpn in summarydict %}
         {% set summary = summarydict[fpn] %}
