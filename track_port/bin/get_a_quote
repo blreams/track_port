@@ -302,6 +302,8 @@ if ($service eq 'yahoo') {
       if ($flag_debug) { $debug_token_index{'daylow'} = $i; }
       $found_daylow = $TRUE;
       if ($flag_debug) { $debug_token_index{'dayhigh'} = $i; }
+      $daylow = fix_comma($daylow);
+      $dayhigh = fix_comma($dayhigh);
       next;
     }
   
@@ -312,6 +314,8 @@ if ($service eq 'yahoo') {
       if ($flag_debug) { $debug_token_index{'yearlow'} = $i; }
       $found_yearlow = $TRUE;
       if ($flag_debug) { $debug_token_index{'yearhigh'} = $i; }
+      $yearlow = fix_comma($yearlow);
+      $yearhigh = fix_comma($yearhigh);
       next;
     }
   
