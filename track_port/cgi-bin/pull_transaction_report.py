@@ -672,7 +672,7 @@ def main():
     tickerdict = OrderedDict()
     for symbol in ticker_symbols:
         quote = quotes.get_by_symbol(symbol)
-        tickercolor = calc_bgcolor(quote.net, 0.1, 5.0)
+        tickercolor = calc_bgcolor(quote.p_change, 0.1, 5.0)
         tickerdict[symbol] = OrderedDict()
         tickerdict[symbol]['Last'] = (quote.last, '{:.2f}', 'right')
         tickerdict[symbol]['Chg'] = (quote.net, '{:.2f}', 'right', tickercolor)
