@@ -693,7 +693,7 @@ def main():
             'cssChildRow': '"tablesorter-childRow"',
             'cssInfoBlock': '"tablesorter-no-sort"',
             'sortInitialOrder': '"desc"',
-            'sortList': '[[3,1]]',
+            'sortList': '[[2,1]]',
             'widgets': '["zebra"]',
             'widgetOptions': '{zebra: ["odd", "even"],}',
             'headers': '{' + ','.join(summaryheadersvals) + '}',
