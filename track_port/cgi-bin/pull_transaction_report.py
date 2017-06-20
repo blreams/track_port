@@ -116,6 +116,9 @@ ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
 schemeset = set(schemes)
 
+tclasses = ['main', 'ticker', 'summary']
+tclassset = set(tclasses)
+
 ##############################################################################
 # This section of code deals with arguments, whether command line or CGI.
 ##############################################################################
@@ -656,7 +659,26 @@ def main():
             sortlist = '[[{},1]]'.format(i)
         headersvals.append('{key}: {{ sorter: "{stype}" }}'.format(key=i, stype=lheadings[heading]))
 
+    summaryheadersvals = [
+        '0: {sorter: "text"}',
+        '1: {sorter: "digit"}',
+        '2: {sorter: "digit"}',
+        '3: {sorter: "digit"}',
+        '4: {sorter: "digit"}',
+        '5: {sorter: "digit"}',
+    ]
+
+    tickerheadersvals = [
+        '0: {sorter: "text"}',
+        '1: {sorter: "digit"}',
+        '2: {sorter: "digit"}',
+        '3: {sorter: "digit"}',
+        '4: {sorter: "digit"}',
+        '5: {sorter: "digit"}',
+    ]
+
     tsconfig = {
+        'main': {
             'debug': 'true',
             'cssChildRow': '"tablesorter-childRow"',
             'cssInfoBlock': '"tablesorter-no-sort"',
@@ -665,7 +687,28 @@ def main():
             'widgets': '["zebra"]',
             'widgetOptions': '{zebra: ["odd", "even"],}',
             'headers': '{' + ','.join(headersvals) + '}',
-            }
+        },
+        'summary': {
+            'debug': 'true',
+            'cssChildRow': '"tablesorter-childRow"',
+            'cssInfoBlock': '"tablesorter-no-sort"',
+            'sortInitialOrder': '"desc"',
+            'sortList': '[[3,1]]',
+            'widgets': '["zebra"]',
+            'widgetOptions': '{zebra: ["odd", "even"],}',
+            'headers': '{' + ','.join(summaryheadersvals) + '}',
+        },
+        'ticker': {
+            'debug': 'true',
+            'cssChildRow': '"tablesorter-childRow"',
+            'cssInfoBlock': '"tablesorter-no-sort"',
+            'sortInitialOrder': '"desc"',
+            'sortList': '[[3,1]]',
+            'widgets': '["zebra"]',
+            'widgetOptions': '{zebra: ["odd", "even"],}',
+            'headers': '{' + ','.join(tickerheadersvals) + '}',
+        },
+    }
 
     quotes = FinanceQuoteList()
 
@@ -719,6 +762,7 @@ def main():
         'tldict': tldict,
         'schemes': schemes,
         'schemeset': schemeset,
+        'tclassset': tclassset,
         'lheadings': lheadings,
         'args': args,
         'tsconfig': tsconfig,

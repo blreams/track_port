@@ -3,10 +3,12 @@
 {% block head_js_block %}
   <script type="text/javascript">
     $(document).ready(function() { 
+      {% for tclass in tclassset %}
       {% for scheme in schemeset %}
-      $('.mainTable-{{scheme}}').tablesorter({
-        {% for key in tsconfig %}{{key}}: {{tsconfig[key]}},{% endfor %}theme: "{{scheme}}",
+      $('.{{tclass}}Table-{{scheme}}').tablesorter({
+        {% for key in tsconfig[tclass] %}{{key}}: {{tsconfig[tclass][key]}},{% endfor %}theme: "{{scheme}}",
       });
+      {% endfor %}
       {% endfor %}
       $('.tablesorter-childRow td').hide();
       $('.tablesorter').delegate('.toggle', 'click', function() {
@@ -35,7 +37,7 @@
 {% block body_block %}
 <div style="width:100%">
 <div style="display: table-cell;min-width=400px;vertical-align:top">
-    <table class="mainTable-gray tablesorter" border="1">
+    <table class="tickerTable-gray tablesorter" border="1">
         {% for symbol in tickerdict %}
         {% set ticker = tickerdict[symbol] %}
         {% if loop.first %}
@@ -60,7 +62,7 @@
     </table>
 </div>
 <div style="display:table-cell;width:100%;vertical-align:top">
-    <table class="mainTable-blue tablesorter" border="1">
+    <table class="summaryTable-blue tablesorter" border="1">
         {% for fpn in summarydict %}
         {% set summary = summarydict[fpn] %}
         {% if loop.first %}
