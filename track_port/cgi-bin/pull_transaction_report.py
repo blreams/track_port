@@ -125,6 +125,7 @@ tclassset = set(tclasses)
 # This is the preferred order of headings along with the tablesorter sort type.
 possible_headings = OrderedDict([
         ('Symb', 'text'),
+        ('Sector', 'text'),
         ('Shrs', 'digit'),
         ('Purch', 'digit'),
         ('Last', 'digit'),
@@ -340,6 +341,7 @@ class TransactionList(object):
         self.realized_gain = 0
         self.openvalue = 0
         self.daygain = 0
+        self.sector = ''
 
         #import pdb;pdb.set_trace()
         for t in self.open_positions:
@@ -363,6 +365,7 @@ class TransactionList(object):
             self.invested_capital += t.open_price * t.shares
             self.openvalue += t.shares * quotes.get_by_symbol(t.symbol).last
             self.daygain += t.shares * quotes.get_by_symbol(t.symbol).net
+            self.sector = t.sector
 
         for t in self.closed_positions:
             self.realized_gain += (t.close_price - t.open_price) * t.shares
@@ -427,6 +430,7 @@ class Position(object):
     """
     def __init__(self, symbol):
         self.symbol = symbol
+        self.sector = ''
         self.shares = 0
         self.basis = 0
         self.mktval = 0
@@ -497,6 +501,7 @@ class Position(object):
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
+        report['Sector'] = (self.sector, '{}', 'left', )
         report['Shrs'] = (self.shares, '{:.0f}', 'right', )
         report['Purch'] = (self.open_price, '{:.2f}', 'right', )
         report['Last'] = (quote.last, '{:.2f}', 'right', daycolor, )
@@ -529,6 +534,7 @@ class Position(object):
             for transaction in self.transactions:
                 subreport = {}
                 subreport['Symb'] = ('', '{}', 'center', )
+                subreport['Sector'] = (transaction.sector, '{}', 'left', )
                 subreport['Shrs'] = (transaction.shares, '{:.0f}', 'right', )
                 subreport['Purch'] = (transaction.open_price, '{:.2f}', 'right', )
                 subreport['Last'] = ('', '{}', 'center', )
@@ -723,6 +729,7 @@ def main():
         tickerdict[symbol]['High'] = (quote.high, '{:.2f}', 'right')
         tickerdict[symbol]['Low'] = (quote.low, '{:.2f}', 'right')
 
+    #import pdb;pdb.set_trace()
     tldict = OrderedDict()
     summarydict = OrderedDict()
     csnum = 0
