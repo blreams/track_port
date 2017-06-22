@@ -184,6 +184,7 @@ def handle_cgi_args(arguments):
     argdict['addcols'] = []
     argdict['cashdetail'] = False
     argdict['sort'] = 'pct_chg'
+    argdict['showsector'] = False
     link_args = []
     for argkey in arguments.keys():
         if argkey in known_argkeys:
@@ -343,7 +344,6 @@ class TransactionList(object):
         self.daygain = 0
         self.sector = ''
 
-        #import pdb;pdb.set_trace()
         for t in self.open_positions:
             if not t.expiration:
                 if t.shares > 0:
@@ -365,7 +365,6 @@ class TransactionList(object):
             self.invested_capital += t.open_price * t.shares
             self.openvalue += t.shares * quotes.get_by_symbol(t.symbol).last
             self.daygain += t.shares * quotes.get_by_symbol(t.symbol).net
-            self.sector = t.sector
 
         for t in self.closed_positions:
             self.realized_gain += (t.close_price - t.open_price) * t.shares
@@ -468,6 +467,7 @@ class Position(object):
         elif self.open_date > transaction.open_date:
             self.open_date = transaction.open_date
         self.transactions.append(transaction)
+        self.sector = transaction.sector
 
     def normalize_quote(self, quote):
         """This is where we fill in other quote-based fields as needed.
@@ -656,6 +656,8 @@ def main():
         args.addcols = cgi_args['addcols']
         args.cashdetail = cgi_args['cashdetail']
         args.sortcol = cgi_args['sort']
+        if cgi_args['showsector']:
+            args.addcols.append('sector')
 
     lheadings = handle_cols()
 
