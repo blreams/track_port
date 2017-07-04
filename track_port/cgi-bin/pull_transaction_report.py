@@ -639,6 +639,15 @@ def calc_bgcolor(pct, minval, maxval):
 
     return "background-color: {bg}; color:{fg};".format(bg="#{red:02x}{grn:02x}{blu:02x}".format(red=red, grn=grn, blu=blu), fg="#000")
 
+def abort_html():
+    s = ''
+    s += 'Content-type: text/html\n\n'
+    s += '<html><head></head><body>\n'
+    s += '<p>There was a problem fetching quotes. Could be temporary.</p>\n'
+    s += '<p>TRY AGAIN LATER!</p>\n'
+    s += '</body>\n'
+    print s
+
 def render(tpl_path, context):
     """Helper function to render page using Jinja2.
     """
@@ -721,6 +730,12 @@ def main():
     quotes = FinanceQuoteList()
 
     tickerdict = OrderedDict()
+    try:
+        test_get = quotes.get_by_symbol('^GSPC')
+    except:
+        abort_html()
+        return
+
     for symbol in ticker_symbols:
         quote = quotes.get_by_symbol(symbol)
         tickercolor = calc_bgcolor(quote.p_change, 0.1, 5.0)
