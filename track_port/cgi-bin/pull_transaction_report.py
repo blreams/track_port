@@ -502,7 +502,7 @@ class Position(object):
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
-        report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'left', )
+        report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'center', )
         report['Sector'] = (self.sector, '{}', 'left', )
         report['Shrs'] = (self.shares, '{:.0f}', 'right', )
         report['Purch'] = (self.open_price, '{:.2f}', 'right', )
