@@ -571,7 +571,9 @@ class Position(object):
 
     def create_list_of_links(self, symbol):
         ll = []
-        ll.append(('yahoo', 'finance.yahoo.com/q?s={0}'.format(symbol)))
+        ll.append(('google', '/pics/google_finance_icon_14x14.png', 'finance.google.com/finance?q=NYSE:{0}'.format(symbol)))
+        ll.append(('yahoo', '/pics/yahoo_finance_icon_14x14.jpg', 'finance.yahoo.com/q?s={0}'.format(symbol)))
+        ll.append(('marketwatch', '/pics/marketwatch_finance_icon_14x14.png', 'www.marketwatch.com/investing/stock/{0}'.format(symbol)))
         return ll
 
 class CashPosition(Position):
