@@ -119,7 +119,7 @@
                                     {% endif %}
                                 {% elif key == 'Links' %}
                                     {% for linktup in report['Links'][0] %}
-                                    <td class="{{report['Links'][2]}}"><a href="http://{{linktup[1]}}"><img alt="{{linktup[0]}}" src="../pics/yahoo_finance_icon_14x14.jpg"></a></td>
+                                    <td class="{{report['Links'][2]}}"><a href="http://{{linktup[1]}}"><img alt="{{linktup[0]}}" src="{% if args.simulate %}..{% endif %}/pics/yahoo_finance_icon_14x14.jpg"></a></td>
                                     {% endfor %}
                                 {% else %}
                                 <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
