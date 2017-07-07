@@ -125,6 +125,7 @@ tclassset = set(tclasses)
 # This is the preferred order of headings along with the tablesorter sort type.
 possible_headings = OrderedDict([
         ('Symb', 'text'),
+        ('Links', 'text'),
         ('Sector', 'text'),
         ('Shrs', 'digit'),
         ('Purch', 'digit'),
@@ -155,7 +156,7 @@ possible_headings = OrderedDict([
         ])
 
 # Use these headings when no columns are specified.
-default_headings = ['Symb', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'Port%',]
+default_headings = ['Symb', 'Links', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'Port%',]
 
 def handle_cols():
     """Return an OrderedDict indexed by column headings whose values are the
@@ -501,6 +502,7 @@ class Position(object):
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
+        report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'left', )
         report['Sector'] = (self.sector, '{}', 'left', )
         report['Shrs'] = (self.shares, '{:.0f}', 'right', )
         report['Purch'] = (self.open_price, '{:.2f}', 'right', )
@@ -566,6 +568,11 @@ class Position(object):
         #TODO Figure out how to show purchase that happened today
 
         self.report = report
+
+    def create_list_of_links(self, symbol):
+        ll = []
+        ll.append(('yahoo', 'finance.yahoo.com/q?s={0}'.format(symbol)))
+        return ll
 
 class CashPosition(Position):
     """Position subclass specifically for cash positions.
@@ -749,7 +756,7 @@ def main():
     #import pdb;pdb.set_trace()
     tldict = OrderedDict()
     summarydict = OrderedDict()
-    csnum = 0
+    #csnum = 0
     for fpn in args.fpns:
         tldict[fpn] = TransactionList(fpn)
         tldict[fpn].query_positions(quotes)
@@ -757,7 +764,7 @@ def main():
         tldict[fpn].query_closed()
         tldict[fpn].combine_positions()
         tldict[fpn].finalize_positions(quotes)
-        tldict[fpn].csnum = csnum
+        #tldict[fpn].csnum = csnum
         tldict[fpn].create_totals()
 
         summarydict[fpn] = OrderedDict()

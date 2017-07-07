@@ -117,6 +117,8 @@
                                     {% else %}
                                         <td class="{{report[key][2]}}">{{report[key][1].format(report[key][0])}}</td>
                                     {% endif %}
+                                {% elif key == 'Links' %}
+                                <td></td>
                                 {% else %}
                                 <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
                                 {% endif %}
@@ -127,7 +129,11 @@
                             {% for subreport in report['transactions'] %}
                                 <tr class="tablesorter-childRow">
                                     {% for key in lheadings %}
-                                        {% if key != 'Symb' %}<td class="{{subreport[key][2]}}">{{subreport[key][1].format(subreport[key][0])}}</td>{% endif %}
+                                        {% if key == 'Links' %}
+                                        <td></td>
+                                        {% elif key != 'Symb' %}
+                                        <td class="{{subreport[key][2]}}">{{subreport[key][1].format(subreport[key][0])}}</td>
+                                        {% endif %}
                                     {% endfor %}<!--key-->
                                 </tr>
                             {% endfor %}<!--subreport-->
@@ -144,7 +150,11 @@
                         {% set report = tldict[fileportname].combined_positions['shorts'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
+                                {% if key == 'Links' %}
+                                <td></td>
+                                {% else %}
                                 <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
+                                {% endif %}
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
@@ -159,7 +169,11 @@
                         {% set report = tldict[fileportname].combined_positions['options'][symbol].report %}
                         <tr>
                             {% for key in lheadings %}
+                                {% if key == 'Links' %}
+                                <td></td>
+                                {% else %}
                                 <td class="{{report[key][2]}}"{% if report[key]|length==4 %} style="{{report[key][3]}}"{% endif %}>{{report[key][1].format(report[key][0])}}</td>
+                                {% endif %}
                             {% endfor %}<!--key-->
                         </tr>
                     {% endfor %}<!--symbol-->
