@@ -119,6 +119,8 @@ schemeset = set(schemes)
 tclasses = ['main', 'ticker', 'summary']
 tclassset = set(tclasses)
 
+mwd = {}
+
 ##############################################################################
 # This section of code deals with arguments, whether command line or CGI.
 ##############################################################################
@@ -229,6 +231,21 @@ def parse_args():
     if not args.fpns:
         args.fpns = ['port:fluffgazer']
     return args
+
+def whee_doggie_checker(tld):
+    rv = {}
+    if 'port:fluffgazer' in tld and 'port:xcargot' in tld:
+        port_diff = tld['port:fluffgazer'].daygain - tld['port:xcargot'].daygain
+        if port_diff > 1000.0:
+            rv['port:fluffgazer'] = 'Mighty Whee Doggies!!!'
+        elif port_diff < -1000.0:
+            rv['port:xcargot'] = '!!!seiggoD eehW ythgiM'
+        elif port_diff > 0.0:
+            rv['port:fluffgazer'] = 'Whee Doggies!!!'
+        elif port_diff < 0.0:
+            rv['port:xcargot'] = '!!!seiggoD eehW'
+
+    return rv
 
 ###############################################################################
 # classes supporting track_port access.
@@ -780,6 +797,8 @@ def main():
         summarydict[fpn]['Gain'] = (tldict[fpn].realized_gain, '{:+.2f}', 'right', gaincolor, )
         summarydict[fpn]['Gain%'] = (gainpct, '{:+.2f}%', 'right', gaincolor, )
 
+    mwd = whee_doggie_checker(tldict)
+
     #import pdb;pdb.set_trace()
     lastweekday = datetime.date(datetime.date.today().year-1, 12, 31)
     if (datetime.date.today() - lastweekday).days < 30:
@@ -801,6 +820,7 @@ def main():
         'tsconfig': tsconfig,
         'porteditstart': porteditstart,
         'porteditend': porteditend,
+        'mwd': mwd,
         }
 
     #import pdb;pdb.set_trace()
