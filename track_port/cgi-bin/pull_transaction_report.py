@@ -235,15 +235,19 @@ def parse_args():
 def whee_doggie_checker(tld):
     rv = {}
     if 'port:fluffgazer' in tld and 'port:xcargot' in tld:
-        port_diff = tld['port:fluffgazer'].daygain - tld['port:xcargot'].daygain
-        if port_diff > 1000.0:
-            rv['port:fluffgazer'] = 'Mighty Whee Doggies!!!'
-        elif port_diff < -1000.0:
-            rv['port:xcargot'] = '!!!seiggoD eehW ythgiM'
-        elif port_diff > 0.0:
-            rv['port:fluffgazer'] = 'Whee Doggies!!!'
-        elif port_diff < 0.0:
-            rv['port:xcargot'] = '!!!seiggoD eehW'
+        good_daygain = tld['port:fluffgazer'].daygain
+        bad_daygain = tld['port:xcargot'].daygain
+        port_diff = good_daygain - bad_daygain
+        if good_daygain > 0.0:
+            if port_diff > 1000.0:
+                rv['port:fluffgazer'] = 'Mighty Whee Doggies!!!'
+            elif port_diff > 0.0:
+                rv['port:fluffgazer'] = 'Whee Doggies!!!'
+        elif bad_daygain > 0.0:
+            if port_diff < -1000.0:
+                rv['port:xcargot'] = '!!!seiggoD eehW ythgiM'
+            elif port_diff < 0.0:
+                rv['port:xcargot'] = '!!!seiggoD eehW'
 
     return rv
 
