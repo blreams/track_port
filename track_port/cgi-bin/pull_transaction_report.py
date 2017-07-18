@@ -524,8 +524,12 @@ class Position(object):
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
         report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'center', )
+        assert not self.sector.endswith(';')
         report['Sector'] = (self.sector, '{}', 'left', )
-        report['Shrs'] = (self.shares, '{:.0f}', 'right', )
+        if self.shares == int(self.shares):
+            report['Shrs'] = (self.shares, '{:.0f}', 'right', )
+        else:
+            report['Shrs'] = (self.shares, '{:.3f}', 'right', )
         report['Purch'] = (self.open_price, '{:.2f}', 'right', )
         report['Last'] = (quote.last, '{:.2f}', 'right', daycolor, )
         report['Chg'] = (quote.net, '{:+.2f}', 'right', daycolor, )
