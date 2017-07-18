@@ -524,7 +524,6 @@ class Position(object):
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
         report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'center', )
-        assert not self.sector.endswith(';')
         report['Sector'] = (self.sector, '{}', 'left', )
         if self.shares == int(self.shares):
             report['Shrs'] = (self.shares, '{:.0f}', 'right', )
