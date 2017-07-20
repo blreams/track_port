@@ -130,7 +130,7 @@ printf(qq(    <title>Port Track Selection</title>\n));
 printf(qq(    <link rel="stylesheet" type="text/css" href="/css/track_port.css" />\n));
 printf(qq(  </head>\n));
 printf(qq(  <body background="/pics/brickwall.gif" bgcolor="#ffffff">\n));
-printf(qq(    <form name="pt_select" action="/cgi-bin/pull_transaction_report.cgi" method="get">\n));
+printf(qq(    <form name="pt_select" action="/cgi-bin/pull_transaction_report.py" method="get">\n));
 printf(qq(      <table border="1">\n));
 printf(qq(        <tr>\n));
 $f = 0;
