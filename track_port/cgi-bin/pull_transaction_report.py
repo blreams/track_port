@@ -561,7 +561,10 @@ class Position(object):
                 subreport = {}
                 subreport['Symb'] = ('', '{}', 'center', )
                 subreport['Sector'] = (transaction.sector, '{}', 'left', )
-                subreport['Shrs'] = (transaction.shares, '{:.0f}', 'right', )
+                if transaction.shares == int(transaction.shares):
+                    subreport['Shrs'] = (transaction.shares, '{:.0f}', 'right', )
+                else:
+                    subreport['Shrs'] = (transaction.shares, '{:.3f}', 'right', )
                 subreport['Purch'] = (transaction.open_price, '{:.2f}', 'right', )
                 subreport['Last'] = ('', '{}', 'center', )
                 subreport['Chg'] = ('', '{}', 'center', )
