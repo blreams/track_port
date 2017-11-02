@@ -237,6 +237,19 @@ if ($service eq 'yahoo') {
       if ($flag_verbose) { printf("NOTE: Last found <COMMON>.\n"); }
       #if ($tokens[$i] eq 'DJI') { $i += 1; }
       #if ($index_symbol) { $i += 1; }
+      $i += 1;
+      $last = $tokens[$i];
+      $last =~ s/,//g;
+      $found_last = $TRUE;
+      $net = $tokens[$i+1];
+      if ($flag_debug) { $debug_token_index{'last'} = $i; }
+      if ($flag_debug) { $debug_token_index{'end'} = $i+1; }
+
+      next;
+    }
+
+    if (!$found_last && (($tokens[$i] =~ /^\^GSPC - /))) {
+      if ($flag_verbose) { printf("NOTE: Last found <GSPC>.\n"); }
       $i += 2;
       $last = $tokens[$i];
       $last =~ s/,//g;
