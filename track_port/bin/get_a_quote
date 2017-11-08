@@ -241,9 +241,11 @@ if ($service eq 'yahoo') {
       $last = $tokens[$i];
       $last =~ s/,//g;
       $found_last = $TRUE;
-      $net = $tokens[$i+1];
+      $i_net = $i + 1;
+      if ($tokens[$i_net] eq '+') { $i_net = $i + 2; }
+      $net = $tokens[$i_net];
       if ($flag_debug) { $debug_token_index{'last'} = $i; }
-      if ($flag_debug) { $debug_token_index{'end'} = $i+1; }
+      if ($flag_debug) { $debug_token_index{'end'} = $i_net; }
 
       next;
     }
@@ -536,9 +538,11 @@ if ($service eq 'yahoo') {
 
 if (! defined($net)) { 
   $net = $last - $close; 
+  if ($flag_verbose) { printf("NOTE: net calculated as last-close.\n"); }
 } else {
   if ($close < 0.01) {
     $close = $last - $net;
+    if ($flag_verbose) { printf("NOTE: close calculated as last-net.\n"); }
   }
 }
 $p_change = ($close < 0.01) ? 0.0 : (($last - $close) * 100.0) / $close;
@@ -550,6 +554,9 @@ if ($flag_debug) {
 }
 
 
+if ($flag_verbose || $flag_debug) {
+  printf("close,last,dayhigh,daylow,yearlow,yearhigh,volume,pe,net,p_change,bid,ask\n");
+}
 printf("%f %f %f %f %f %f %d %f %f %f %f %f\n", $close, $last, $dayhigh, $daylow, $yearlow, $yearhigh, $volume, $pe, $net, $p_change, $bid, $ask);
 
 $junk = 1;
