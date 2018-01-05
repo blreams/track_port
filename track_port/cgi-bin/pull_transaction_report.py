@@ -177,7 +177,7 @@ def handle_cols():
     return headings
 
 legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg'
-all_cols_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg&addcols=_all_'
+all_cols_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.py?port=_ALL_&method=diff&combined=TRUE&sort=pct_chg&addcols=_all_'
 def handle_cgi_args(arguments):
     global legacy_link
     argdict = {}
@@ -219,6 +219,7 @@ def handle_cgi_args(arguments):
         argdict['sort'] = 'Day%'
 
     legacy_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.cgi?' + '&'.join(link_args)
+    all_cols_link = r'http://daneel.homelinux.net/cgi-bin/pull_transaction_report.py?' + '&'.join(link_args) + '&addcols=_all_'
     return argdict
 
 def parse_args():
