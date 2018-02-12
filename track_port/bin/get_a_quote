@@ -233,7 +233,7 @@ if ($service eq 'yahoo') {
   }
 
   for ($i = 0; $i <= $#tokens; $i++) {
-    if (!$found_last && (($tokens[$i] =~ /^NasdaqGS - /) || ($tokens[$i] =~ /^NasdaqGM - /) || ($tokens[$i] =~ /^NYSE - /) || ($tokens[$i] =~ /^NYSE MKT/) || ($tokens[$i] =~ /^NYSEArca/) || ($tokens[$i] =~ /^NYSE Amex/) || ($tokens[$i] eq 'OPR') || ($tokens[$i] eq 'Last Trade:') || ($tokens[$i] eq 'Net Asset Value:') || ($tokens[$i] eq 'Index Value:') || (($symbol eq '^DJI') && ($tokens[$i] =~ /DJI - /)) || ($tokens[$i] =~ / Delayed Price\. /))) {
+    if (!$found_last && (($tokens[$i] =~ /^NasdaqGS - /) || ($tokens[$i] =~ /^NasdaqGM - /) || ($tokens[$i] =~ /^NasdaqCM - /) || ($tokens[$i] =~ /^NYSE - /) || ($tokens[$i] =~ /^NYSE MKT/) || ($tokens[$i] =~ /^NYSEArca/) || ($tokens[$i] =~ /^NYSE Amex/) || ($tokens[$i] =~ /^NYSE American/) || ($tokens[$i] eq 'OPR') || ($tokens[$i] eq 'Last Trade:') || ($tokens[$i] eq 'Net Asset Value:') || ($tokens[$i] eq 'Index Value:') || (($symbol eq '^DJI') && ($tokens[$i] =~ /DJI - /)) || ($tokens[$i] =~ / Delayed Price\. /))) {
       if ($flag_verbose) { printf("NOTE: Last found <COMMON>.\n"); }
       #if ($tokens[$i] eq 'DJI') { $i += 1; }
       #if ($index_symbol) { $i += 1; }
