@@ -276,30 +276,30 @@ class FinanceQuote(object):
             elif quote_obj == 'BOGUS':
                 self.symbol = symbol
                 self.name = 'This is a bogus entry'
-                self.last = 0.00
-                self.high = 0.00
-                self.low = 0.00
+                self.last = Decimal(0.0)
+                self.high = Decimal(0.0)
+                self.low = Decimal(0.0)
                 self.date = ''
                 self.time = ''
-                self.net = 0.00
-                self.p_change = 0.00
+                self.net = Decimal(0.0)
+                self.p_change = Decimal(0.0)
                 self.volume = 0
                 self.avg_vol = 0
-                self.bid = 0.00
-                self.ask = 0.00
-                self.close = 0.00
-                self.open = 0.00
-                self.day_range = ''
-                self.year_range = ''
-                self.eps = 0.00
-                self.pe = 0.00
+                self.bid = Decimal(0.0)
+                self.ask = Decimal(0.0)
+                self.close = Decimal(0.0)
+                self.open = Decimal(0.0)
+                self.day_range = "'1.00 - 0.00'"
+                self.year_range = "'1.00 - 0.00'"
+                self.eps = Decimal(0.0)
+                self.pe = Decimal(0.0)
                 self.div_date = ''
-                self.dividend = 0.00
-                self.div_yield = 0.00
+                self.dividend = Decimal(0.0)
+                self.div_yield = Decimal(0.0)
                 self.cap = 0
                 self.ex_div = ''
                 self.nav = ''
-                self.__setattr__('yield', 0.00)
+                self.__setattr__('yield', Decimal(0.0))
                 self.exchange = 'BOGUS'
                 self.success = True
                 self.errormsg = ''
@@ -322,7 +322,9 @@ class FinanceQuoteList(object):
     def get_by_symbol(self, symbol):
         """Simple lookup in _data by symbol.
         """
-        return self._data.get(symbol, FinanceQuote(symbol, 'BOGUS'))
+        if self._data.get(symbol) is None:
+            self._data[symbol] = FinanceQuote(symbol, 'BOGUS')
+        return self._data.get(symbol)
 
 class Transaction(object):
     """These objects are effectively rows of the transaction_list table.
