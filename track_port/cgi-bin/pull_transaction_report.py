@@ -267,11 +267,43 @@ class FinanceQuote(object):
             'success', 'errormsg', 'method',
             ]
 
-    def __init__(self, quote_obj):
+    def __init__(self, symbol, quote_obj):
         if isinstance(quote_obj, basestring):
-            self.__setattr__('symbol', 'CASH')
-            self.__setattr__('name', 'The Green Stuff')
-            self.__setattr__('last', Decimal(1.00))
+            if quote_obj == 'CASH':
+                self.__setattr__('symbol', 'CASH')
+                self.__setattr__('name', 'The Green Stuff')
+                self.__setattr__('last', Decimal(1.00))
+            elif quote_obj == 'BOGUS':
+                self.symbol = symbol
+                self.name = 'This is a bogus entry'
+                self.last = 0.00
+                self.high = 0.00
+                self.low = 0.00
+                self.date = ''
+                self.time = ''
+                self.net = 0.00
+                self.p_change = 0.00
+                self.volume = 0
+                self.avg_vol = 0
+                self.bid = 0.00
+                self.ask = 0.00
+                self.close = 0.00
+                self.open = 0.00
+                self.day_range = ''
+                self.year_range = ''
+                self.eps = 0.00
+                self.pe = 0.00
+                self.div_date = ''
+                self.dividend = 0.00
+                self.div_yield = 0.00
+                self.cap = 0
+                self.ex_div = ''
+                self.nav = ''
+                self.__setattr__('yield', 0.00)
+                self.exchange = 'BOGUS'
+                self.success = True
+                self.errormsg = ''
+                self.method = ''
         else:
             for field in self.fieldlist:
                 self.__setattr__(field, quote_obj.__getattribute__(field))
@@ -284,13 +316,13 @@ class FinanceQuoteList(object):
         self._data = {}
         fqq = session.query(FinanceQuotes).all()
         for fq in fqq:
-            self._data[fq.symbol] = FinanceQuote(fq)
-        self._data['CASH'] = FinanceQuote('CASH')
+            self._data[fq.symbol] = FinanceQuote(fq.symbol, fq)
+        self._data['CASH'] = FinanceQuote('CASH', 'CASH')
 
     def get_by_symbol(self, symbol):
         """Simple lookup in _data by symbol.
         """
-        return self._data[symbol]
+        return self._data.get(symbol, FinanceQuote(symbol, 'BOGUS'))
 
 class Transaction(object):
     """These objects are effectively rows of the transaction_list table.
@@ -769,6 +801,7 @@ def main():
     quotes = FinanceQuoteList()
 
     tickerdict = OrderedDict()
+    #import pdb;pdb.set_trace()
     try:
         test_get = quotes.get_by_symbol('^GSPC')
     except:
