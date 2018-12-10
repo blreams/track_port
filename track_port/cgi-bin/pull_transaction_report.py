@@ -27,7 +27,7 @@ try:
 except:
     host = None
 
-if host and host == 'jkt-myth':
+if host and host in ('jkt-myth', 'skx-linux',):
     engine = create_engine('mysql://blreams@localhost/track_port')
 else:
     engine = create_engine('sqlite:///track_port.db')
