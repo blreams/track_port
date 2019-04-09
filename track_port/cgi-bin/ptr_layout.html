@@ -76,14 +76,25 @@
         </thead>
         <tbody>
         {% endif %}
+        {% if fpn != 'Totals' %}
             <tr>
                 <td>{{fpn}}</td>
                 {% for key in summary %}
                 <td class="{{summary[key][2]}}"{% if summary[key]|length==4 %} style="{{summary[key][3]}}"{% endif %}>{{summary[key][1].format(summary[key][0])}}</td>
                 {% endfor %}
             </tr>
-        {% endfor %}
+        {% else %}
         </tbody>
+        <tfoot>
+            <tr>
+                <td>{{fpn}}</td>
+                {% for key in summary %}
+                <td class="{{summary[key][2]}}"{% if summary[key]|length==4 %} style="{{summary[key][3]}}"{% endif %}>{{summary[key][1].format(summary[key][0])}}</td>
+                {% endfor %}
+            </tr>
+        </tfoot>
+        {% endif %}
+        {% endfor %}
     </table>
 </div>
 </div>

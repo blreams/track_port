@@ -230,6 +230,7 @@ def parse_args():
     parser.add_argument('--addcols', action='append', default=[], help="Add columns to the default list")
     parser.add_argument('--cashdetail', action='store_true', default=False, help="Show cash detail sub transactions")
     parser.add_argument('--sort', dest='sortcol', default='Day%', help="Specify column for initial sort")
+    parser.add_argument('--summary', dest='summary_method', default='diff', help="diff|sum|none")
     args = parser.parse_args()
     if not args.fpns:
         args.fpns = ['port:fluffgazer']
@@ -824,6 +825,9 @@ def main():
     tldict = OrderedDict()
     summarydict = OrderedDict()
     #csnum = 0
+    cum_total = Decimal(0.0)
+    cum_day = Decimal(0.0)
+    cum_gain = Decimal(0.0)
     for fpn in args.fpns:
         tldict[fpn] = TransactionList(fpn)
         tldict[fpn].query_positions(quotes)
@@ -844,6 +848,27 @@ def main():
         summarydict[fpn]['Day%'] = (daypct, '{:+.2f}%', 'right', daycolor, )
         summarydict[fpn]['Gain'] = (tldict[fpn].realized_gain, '{:+.2f}', 'right', gaincolor, )
         summarydict[fpn]['Gain%'] = (gainpct, '{:+.2f}%', 'right', gaincolor, )
+
+        if args.summary_method == 'sum':
+            cum_total += tldict[fpn].totalvalue
+            cum_day += tldict[fpn].daygain
+            cum_gain += tldict[fpn].realized_gain
+        elif args.summary_method == 'diff':
+            if abs(cum_total) < 0.01:
+                cum_total += tldict[fpn].totalvalue
+                cum_day += tldict[fpn].daygain
+                cum_gain += tldict[fpn].realized_gain
+            else:
+                cum_total -= tldict[fpn].totalvalue
+                cum_day -= tldict[fpn].daygain
+                cum_gain -= tldict[fpn].realized_gain
+
+    summarydict['Totals'] = OrderedDict()
+    summarydict['Totals']['Total'] = (cum_total, '{:.2f}', 'right', )
+    summarydict['Totals']['Day'] = (cum_day, '{:.2f}', 'right',)
+    summarydict['Totals']['Day%'] = (" ", '{}', 'left',)
+    summarydict['Totals']['Gain'] = (cum_gain, '{:.2f}', 'right',)
+    summarydict['Totals']['Gain%'] = (" ", '{}', 'left',)
 
     mwd = whee_doggie_checker(tldict)
 
