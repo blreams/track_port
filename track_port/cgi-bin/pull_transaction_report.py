@@ -738,6 +738,7 @@ def main():
         args.fpns = cgi_args['fpns']
         args.addcols = cgi_args['addcols']
         args.cashdetail = cgi_args['cashdetail']
+        args.summary_method = cgi_args['method']
         args.sortcol = cgi_args['sort']
         if cgi_args['showsector']:
             args.addcols.append('sector')
@@ -863,12 +864,13 @@ def main():
                 cum_day -= tldict[fpn].daygain
                 cum_gain -= tldict[fpn].realized_gain
 
-    summarydict['Totals'] = OrderedDict()
-    summarydict['Totals']['Total'] = (cum_total, '{:.2f}', 'right', )
-    summarydict['Totals']['Day'] = (cum_day, '{:.2f}', 'right',)
-    summarydict['Totals']['Day%'] = (" ", '{}', 'left',)
-    summarydict['Totals']['Gain'] = (cum_gain, '{:.2f}', 'right',)
-    summarydict['Totals']['Gain%'] = (" ", '{}', 'left',)
+    if args.summary_method in ('sum', 'diff'):
+        summarydict['Totals'] = OrderedDict()
+        summarydict['Totals']['Total'] = (cum_total, '{:.2f}', 'right', )
+        summarydict['Totals']['Day'] = (cum_day, '{:.2f}', 'right',)
+        summarydict['Totals']['Day%'] = (" ", '{}', 'left',)
+        summarydict['Totals']['Gain'] = (cum_gain, '{:.2f}', 'right',)
+        summarydict['Totals']['Gain%'] = (" ", '{}', 'left',)
 
     mwd = whee_doggie_checker(tldict)
 
