@@ -1,3 +1,8 @@
+body {
+    background-image: url("/pics/brickwall.gif");
+    background-color: white;
+    }
+table { border-width: 1px; }
 h3 { margin: 0; }
 td.right  { text-align: right }
 td.center { text-align: center }

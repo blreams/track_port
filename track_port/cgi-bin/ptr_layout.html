@@ -1,7 +1,7 @@
 {% extends "ptr_template.html" %}
 {% block title %}pull_transaction_report.py{% endblock %}
 {% block head_js_block %}
-  <script type="text/javascript">
+  <script>
     $(document).ready(function() { 
       {% for tclass in tclassset %}
       {% for scheme in schemeset %}
@@ -36,8 +36,8 @@
 
 {% block body_block %}
 <div style="width:100%">
-<div style="display: table-cell;min-width=400px;vertical-align:top">
-    <table class="tickerTable-gray tablesorter" border="1">
+<div style="display:table-cell;min-width:400px;vertical-align:top">
+    <table class="tickerTable-gray tablesorter">
         {% for symbol in tickerdict %}
         {% set ticker = tickerdict[symbol] %}
         {% if loop.first %}
@@ -62,7 +62,18 @@
     </table>
 </div>
 <div style="display:table-cell;width:100%;vertical-align:top">
-    <table class="summaryTable-blue tablesorter" border="1">
+    <table class="summaryTable-blue tablesorter">
+        {% if summarydict_footer %}
+        {% set summary = summarydict_footer %}
+        <tfoot>
+            <tr>
+                <th>Totals</th>
+                {% for key in summarydict_footer %}
+                <td class="{{summary[key][2]}}"{% if summary[key]|length==4 %} style="{{summary[key][3]}}"{% endif %}>{{summary[key][1].format(summary[key][0])}}</td>
+                {% endfor %}
+            </tr>
+        </tfoot>
+        {% endif %}
         {% for fpn in summarydict %}
         {% set summary = summarydict[fpn] %}
         {% if loop.first %}
@@ -74,10 +85,6 @@
                 {% endfor %}
             </tr>
         </thead>
-        {% endif %}
-        {% if loop.last and fpn == 'Totals' %}
-        <tfoot>
-        {% else %}
         <tbody>
         {% endif %}
             <tr>
@@ -86,12 +93,8 @@
                 <td class="{{summary[key][2]}}"{% if summary[key]|length==4 %} style="{{summary[key][3]}}"{% endif %}>{{summary[key][1].format(summary[key][0])}}</td>
                 {% endfor %}
             </tr>
-        {% if loop.last and fpn == 'Totals' %}
-        </tfoot>
-        {% else %}
-        </tbody>
-        {% endif %}
         {% endfor %}
+        </tbody>
     </table>
 </div>
 </div>
@@ -100,13 +103,13 @@
         <div>
         <div style="display: inline-block; width: 100%;">
         <h3 style="display: inline;">{{tldict[fileportname].portname}}</h3>
-        <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?action=show_transactions&fileportname={{fileportname}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/edit_icon_25x25.jpg"></a></h6>
-        <h6 style="display: inline;"><a href="/cgi-bin/port_chart.cgi?{% for fpn in tldict %}{{tldict[fpn].filename}}={{tldict[fpn].portname}}&{% endfor %}method=diff&start={{porteditstart}}&end={{porteditend}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/chart_icon_25x25.jpg"></a></h6>
-        <h6 style="display: inline;"><a href="{{legacy_link}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/handicap_icon_25x25.jpg"></a></h6>
-        <h6 style="display: inline;"><a href="{{all_cols_link}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/colums_25x25.jpg"></a></h6>
+        <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?action=show_transactions&fileportname={{fileportname}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/edit_icon_25x25.jpg" alt="Edit Portfolio"></a></h6>
+        <h6 style="display: inline;"><a href="/cgi-bin/port_chart.cgi?{% for fpn in tldict %}{{tldict[fpn].filename}}={{tldict[fpn].portname}}&{% endfor %}method=diff&start={{porteditstart}}&end={{porteditend}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/chart_icon_25x25.jpg" alt="Chart Portfolio"></a></h6>
+        <h6 style="display: inline;"><a href="{{legacy_link}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/handicap_icon_25x25.jpg" alt="Old School View"></a></h6>
+        <h6 style="display: inline;"><a href="{{all_cols_link}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/colums_25x25.jpg" alt="All Portfolio Columns"></a></h6>
         {% if fileportname in mwd %}<h3 style="display: inline;">{{mwd[fileportname]}}</h3>{% endif %}
         </div>
-        <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter" border="1">
+        <table class="mainTable-{{schemes[loop.index0 % schemes|length]}} tablesorter">
             <!-- Header Row -->
             <thead><tr>{% for key in lheadings %}<th>{{key}}</th>{% endfor %}</tr></thead>
             <!-- Footer Row -->

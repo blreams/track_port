@@ -636,9 +636,9 @@ class Position(object):
 
     def create_list_of_links(self, symbol):
         ll = []
-        ll.append(('google', '/pics/google_finance_icon_14x14.png', 'finance.google.com/finance?q=NYSE:{0}'.format(symbol)))
-        ll.append(('yahoo', '/pics/yahoo_finance_icon_14x14.jpg', 'finance.yahoo.com/q?s={0}'.format(symbol)))
-        ll.append(('marketwatch', '/pics/marketwatch_finance_icon_14x14.png', 'www.marketwatch.com/investing/stock/{0}'.format(symbol)))
+        ll.append(('google', '/pics/google_finance_icon_14x14.png', 'finance.google.com/finance?q=NYSE:{0}'.format(symbol.replace('^', '%5e'))))
+        ll.append(('yahoo', '/pics/yahoo_finance_icon_14x14.jpg', 'finance.yahoo.com/q?s={0}'.format(symbol.replace('^', '%5e'))))
+        ll.append(('marketwatch', '/pics/marketwatch_finance_icon_14x14.png', 'www.marketwatch.com/investing/stock/{0}'.format(symbol.replace('^', '%5e'))))
         return ll
 
 class CashPosition(Position):
@@ -824,6 +824,7 @@ def main():
 
     #import pdb;pdb.set_trace()
     tldict = OrderedDict()
+    summarydict_footer = OrderedDict()
     summarydict = OrderedDict()
     #csnum = 0
     cum_total = Decimal(0.0)
@@ -865,12 +866,11 @@ def main():
                 cum_gain -= tldict[fpn].realized_gain
 
     if args.summary_method in ('sum', 'diff'):
-        summarydict['Totals'] = OrderedDict()
-        summarydict['Totals']['Total'] = (cum_total, '{:.2f}', 'right', )
-        summarydict['Totals']['Day'] = (cum_day, '{:.2f}', 'right',)
-        summarydict['Totals']['Day%'] = (" ", '{}', 'left',)
-        summarydict['Totals']['Gain'] = (cum_gain, '{:.2f}', 'right',)
-        summarydict['Totals']['Gain%'] = (" ", '{}', 'left',)
+        summarydict_footer['Total'] = (cum_total, '{:.2f}', 'right', )
+        summarydict_footer['Day'] = (cum_day, '{:.2f}', 'right',)
+        summarydict_footer['Day%'] = (" ", '{}', 'left',)
+        summarydict_footer['Gain'] = (cum_gain, '{:.2f}', 'right',)
+        summarydict_footer['Gain%'] = (" ", '{}', 'left',)
 
     mwd = whee_doggie_checker(tldict)
 
@@ -887,6 +887,7 @@ def main():
         'all_cols_link': all_cols_link,
         'tickerdict': tickerdict,
         'summarydict': summarydict,
+        'summarydict_footer' : summarydict_footer,
         'tldict': tldict,
         'schemes': schemes,
         'schemeset': schemeset,
@@ -904,7 +905,7 @@ def main():
     if not args.simulate:
         print "Content-type: text/html"
         print
-        result = htmlmin.minify(result)
+        #result = htmlmin.minify(result)
     print result
 
 
