@@ -559,6 +559,11 @@ class Position(object):
         #import pdb;pdb.set_trace()
         datefmt = '%Y-%m-%d'
         ex_div = '' if not quote.ex_div else quote.ex_div.strftime(datefmt)
+        days = (datetime.date.today() - self.open_date).days
+        if days > 1:
+            cagr = (float(quote.last / self.open_price) ** (1.0 / (days / 365.0)) - 1.0) * 100.0
+        else:
+            cagr = 0.0
         report = {}
         report['Symb'] = (self.symbol, '{}', 'center', )
         report['Links'] = (self.create_list_of_links(self.symbol), '{}', 'center', )
@@ -580,7 +585,7 @@ class Position(object):
         report['Low'] = (quote.low, '{:.2f}', 'right', )
         report['High'] = (quote.high, '{:.2f}', 'right', )
         report['HL%'] = (quote.hl_pct, '{:.1f}%', 'right', )
-        report['Days'] = ((datetime.date.today() - self.open_date).days, '{:d}', 'right', )
+        report['Days'] = (days, '{:d}', 'right', )
         report['PurDate'] = (self.open_date.strftime(datefmt), '{:s}', 'center', )
         report['P/E'] = (quote.pe, '{:.2f}', 'right', )
         report['Vol'] = (quote.volume, '{:d}', 'right', )
@@ -588,7 +593,7 @@ class Position(object):
         report['Low52'] = (quote.low52, '{:.2f}', 'right', )
         report['High52'] = (quote.high52, '{:.2f}', 'right', )
         report['HL52%'] = (quote.hl52_pct, '{:.1f}%', 'right', )
-        report['CAGR'] = (Decimal(10.1), '{:.1f}%', 'right', )
+        report['CAGR'] = (Decimal(cagr), '{:.1f}%', 'right', )
         report['DIV'] = (quote.dividend, '{:.2f}', 'right', )
         report['YLD'] = (quote.div_yield, '{:.2f}', 'right', )
         report['ExDiv'] = (ex_div, '{:s}', 'center', )
@@ -826,7 +831,6 @@ def main():
     tldict = OrderedDict()
     summarydict_footer = OrderedDict()
     summarydict = OrderedDict()
-    #csnum = 0
     cum_total = Decimal(0.0)
     cum_day = Decimal(0.0)
     cum_gain = Decimal(0.0)
@@ -837,7 +841,6 @@ def main():
         tldict[fpn].query_closed()
         tldict[fpn].combine_positions()
         tldict[fpn].finalize_positions(quotes)
-        #tldict[fpn].csnum = csnum
         tldict[fpn].create_totals()
 
         summarydict[fpn] = OrderedDict()
