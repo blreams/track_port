@@ -63,7 +63,7 @@ def main():
     xc = ColumnDataSource(df_xc)
 
     if host and host in ('jkt-myth', 'skx-linux',):
-        output_file('www/daneel.homelinux.net/cgi-bin/port_plot.html')
+        output_file('www/daneel.homelinux.net/web/port_plot.html')
     else:
         output_file('../cgi-bin/port_plot.html')
     f = figure(title='Port History', x_axis_type='datetime')
