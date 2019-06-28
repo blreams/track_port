@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 from bokeh.plotting import figure
 from bokeh.io import output_file, save
 from bokeh.models import ColumnDataSource, NumeralTickFormatter
+from bokeh.models.annotations import Span
 
 import pandas as pd
 
@@ -69,6 +70,15 @@ def main():
     f = figure(title='Port History', x_axis_type='datetime')
     f.line(x='date', y='total', source=fg, legend='fluffgazer', color='blue')
     f.line(x='date', y='total', source=xc, legend='xcargot', color='purple')
+
+    max_span_fg = Span(location=df_fg.max()['total'], dimension='width', line_color='blue', line_dash='dashed', line_alpha=0.3)
+    max_span_xc = Span(location=df_xc.max()['total'], dimension='width', line_color='purple', line_dash='dashed', line_alpha=0.3)
+    min_span_fg = Span(location=df_fg.min()['total'], dimension='width', line_color='blue', line_dash='dashed', line_alpha=0.3)
+    min_span_xc = Span(location=df_xc.min()['total'], dimension='width', line_color='purple', line_dash='dashed', line_alpha=0.3)
+    f.add_layout(max_span_fg)
+    f.add_layout(max_span_xc)
+    f.add_layout(min_span_fg)
+    f.add_layout(min_span_xc)
 
     f.border_fill_color = 'beige'
     f.background_fill_color = 'grey'
