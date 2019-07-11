@@ -1,0 +1,15 @@
+[Unit]
+Description=Run Bokeh server to be served via apache2 port 5100
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/blreams
+User=blreams
+Type=simple
+RemainAfterExit=yes
+ExecStart=/home/blreams/.local/bin/bokeh serve /var/www/vhosts/giskard.homelinux.net --port 5100 --allow-websocket-origin=giskard.homelinux.net:5100
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
