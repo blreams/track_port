@@ -158,7 +158,7 @@ possible_headings = OrderedDict([
         ])
 
 # Use these headings when no columns are specified.
-default_headings = ['Symb', 'Links', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'CAGR', 'Port%',]
+default_headings = ['Symb', 'Links', 'Shrs', 'Purch', 'Last', 'Chg', 'Day%', 'Day', 'MktVal', 'Gain%', 'Gain', 'Basis', 'Days', 'CAGR', 'Port%',]
 
 def handle_cols():
     """Return an OrderedDict indexed by column headings whose values are the
