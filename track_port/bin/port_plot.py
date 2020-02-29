@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import time
 import argparse
 import cgi
@@ -64,7 +64,9 @@ def get_x_range():
     today = datetime.datetime.now().date()
     first_in_year = datetime.date(today.year, 1, 1)
     days_in = (today - first_in_year).days
-    one_year_ago = datetime.date(today.year - 1, today.month, today.day)
+    #one_year_ago = datetime.date(today.year - 1, today.month, today.day)
+    one_year_ago = today - datetime.timedelta(days=365)
+
     begin = earliest
     end = latest
     if days_in > 30:
