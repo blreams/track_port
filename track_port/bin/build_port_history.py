@@ -16,13 +16,13 @@ import copy
 from datetime import datetime, timedelta
 from dateutil import parser
 import dateparser
+import get_a_quote
 
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from pandas_datareader import data as pdr_data
-
 
 ##############################################################################
 # This stuff needs to be done as globals
@@ -298,30 +298,43 @@ class TransactionList(object):
         self.get_symbol_prices()
 
     def update_symbol_range(self, transaction):
+        """Given a transaction:
+        If there is no symbol_range, create one using open_date and open_price.
+        If there is a symbol_range, change open_date/open_price if open_date is earlier.
+        If transaction is closed, add a close_date/close_price or update it if later.
+        """
         # Work on range start
         if self.symbol_ranges.get(transaction.symbol) is None:
-            self.symbol_ranges[transaction.symbol] = {'start': transaction.open_date}
+            self.symbol_ranges[transaction.symbol] = {'start': transaction.open_date, 'start_price': transaction.open_price}
             self.log.info(f"Creating range for {transaction.symbol}")
-            self.log.info(f"Setting range start for {transaction.symbol} to {transaction.open_date}")
+            self.log.info(f"Setting range start for {transaction.symbol} to {transaction.open_date}, {transaction.open_price}")
         elif self.symbol_ranges[transaction.symbol]['start'] > transaction.open_date:
             self.symbol_ranges[transaction.symbol]['start'] = transaction.open_date
-            self.log.info(f"Updating range start for {transaction.symbol} to {transaction.open_date}")
+            self.symbol_ranges[transaction.symbol]['start_price'] = transaction.open_price
+            self.log.info(f"Updating range start for {transaction.symbol} to {transaction.open_date}, {transaction.open_price}")
 
         # Work on range end
         if transaction.closed:
             if self.symbol_ranges.get(transaction.symbol).get('end') is None or self.symbol_ranges[transaction.symbol]['end'] < transaction.close_date:
                 self.symbol_ranges[transaction.symbol]['end'] = transaction.close_date
-                self.log.info(f"Updating range end for {transaction.symbol} to {transaction.close_date}")
+                self.symbol_ranges[transaction.symbol]['end_price'] = transaction.close_price
+                self.log.info(f"Updating range end for {transaction.symbol} to {transaction.close_date}, {transaction.close_price}")
 
     def close_symbol_ranges(self):
+        """For the open positions, create end and end_price by calling get_a_quote."""
         for trait in self.position_date[self.final_date]:
             expiration = trait[3]
             if expiration is None:
                 symbol = trait[0]
+                get_a_quote_out = get_a_quote.main(args=f'--symbol={symbol} --call')
                 self.symbol_ranges[symbol]['end'] = self.final_date
-                self.log.info(f"Updating range end for {symbol} to {self.final_date}")
+                self.symbol_ranges[symbol]['end_price'] = decimal.Decimal(get_a_quote_out.split()[0])
+                self.log.info(f"Updating range end for {symbol} to {self.symbol_ranges[symbol]['end']}, {self.symbol_ranges[symbol]['end_price']}")
 
     def get_symbol_prices(self):
+        """For all symbol_ranges, use pandas_datareader to get historical
+        Adj Close prices. Use this to create symbol_prices.
+        """
         self.symbol_prices = {}
         for symbol, symbol_range in self.symbol_ranges.items():
             try:
@@ -330,6 +343,7 @@ class TransactionList(object):
             except:
                 self.symbol_prices[symbol] = None
                 self.log.info(f"Problem getting Adj Close for {symbol}")
+
 
 def get_arguments():
     global arguments

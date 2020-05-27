@@ -24,7 +24,7 @@ def finviz_lookup():
     line = [close, last, dayhigh, daylow, yearlow, yearhigh, volume, pe, net, p_change, bid, ask,]
     if arguments.verbose or arguments.debug:
         print("close,last,dayhigh,daylow,yearlow,yearhigh,volume,pe,net,p_change,bid,ask")
-    print(" ".join(["{}".format(item) for item in line]))
+    return " ".join(["{}".format(item) for item in line])
 
 def parse_arguments(args):
     global arguments
@@ -34,6 +34,7 @@ def parse_arguments(args):
     parser.add_argument('--verbose', action='store_true', default=False, help="Run in verbose mode")
     parser.add_argument('--service', choices=('finviz',), default='finviz', help="Specify service to use")
     parser.add_argument('--symbol', help="Specify ticker to lookup")
+    parser.add_argument('--call', action='store_true', default=False, help="Return list of values")
 
     arguments = parser.parse_args(args)
 
@@ -47,7 +48,7 @@ def main(args=''):
     func = globals()["{}_lookup".format(arguments.service)]
     legacy = False
     try:
-        func()
+        retval = func()
     except:
         if arguments.verbose:
             print("get_a_quote.py failed, trying legacy get_a_quote")
@@ -56,8 +57,13 @@ def main(args=''):
         import subprocess
         cmd = ['get_a_quote', '--symbol', arguments.symbol]
         pipe = subprocess.run(cmd, stdout=subprocess.PIPE)
-        print(pipe.stdout.decode().strip())
-        
+        #print(pipe.stdout.decode().strip())
+        retval = pipe.stdout.decode().strip()
+
+    if arguments.call:
+        return retval
+    else:
+        print(retval)
 
 if __name__ == '__main__':
     main(args=sys.argv[1:])
