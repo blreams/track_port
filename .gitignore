@@ -1,5 +1,10 @@
 *.pyc
 *~
+.~lock.*
 *.swp
+*.swo
 aaa.html
 port_plot.html
+*.log
+*.csv
+
