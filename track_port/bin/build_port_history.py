@@ -21,6 +21,8 @@ from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+from pandas_datareader import data as pdr_data
+
 
 ##############################################################################
 # This stuff needs to be done as globals
@@ -210,11 +212,14 @@ class TransactionList(object):
 
         if arguments.verbose: self.log.info("Call position_analysis()")
         self.position_date = {}
+        self.symbol_ranges = {}
         half_transactions = []
         transaction_list_query = session.query(TransactionLists).filter_by(fileportname=self.fileportname, position='long').order_by('open_date').all()
 
         for t in transaction_list_query:
             transaction = Transaction(t)
+            if transaction.position == 'long':
+                self.update_symbol_range(transaction)
             open_tuple = (
                     transaction.open_date,
                     'o',
@@ -283,12 +288,48 @@ class TransactionList(object):
                     PD.write(f",{symbol}:{shares}")
                 PD.write("\n")
 
-        initial_date = sorted(list(self.position_date.keys()))[0]
-        self.log.info(f"Initial Date = {initial_date}")
-        self.log.info(f"Initial Positions = {self.position_date[initial_date]}")
-        final_date = sorted(list(self.position_date.keys()))[-1]
-        self.log.info(f"Final Date = {final_date}")
+        self.initial_date = sorted(list(self.position_date.keys()))[0]
+        self.log.info(f"Initial Date = {self.initial_date}")
+        self.log.info(f"Initial Positions = {self.position_date[self.initial_date]}")
+        self.final_date = sorted(list(self.position_date.keys()))[-1]
+        self.log.info(f"Final Date = {self.final_date}")
         self.log.info(f"Final Positions = {position_accum}")
+        self.close_symbol_ranges()
+        self.get_symbol_prices()
+
+    def update_symbol_range(self, transaction):
+        # Work on range start
+        if self.symbol_ranges.get(transaction.symbol) is None:
+            self.symbol_ranges[transaction.symbol] = {'start': transaction.open_date}
+            self.log.info(f"Creating range for {transaction.symbol}")
+            self.log.info(f"Setting range start for {transaction.symbol} to {transaction.open_date}")
+        elif self.symbol_ranges[transaction.symbol]['start'] > transaction.open_date:
+            self.symbol_ranges[transaction.symbol]['start'] = transaction.open_date
+            self.log.info(f"Updating range start for {transaction.symbol} to {transaction.open_date}")
+
+        # Work on range end
+        if transaction.closed:
+            if self.symbol_ranges.get(transaction.symbol).get('end') is None or self.symbol_ranges[transaction.symbol]['end'] < transaction.close_date:
+                self.symbol_ranges[transaction.symbol]['end'] = transaction.close_date
+                self.log.info(f"Updating range end for {transaction.symbol} to {transaction.close_date}")
+
+    def close_symbol_ranges(self):
+        for trait in self.position_date[self.final_date]:
+            expiration = trait[3]
+            if expiration is None:
+                symbol = trait[0]
+                self.symbol_ranges[symbol]['end'] = self.final_date
+                self.log.info(f"Updating range end for {symbol} to {self.final_date}")
+
+    def get_symbol_prices(self):
+        self.symbol_prices = {}
+        for symbol, symbol_range in self.symbol_ranges.items():
+            try:
+                self.symbol_prices[symbol] = pdr_data.DataReader(symbol, start=symbol_range['start'], end=symbol_range['end'], data_source='yahoo')['Adj Close']
+                self.log.info(f"Got Adj Close for {symbol}")
+            except:
+                self.symbol_prices[symbol] = None
+                self.log.info(f"Problem getting Adj Close for {symbol}")
 
 def get_arguments():
     global arguments
