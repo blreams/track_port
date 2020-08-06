@@ -295,7 +295,7 @@ if ($service eq 'yahoo') {
           if ($flag_debug) { $debug_token_index{'last'} = $j; }
         } else {
           if ($flag_verbose) { printf("NOTE: Index Last found.\n"); }
-          $j = $i - 5;
+          $j = $i - 20; # yet another yahoo change
           $last = $tokens[$j];
           $last =~ s/,//g;
           $found_last = $TRUE;
