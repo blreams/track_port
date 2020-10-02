@@ -7,4 +7,6 @@ aaa.html
 port_plot.html
 *.log
 *.csv
+*.tmp
+~*.docx
 
