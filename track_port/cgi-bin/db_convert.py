@@ -32,9 +32,21 @@ def copy_table(src_engine, src_table_name, dst_engine):
             con.execute(dst_table.insert().values(**row))
     
 def main():
-    tables = ('finance_quote', 'port_param', 'transaction_list', 'color_scheme', 'ticker_symbols', 'port_history', )
+    tables = (
+            'color_scheme',
+            'finance_quote',
+            #'hit_counter',   # This causes an error in sqlalchemy
+            'market_holiday',
+            'port_history',
+            'port_param',
+            'put_stats',
+            'table_format',
+            'ticker_symbols',
+            'transaction_list',
+            'transaction_report',
+            )
     for table in tables:
-        print "Copying {} from mysql to sqlite3.".format(table)
+        print("Copying {} from mysql to sqlite3.".format(table))
         copy_table(mengine, table, sengine)
         
 

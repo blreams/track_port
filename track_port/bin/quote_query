@@ -40,7 +40,7 @@ use warnings;
 use Readonly;
 use Time::CTime;
 use Time::ParseDate;
-use Finance::Quote;
+#use Finance::Quote;
 #use Finance::QuoteOptions;
 use DBI;
 
@@ -215,8 +215,8 @@ sub get_quote_data1 {
     $p_hash_put_stats->{'fetch_iterations'}++;
     $remaining_iterations--;
     if ($verbose) { printf(STDERR "NOTE: %d -- Fetch[%d] quote data for %d symbols.\n", (parsedate('now')-$ts), $fetch_count, scalar(@lookup_list_symbols)); }
-    my $qh = Finance::Quote->new;
-    %hash_fq_fetch = $qh->fetch("usa", @lookup_list_symbols);
+    #my $qh = Finance::Quote->new;
+    #%hash_fq_fetch = $qh->fetch("usa", @lookup_list_symbols);
     #@lookup_list_symbols = ('INTC', 'AAPL');
     #%hash_fq_fetch = $qh->fetch("alphavantage", @lookup_list_symbols);
     my @bad_symbols = ();

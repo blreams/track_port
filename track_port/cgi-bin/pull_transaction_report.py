@@ -1,14 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import time
 import argparse
 import cgi
-import cgitb; cgitb.enable() # for troubleshooting
+#import cgitb; cgitb.enable(display=0, logdir='/home/blreams') # for troubleshooting
 
 import os
 import re
 import jinja2
 import datetime
-import htmlmin
+#import htmlmin
 
 from collections import OrderedDict
 from decimal import Decimal
@@ -269,7 +269,8 @@ class FinanceQuote(object):
             ]
 
     def __init__(self, symbol, quote_obj):
-        if isinstance(quote_obj, basestring):
+        #if isinstance(quote_obj, basestring):
+        if isinstance(quote_obj, str):
             if quote_obj == 'CASH':
                 self.__setattr__('symbol', 'CASH')
                 self.__setattr__('name', 'The Green Stuff')
@@ -343,7 +344,8 @@ class Transaction(object):
         if isinstance(trl_obj, TransactionLists):
             for field in self.fieldlist:
                 self.__setattr__(field, trl_obj.__getattribute__(field))
-        elif isinstance(trl_obj, basestring):
+        #elif isinstance(trl_obj, basestring):
+        elif isinstance(trl_obj, str):
             for field in kwargs:
                 self.__setattr__(field, kwargs[field])
 
@@ -725,7 +727,7 @@ def abort_html():
     s += '<p>There was a problem fetching quotes. Could be temporary.</p>\n'
     s += '<p>TRY AGAIN LATER!</p>\n'
     s += '</body>\n'
-    print s
+    print(s)
 
 def render(tpl_path, context):
     """Helper function to render page using Jinja2.
@@ -906,10 +908,9 @@ def main():
     #import pdb;pdb.set_trace()
     result = render(r'ptr_layout.html', context)
     if not args.simulate:
-        print "Content-type: text/html"
-        print
+        print("Content-type: text/html\n\n")
         #result = htmlmin.minify(result)
-    print result
+    print(result)
 
 
 if __name__ == '__main__':
