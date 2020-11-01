@@ -9,4 +9,5 @@ port_plot.html
 *.csv
 *.tmp
 ~*.docx
+*.db
 
