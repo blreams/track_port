@@ -407,7 +407,7 @@ sub get_quoteoption_data {
     ###   4. bid
     if ($main::flag_optionlast) {
       $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'last'};
-    } elsif ($p_finance_quotes->{$option_symbol, 'bid'} && ($p_finance_quotes->{$option_symbol, 'ask'})) {
+    } elsif (($p_finance_quotes->{$option_symbol, 'bid'} > 0.00) && ($p_finance_quotes->{$option_symbol, 'ask'} > 0.01)) {
       $p_finance_quotes->{$option_symbol, 'last'} = ($p_finance_quotes->{$option_symbol, 'bid'} + $p_finance_quotes->{$option_symbol, 'ask'}) / 2;
     } elsif ($p_finance_quotes->{$option_symbol, 'last'}) {
       $p_finance_quotes->{$option_symbol, 'last'} = $p_finance_quotes->{$option_symbol, 'last'};
