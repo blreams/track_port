@@ -47,6 +47,12 @@ def log_transaction_list(fileportname):
             log_items.append(f"{column.key}={getattr(transaction_list_row, column.key)}")
         logger.debug(','.join(log_items))
 
+def get_portnames():
+    logger = logging.getLogger('get_portnames')
+    query = session.query(TransactionLists).all()
+    portname_set = set([row.fileportname for row in query])
+    return portname_set
+
 def get_symbols(fileportnames):
     logger = logging.getLogger('get_symbols')
     if not fileportnames:
@@ -88,7 +94,10 @@ def main():
 
     #log_transaction_list('port:fluffgazer')
     import pdb;pdb.set_trace()
+
+    # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
+
     stock_screener = Screener(tickers=stock_symbols)
     stock_details = stock_screener.get_ticker_details()
     
