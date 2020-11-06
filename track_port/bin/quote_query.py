@@ -65,6 +65,7 @@ class FinanceQuoteTable(object):
             # we have to check for existing row
             query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
             if query:
+                # We have an existing row, let's update it
                 fq = query[0]
                 fq.symbol=symbol
                 fq.name=details['Company']
@@ -82,11 +83,23 @@ class FinanceQuoteTable(object):
                 fq.dividend=dividend
                 fq.div_yield=try_float(details['Dividend %'], method='pct')
                 fq.cap=try_float(details['Market Cap'], method='magnitude')
+
+                if fq.high < last:
+                    fq.high = last
+
+                if fq.low > last:
+                    fq.low = last
+
+                fq.day_range=f"{fq.low:.2f} - {fq.high:.2f}"
+
             else:
+                # We are creating a new row
                 fq = FinanceQuotes(
                     symbol=symbol,
                     name=details['Company'],
                     last=last,
+                    high=last,
+                    low=last,
                     date=datetime.now().date(),
                     time=datetime.now().time(),
                     net=net,
@@ -100,6 +113,7 @@ class FinanceQuoteTable(object):
                     dividend=dividend,
                     div_yield=try_float(details['Dividend %'], method='pct'),
                     cap=try_float(details['Market Cap'], method='magnitude'),
+                    day_range=f"{last:.2f} - {last:.2f}"
                     )
                 session.add(fq)
 
@@ -179,6 +193,37 @@ def get_symbols(fileportnames):
     logger.debug(f"put_symbols({len(put_symbols)})={sorted(list(put_symbols))}")
     return stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols
 
+def update_stocks(stock_symbols):
+    logger = logging.getLogger('update_stocks')
+    stocks = sorted(list(stock_symbols))
+    passes = len(stock_symbols) // 100
+    if (len(stock_symbols) % 100) > 0:
+        passes += 1
+    chunk_size = len(stock_symbols) // passes
+    if (len(stock_symbols) % passes) > 0:
+        chunk_size += 1
+    logger.info(f"passes={passes},chunk_size={chunk_size}")
+    screened_stock_symbols = set()
+    while len(stock_symbols) > 0:
+        if len(stock_symbols) >= chunk_size:
+            stock_list = list(stock_symbols)[:chunk_size]
+        else:
+            stock_list = list(stock_symbols)
+        logger.info(f"stock_list={','.join(stock_list)}")
+        stock_screener = Screener(tickers=stock_list)
+        stock_details = stock_screener.get_ticker_details()
+        screened_symbols = [detail['Ticker'] for detail in stock_details]
+        screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
+        
+        finance_quote_table = FinanceQuoteTable(stock_details)
+        stock_symbols.difference_update(stock_list)
+
+    screened_stocks = sorted(list(screened_stock_symbols))
+    if stocks != screened_stocks:
+        missing_symbols = set(stocks)
+        missing_symbols.difference_update(screened_stock_symbols)
+        logger.info(f"missing symbols: {missing_symbols}")
+
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
@@ -234,36 +279,10 @@ def main():
 
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
-    stocks = sorted(list(stock_symbols))
 
+    # Call for stock info
+    update_stocks(stock_symbols)
 
-    passes = len(stock_symbols) // 100
-    if (len(stock_symbols) % 100) > 0:
-        passes += 1
-    chunk_size = len(stock_symbols) // passes
-    if (len(stock_symbols) % passes) > 0:
-        chunk_size += 1
-    logger.info(f"passes={passes},chunk_size={chunk_size}")
-    screened_stock_symbols = set()
-    while len(stock_symbols) > 0:
-        if len(stock_symbols) >= chunk_size:
-            stock_list = list(stock_symbols)[:chunk_size]
-        else:
-            stock_list = list(stock_symbols)
-        logger.info(f"stock_list={','.join(stock_list)}")
-        stock_screener = Screener(tickers=stock_list)
-        stock_details = stock_screener.get_ticker_details()
-        screened_symbols = [detail['Ticker'] for detail in stock_details]
-        screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
-        
-        finance_quote_table = FinanceQuoteTable(stock_details)
-        stock_symbols.difference_update(stock_list)
-
-    screened_stocks = sorted(list(screened_stock_symbols))
-    if stocks != screened_stocks:
-        missing_symbols = set(stocks)
-        missing_symbols.difference_update(screened_stock_symbols)
-        logger.info(f"missing symbols: {missing_symbols}")
     
 
 if __name__ == '__main__':
