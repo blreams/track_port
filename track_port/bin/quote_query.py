@@ -172,11 +172,11 @@ def get_symbols(fileportnames):
     call_symbols = get_option_symbols(call_query)
     put_symbols = get_option_symbols(put_query)
 
-    logger.debug(f"stock_symbols={sorted(list(stock_symbols))}")
-    logger.debug(f"mf_symbols={sorted(list(mf_symbols))}")
-    logger.debug(f"index_symbols={sorted(list(index_symbols))}")
-    logger.debug(f"call_symbols={sorted(list(call_symbols))}")
-    logger.debug(f"put_symbols={sorted(list(put_symbols))}")
+    logger.debug(f"stock_symbols({len(stock_symbols)})={sorted(list(stock_symbols))}")
+    logger.debug(f"mf_symbols({len(mf_symbols)})={sorted(list(mf_symbols))}")
+    logger.debug(f"index_symbols({len(index_symbols)})={sorted(list(index_symbols))}")
+    logger.debug(f"call_symbols({len(call_symbols)})={sorted(list(call_symbols))}")
+    logger.debug(f"put_symbols({len(put_symbols)})={sorted(list(put_symbols))}")
     return stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols
 
 def object_as_dict(obj):
@@ -234,8 +234,9 @@ def main():
 
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
+    stocks = sorted(list(stock_symbols))
 
-    import pdb;pdb.set_trace()
+
     passes = len(stock_symbols) // 100
     if (len(stock_symbols) % 100) > 0:
         passes += 1
@@ -243,6 +244,7 @@ def main():
     if (len(stock_symbols) % passes) > 0:
         chunk_size += 1
     logger.info(f"passes={passes},chunk_size={chunk_size}")
+    screened_stock_symbols = set()
     while len(stock_symbols) > 0:
         if len(stock_symbols) >= chunk_size:
             stock_list = list(stock_symbols)[:chunk_size]
@@ -251,9 +253,17 @@ def main():
         logger.info(f"stock_list={','.join(stock_list)}")
         stock_screener = Screener(tickers=stock_list)
         stock_details = stock_screener.get_ticker_details()
+        screened_symbols = [detail['Ticker'] for detail in stock_details]
+        screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
         finance_quote_table = FinanceQuoteTable(stock_details)
         stock_symbols.difference_update(stock_list)
+
+    screened_stocks = sorted(list(screened_stock_symbols))
+    if stocks != screened_stocks:
+        missing_symbols = set(stocks)
+        missing_symbols.difference_update(screened_stock_symbols)
+        logger.info(f"missing symbols: {missing_symbols}")
     
 
 if __name__ == '__main__':
