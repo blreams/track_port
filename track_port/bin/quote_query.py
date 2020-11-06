@@ -48,11 +48,11 @@ class FinanceQuotes(Base):
 class FinanceQuoteTable(object):
     def __init__(self, stock_details):
         self.stock_details = stock_details
-        self.finance_quote_dict = {}
-        self.init_finance_quote_dict()
+        self.update_finance_quote_table()
 
-    def init_finance_quote_dict(self):
+    def update_finance_quote_table(self):
         for details in self.stock_details:
+            symbol = details['Ticker']
             last = try_float(details['Price'])
             close = try_float(details['Prev Close'])
             net = last - close
@@ -61,42 +61,68 @@ class FinanceQuoteTable(object):
             eps = try_float(details['EPS (ttm)'])
             pe = try_float(details['P/E'])
             dividend = try_float(details['Dividend'])
-            fq = {}
-            fq['symbol'] = details['Ticker']
-            fq['name'] = details['Company']
-            fq['last'] = last
-            fq['high'] = None
-            fq['low'] = None
-            fq['date'] = datetime.now().date()
-            fq['time'] = datetime.now().time()
-            fq['net'] = net
-            fq['p_change'] = p_change
-            fq['volume'] = volume
-            fq['avg_vol'] = details['Avg Volume']
-            fq['bid'] = None
-            fq['ask'] = None
-            fq['close'] = close
-            fq['open'] = None
-            fq['day_range'] = None
-            fq['year_range'] = details['52W Range']
-            fq['eps'] = eps
-            fq['pe'] = pe
-            fq['div_date'] = None
-            fq['dividend'] = dividend
-            fq['div_yield'] = details['Dividend %']
-            fq['cap'] = details['Market Cap']
-            fq['ex_div'] = None
-            fq['nav'] = None
-            fq['yield'] = None
-            fq['exchange'] = None
-            fq['success'] = None
-            fq['errormsg'] = None
-            fq['method'] = None
-            self.finance_quote_dict[details['Ticker']] = fq
 
-def try_float(s):
+            # we have to check for existing row
+            query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
+            if query:
+                fq = query[0]
+                fq.symbol=symbol
+                fq.name=details['Company']
+                fq.last=last
+                fq.date=datetime.now().date()
+                fq.time=datetime.now().time()
+                fq.net=net
+                fq.p_change=p_change
+                fq.volume=volume
+                fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
+                fq.close=close
+                fq.year_range=details['52W Range']
+                fq.eps=eps
+                fq.pe=pe
+                fq.dividend=dividend
+                fq.div_yield=try_float(details['Dividend %'], method='pct')
+                fq.cap=try_float(details['Market Cap'], method='magnitude')
+            else:
+                fq = FinanceQuotes(
+                    symbol=symbol,
+                    name=details['Company'],
+                    last=last,
+                    date=datetime.now().date(),
+                    time=datetime.now().time(),
+                    net=net,
+                    p_change=p_change,
+                    volume=volume,
+                    avg_vol=try_float(details['Avg Volume'], method='magnitude'),
+                    close=close,
+                    year_range=details['52W Range'],
+                    eps=eps,
+                    pe=pe,
+                    dividend=dividend,
+                    div_yield=try_float(details['Dividend %'], method='pct'),
+                    cap=try_float(details['Market Cap'], method='magnitude'),
+                    )
+                session.add(fq)
+
+        session.commit()
+
+def try_float(s, method=None):
+    if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
+        if s.endswith('K'):
+            f = float(s[:-1]) * 1000.0
+        elif s.endswith('M'):
+            f = float(s[:-1]) * 1000000.0
+        elif s.endswith('B'):
+            f = float(s[:-1]) * 1000000000.0
+        elif s.endswith('T'):
+            f = float(s[:-1]) * 1000000000000.0
+        return f
+
+    s_in = s
+    if method == 'pct':
+        s_in = s[:-1]
+
     try:
-        f = float(s)
+        f = float(s_in)
     except ValueError:
         f = None
     return f
@@ -156,14 +182,6 @@ def get_symbols(fileportnames):
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
-def update_quote_table(stock_details):
-    quote_query = session.query(FinanceQuotes)
-    quote_dict = {}
-    for row in quote_query:
-        quote_dict[row.symbol] = object_as_dict(row)
-
-    pass
-
 def process_arguments():
     global arguments
     logger = logging.getLogger('process_arguments')
@@ -217,12 +235,25 @@ def main():
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
 
-    stock_screener = Screener(tickers=stock_symbols)
-    stock_details = stock_screener.get_ticker_details()
-
     import pdb;pdb.set_trace()
-    finance_quote_table = FinanceQuoteTable(stock_details)
-    update_quote_table(stock_details)
+    passes = len(stock_symbols) // 100
+    if (len(stock_symbols) % 100) > 0:
+        passes += 1
+    chunk_size = len(stock_symbols) // passes
+    if (len(stock_symbols) % passes) > 0:
+        chunk_size += 1
+    logger.info(f"passes={passes},chunk_size={chunk_size}")
+    while len(stock_symbols) > 0:
+        if len(stock_symbols) >= chunk_size:
+            stock_list = list(stock_symbols)[:chunk_size]
+        else:
+            stock_list = list(stock_symbols)
+        logger.info(f"stock_list={','.join(stock_list)}")
+        stock_screener = Screener(tickers=stock_list)
+        stock_details = stock_screener.get_ticker_details()
+        
+        finance_quote_table = FinanceQuoteTable(stock_details)
+        stock_symbols.difference_update(stock_list)
     
 
 if __name__ == '__main__':
