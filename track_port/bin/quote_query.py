@@ -5,7 +5,7 @@ import os
 import logging
 import logging.config
 import argparse
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from sqlalchemy import create_engine, Table, MetaData, inspect
 from sqlalchemy.ext.declarative import declarative_base
@@ -30,13 +30,18 @@ Base = declarative_base(engine)
 metadata = Base.metadata
 Session = sessionmaker(bind=engine)
 session = Session()
-#############################################################################
 
+#############################################################################
+# Additional globals
+#############################################################################
 thisdir = os.path.dirname(__file__)
 
 logging.config.fileConfig(os.path.join(thisdir, 'quote_query_logging.conf'))
 arguments = argparse.Namespace
 
+#############################################################################
+# Classes related to database tables
+#############################################################################
 class TransactionLists(Base):
     __tablename__ = 'transaction_list'
     __table_args__ = {'autoload': True}
@@ -49,9 +54,18 @@ class FinanceQuotes(Base):
     __tablename__ = 'finance_quote'
     __table_args__ = {'autoload': True}
 
+class MarketHolidays(Base):
+    __tablename__ = 'market_holiday'
+    __table_args__ = {'autoload': True}
+
+#############################################################################
+# Other classes
+#############################################################################
 class FinanceQuoteTable(object):
-    def __init__(self, stock_details=None, index_details=None, mf_details=None):
+    def __init__(self, data_date, market_closed, stock_details=None, index_details=None, mf_details=None):
         self.logger = logging.getLogger('FinanceQuoteTable')
+        self.data_date = data_date
+        self.market_closed = market_closed
         if stock_details is not None:
             self.logger.info(f"stock_details for {len(stock_details)} symbols")
             self.stock_details = stock_details
@@ -66,14 +80,17 @@ class FinanceQuoteTable(object):
         return f"FinanceQuoteTable() with {len(stock_details)} stock symbols"
 
     def update_finance_quote_table(self, update_type):
+        import pdb;pdb.set_trace()
         self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
         if update_type == 'stock':
             for details in self.stock_details:
                 symbol = details['Ticker']
                 last = try_float(details['Price'])
                 close = try_float(details['Prev Close'])
+                if self.market_closed:
+                    pass
                 net = last - close
-                p_change = try_float(details['Change'][:-1]) / 100.0
+                p_change = try_float(details['Change'][:-1])
                 volume = int(details['Volume'].replace(',', ''))
                 eps = try_float(details['EPS (ttm)'])
                 pe = try_float(details['P/E'], except_value=0.0)
@@ -109,7 +126,7 @@ class FinanceQuoteTable(object):
                     if fq.low > last:
                         fq.low = last
             
-                    fq.day_range=f"{fq.low:.2f} - {fq.high:.2f}"
+                    fq.day_range=f"'{fq.low:.2f} - {fq.high:.2f}'"
             
                 else:
                     # We are creating a new row
@@ -139,44 +156,23 @@ class FinanceQuoteTable(object):
 
         session.commit()
 
-def try_float(s, method=None, except_value=None):
-    if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
-        if s.endswith('K'):
-            f = float(s[:-1]) * 1000.0
-        elif s.endswith('M'):
-            f = float(s[:-1]) * 1000000.0
-        elif s.endswith('B'):
-            f = float(s[:-1]) * 1000000000.0
-        elif s.endswith('T'):
-            f = float(s[:-1]) * 1000000000000.0
-        return f
+#############################################################################
+# Function definitions
+#############################################################################
+def check_date_market_holidays():
+    today = datetime.now()
+    data_date = today.date()
+    market_closed = False
+    if today.isoweekday() >= 6:
+        market_closed = True
+        data_date -= timedelta(days=today.isoweekday() - 5)
 
-    s_in = s
-    if method == 'pct':
-        s_in = s[:-1]
+    query = session.query(MarketHolidays).filter_by(date=data_date).all()
+    while query or data_date.isoweekday() >= 6:
+        data_date -= timedelta(days=1)
+        query = session.query(MarketHolidays).filter_by(date=data_date).all()
 
-    try:
-        f = float(s_in)
-    except ValueError:
-        f = except_value
-    return f
-
-def log_transaction_list(fileportname):
-    logger = logging.getLogger('log_transaction_list')
-    transaction_list_query = session.query(TransactionLists).filter_by(fileportname=fileportname, position='long', closed=False).order_by('open_date').all()
-
-    for transaction_list_row in transaction_list_query:
-        mapper = inspect(transaction_list_row)
-        log_items = []
-        for column in mapper.attrs:
-            log_items.append(f"{column.key}={getattr(transaction_list_row, column.key)}")
-        logger.debug(','.join(log_items))
-
-def get_portnames():
-    logger = logging.getLogger('get_portnames')
-    query = session.query(TransactionLists).all()
-    portname_set = set([row.fileportname for row in query])
-    return portname_set
+    return data_date, market_closed
 
 def get_option_symbols(query):
     symbol_set = set()
@@ -187,6 +183,12 @@ def get_option_symbols(query):
         symbol = f"{row.symbol}{expiration_year_month_date}{option_char}{strike_formatted}"
         symbol_set.add(symbol)
     return symbol_set
+
+def get_portnames():
+    logger = logging.getLogger('get_portnames')
+    query = session.query(TransactionLists).all()
+    portname_set = set([row.fileportname for row in query])
+    return portname_set
 
 def get_symbols(fileportnames):
     logger = logging.getLogger('get_symbols')
@@ -213,7 +215,35 @@ def get_symbols(fileportnames):
     logger.debug(f"put_symbols({len(put_symbols)})={sorted(list(put_symbols))}")
     return stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols
 
-def update_stocks(stock_symbols):
+def try_float(s, method=None, except_value=None):
+    if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
+        if s.endswith('K'):
+            f = float(s[:-1]) * 1000.0
+        elif s.endswith('M'):
+            f = float(s[:-1]) * 1000000.0
+        elif s.endswith('B'):
+            f = float(s[:-1]) * 1000000000.0
+        elif s.endswith('T'):
+            f = float(s[:-1]) * 1000000000000.0
+        return f
+
+    s_in = s
+    if method == 'pct':
+        s_in = s[:-1]
+
+    try:
+        f = float(s_in)
+    except ValueError:
+        f = except_value
+    return f
+
+def update_indexes(data_date, market_closed, index_symbols):
+    logger = logging.getLogger('update_indexes')
+    finance_quote_table_list = []
+
+    return finance_quote_table_list
+
+def update_stocks(data_date, market_closed, stock_symbols):
     logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
     stocks = sorted(list(stock_symbols))
@@ -236,7 +266,7 @@ def update_stocks(stock_symbols):
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
-        finance_quote_table_list.append(FinanceQuoteTable(stock_details=stock_details))
+        finance_quote_table_list.append(FinanceQuoteTable(data_date, market_closed, stock_details=stock_details))
         stock_symbols.difference_update(stock_list)
 
     screened_stocks = sorted(list(screened_stock_symbols))
@@ -247,15 +277,9 @@ def update_stocks(stock_symbols):
 
     return finance_quote_table_list
 
-def update_indexes(index_symbols):
-    logger = logging.getLogger('update_indexes')
-    finance_quote_table_list = []
-
-    return finance_quote_table_list
-
-#def object_as_dict(obj):
-#    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
-
+#############################################################################
+# Argument processing
+#############################################################################
 def process_arguments():
     global arguments
     logger = logging.getLogger('process_arguments')
@@ -298,11 +322,17 @@ def parse_arguments():
 
     return arguments
 
+#############################################################################
+# Main
+#############################################################################
 def main():
     logger = logging.getLogger('main')
     logger.info('='*40 + " Start quote_query " + '='*40)
 
     process_arguments()
+
+    # Check date, market holidays
+    data_date, market_closed = check_date_market_holidays()
 
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
@@ -312,12 +342,12 @@ def main():
     # Call for stock info
     if stock_symbols:
         finance_quote_table_dict['stock'] = []
-        finance_quote_table_dict['stock'].extend(update_stocks(stock_symbols))
+        finance_quote_table_dict['stock'].extend(update_stocks(data_date, market_closed, stock_symbols))
 
     # Call for index info
     if index_symbols:
         finance_quote_table_dict['index'] = []
-        finance_quote_table_dict['index'].extend(update_indexes(index_symbols))
+        finance_quote_table_dict['index'].extend(update_indexes(data_date, market_closed, index_symbols))
 
     for update_type, finance_quote_table_list in finance_quote_table_dict.items():
         for finance_quote_table in finance_quote_table_list:
