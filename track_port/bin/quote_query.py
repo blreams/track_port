@@ -80,7 +80,6 @@ class FinanceQuoteTable(object):
         return f"FinanceQuoteTable() with {len(stock_details)} stock symbols"
 
     def update_finance_quote_table(self, update_type):
-        import pdb;pdb.set_trace()
         self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
         if update_type == 'stock':
             for details in self.stock_details:
