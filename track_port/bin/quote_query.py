@@ -87,7 +87,7 @@ class FinanceQuoteTable(object):
                     self.logger.info(f"updating finance_quote row for {symbol}")
                     fq = query[0]
                     fq.symbol=symbol
-                    fq.name=details['Company']
+                    fq.name=details['Company'][:32]
                     fq.last=last
                     fq.date=datetime.now().date()
                     fq.time=datetime.now().time()
@@ -116,7 +116,7 @@ class FinanceQuoteTable(object):
                     self.logger.info(f"creating finance_quote row for {symbol}")
                     fq = FinanceQuotes(
                         symbol=symbol,
-                        name=details['Company'],
+                        name=details['Company'][:32],
                         last=last,
                         high=last,
                         low=last,
