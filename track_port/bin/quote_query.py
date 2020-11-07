@@ -77,7 +77,7 @@ class FinanceQuoteTable(object):
                 volume = int(details['Volume'].replace(',', ''))
                 eps = try_float(details['EPS (ttm)'])
                 pe = try_float(details['P/E'], except_value=0.0)
-                dividend = try_float(details['Dividend'])
+                dividend = try_float(details['Dividend'], except_value=0.0)
             
                 # we have to check for existing row
                 query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
