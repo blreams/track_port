@@ -5,7 +5,7 @@ import os
 import logging
 import logging.config
 import argparse
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 
 from sqlalchemy import create_engine, Table, MetaData, inspect
 from sqlalchemy.ext.declarative import declarative_base
@@ -62,9 +62,9 @@ class MarketHolidays(Base):
 # Other classes
 #############################################################################
 class FinanceQuoteTable(object):
-    def __init__(self, data_date, market_closed, stock_details=None, index_details=None, mf_details=None):
+    def __init__(self, data_datetime, market_closed, stock_details=None, index_details=None, mf_details=None):
         self.logger = logging.getLogger('FinanceQuoteTable')
-        self.data_date = data_date
+        self.data_datetime = data_datetime
         self.market_closed = market_closed
         if stock_details is not None:
             self.logger.info(f"stock_details for {len(stock_details)} symbols")
@@ -95,6 +95,7 @@ class FinanceQuoteTable(object):
                 pe = try_float(details['P/E'], except_value=0.0)
                 dividend = try_float(details['Dividend'], except_value=0.0)
                 div_yield = try_float(details['Dividend %'], method='pct', except_value=0.0)
+                cap=try_float(details['Market Cap'], method='magnitude', except_value=0.0)
             
                 # we have to check for existing row
                 query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
@@ -105,19 +106,19 @@ class FinanceQuoteTable(object):
                     fq.symbol=symbol
                     fq.name=details['Company'][:32]
                     fq.last=last
-                    fq.date=datetime.now().date()
-                    fq.time=datetime.now().time()
+                    fq.date=self.data_datetime.date()
+                    fq.time=self.data_datetime.time()
                     fq.net=net
                     fq.p_change=p_change
                     fq.volume=volume
                     fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
                     fq.close=close
-                    fq.year_range=details['52W Range']
+                    fq.year_range=f"'{details['52W Range']}'"
                     fq.eps=eps
                     fq.pe=pe
                     fq.dividend=dividend
                     fq.div_yield=div_yield
-                    fq.cap=try_float(details['Market Cap'], method='magnitude')
+                    fq.cap=cap
             
                     if fq.high < last:
                         fq.high = last
@@ -136,19 +137,19 @@ class FinanceQuoteTable(object):
                         last=last,
                         high=last,
                         low=last,
-                        date=datetime.now().date(),
-                        time=datetime.now().time(),
+                        date=self.data_datetime.date(),
+                        time=self.data_datetime.time(),
                         net=net,
                         p_change=p_change,
                         volume=volume,
                         avg_vol=try_float(details['Avg Volume'], method='magnitude'),
                         close=close,
-                        year_range=details['52W Range'],
+                        year_range=f"'{details['52W Range']}'",
                         eps=eps,
                         pe=pe,
                         dividend=dividend,
                         div_yield=div_yield,
-                        cap=try_float(details['Market Cap'], method='magnitude'),
+                        cap=cap,
                         day_range=f"{last:.2f} - {last:.2f}"
                         )
                     session.add(fq)
@@ -160,18 +161,20 @@ class FinanceQuoteTable(object):
 #############################################################################
 def check_date_market_holidays():
     today = datetime.now()
-    data_date = today.date()
+    data_datetime = today
     market_closed = False
     if today.isoweekday() >= 6:
         market_closed = True
-        data_date -= timedelta(days=today.isoweekday() - 5)
+        data_datetime -= timedelta(days=today.isoweekday() - 5)
 
-    query = session.query(MarketHolidays).filter_by(date=data_date).all()
-    while query or data_date.isoweekday() >= 6:
-        data_date -= timedelta(days=1)
-        query = session.query(MarketHolidays).filter_by(date=data_date).all()
+    query = session.query(MarketHolidays).filter_by(date=data_datetime.date()).all()
+    while query or data_datetime.isoweekday() >= 6:
+        data_datetime -= timedelta(days=1)
+        query = session.query(MarketHolidays).filter_by(date=data_datetime.date()).all()
 
-    return data_date, market_closed
+    if data_datetime.date() != today.date():
+        data_datetime = datetime.combine(data_datetime.date(), time(16, 30))
+    return data_datetime, market_closed
 
 def get_option_symbols(query):
     symbol_set = set()
@@ -236,13 +239,13 @@ def try_float(s, method=None, except_value=None):
         f = except_value
     return f
 
-def update_indexes(data_date, market_closed, index_symbols):
+def update_indexes(data_datetime, market_closed, index_symbols):
     logger = logging.getLogger('update_indexes')
     finance_quote_table_list = []
 
     return finance_quote_table_list
 
-def update_stocks(data_date, market_closed, stock_symbols):
+def update_stocks(data_datetime, market_closed, stock_symbols):
     logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
     stocks = sorted(list(stock_symbols))
@@ -265,7 +268,7 @@ def update_stocks(data_date, market_closed, stock_symbols):
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
-        finance_quote_table_list.append(FinanceQuoteTable(data_date, market_closed, stock_details=stock_details))
+        finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=stock_details))
         stock_symbols.difference_update(stock_list)
 
     screened_stocks = sorted(list(screened_stock_symbols))
@@ -331,7 +334,7 @@ def main():
     process_arguments()
 
     # Check date, market holidays
-    data_date, market_closed = check_date_market_holidays()
+    data_datetime, market_closed = check_date_market_holidays()
 
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
@@ -341,12 +344,12 @@ def main():
     # Call for stock info
     if stock_symbols:
         finance_quote_table_dict['stock'] = []
-        finance_quote_table_dict['stock'].extend(update_stocks(data_date, market_closed, stock_symbols))
+        finance_quote_table_dict['stock'].extend(update_stocks(data_datetime, market_closed, stock_symbols))
 
     # Call for index info
     if index_symbols:
         finance_quote_table_dict['index'] = []
-        finance_quote_table_dict['index'].extend(update_indexes(data_date, market_closed, index_symbols))
+        finance_quote_table_dict['index'].extend(update_indexes(data_datetime, market_closed, index_symbols))
 
     for update_type, finance_quote_table_list in finance_quote_table_dict.items():
         for finance_quote_table in finance_quote_table_list:
