@@ -76,7 +76,7 @@ class FinanceQuoteTable(object):
                 p_change = try_float(details['Change'][:-1]) / 100.0
                 volume = int(details['Volume'].replace(',', ''))
                 eps = try_float(details['EPS (ttm)'])
-                pe = try_float(details['P/E'])
+                pe = try_float(details['P/E'], except_value=0.0)
                 dividend = try_float(details['Dividend'])
             
                 # we have to check for existing row
@@ -138,7 +138,7 @@ class FinanceQuoteTable(object):
 
         session.commit()
 
-def try_float(s, method=None):
+def try_float(s, method=None, except_value=None):
     if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
         if s.endswith('K'):
             f = float(s[:-1]) * 1000.0
@@ -157,7 +157,7 @@ def try_float(s, method=None):
     try:
         f = float(s_in)
     except ValueError:
-        f = None
+        f = except_value
     return f
 
 def log_transaction_list(fileportname):
