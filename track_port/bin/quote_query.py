@@ -78,6 +78,7 @@ class FinanceQuoteTable(object):
                 eps = try_float(details['EPS (ttm)'])
                 pe = try_float(details['P/E'], except_value=0.0)
                 dividend = try_float(details['Dividend'], except_value=0.0)
+                div_yield = try_float(details['Dividend %'], method='pct', except_value=0.0)
             
                 # we have to check for existing row
                 query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
@@ -99,7 +100,7 @@ class FinanceQuoteTable(object):
                     fq.eps=eps
                     fq.pe=pe
                     fq.dividend=dividend
-                    fq.div_yield=try_float(details['Dividend %'], method='pct')
+                    fq.div_yield=div_yield
                     fq.cap=try_float(details['Market Cap'], method='magnitude')
             
                     if fq.high < last:
@@ -130,7 +131,7 @@ class FinanceQuoteTable(object):
                         eps=eps,
                         pe=pe,
                         dividend=dividend,
-                        div_yield=try_float(details['Dividend %'], method='pct'),
+                        div_yield=div_yield,
                         cap=try_float(details['Market Cap'], method='magnitude'),
                         day_range=f"{last:.2f} - {last:.2f}"
                         )
