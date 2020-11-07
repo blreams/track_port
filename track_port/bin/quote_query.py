@@ -12,6 +12,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from finviz.screener import Screener
 
+import get_a_quote
+
 #############################################################################
 # This stuff needs to be done as globals
 #############################################################################
@@ -46,76 +48,91 @@ class FinanceQuotes(Base):
     __table_args__ = {'autoload': True}
 
 class FinanceQuoteTable(object):
-    def __init__(self, stock_details):
-        self.stock_details = stock_details
-        self.update_finance_quote_table()
+    def __init__(self, stock_details=None, index_details=None, mf_details=None):
+        self.logger = logging.getLogger('FinanceQuoteTable')
+        if stock_details is not None:
+            self.logger.info(f"stock_details for {len(stock_details)} symbols")
+            self.stock_details = stock_details
+        if index_details is not None:
+            self.logger.info(f"index_details for {len(index_details)} symbols")
+            self.index_details = index_details
+        if mf_details is not None:
+            self.logger.info(f"index_details for {len(index_details)} symbols")
+            self.mf_details = mf_details
 
-    def update_finance_quote_table(self):
-        for details in self.stock_details:
-            symbol = details['Ticker']
-            last = try_float(details['Price'])
-            close = try_float(details['Prev Close'])
-            net = last - close
-            p_change = try_float(details['Change'][:-1]) / 100.0
-            volume = int(details['Volume'].replace(',', ''))
-            eps = try_float(details['EPS (ttm)'])
-            pe = try_float(details['P/E'])
-            dividend = try_float(details['Dividend'])
+    def __str__(self):
+        return f"FinanceQuoteTable() with {len(stock_details)} stock symbols"
 
-            # we have to check for existing row
-            query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
-            if query:
-                # We have an existing row, let's update it
-                fq = query[0]
-                fq.symbol=symbol
-                fq.name=details['Company']
-                fq.last=last
-                fq.date=datetime.now().date()
-                fq.time=datetime.now().time()
-                fq.net=net
-                fq.p_change=p_change
-                fq.volume=volume
-                fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
-                fq.close=close
-                fq.year_range=details['52W Range']
-                fq.eps=eps
-                fq.pe=pe
-                fq.dividend=dividend
-                fq.div_yield=try_float(details['Dividend %'], method='pct')
-                fq.cap=try_float(details['Market Cap'], method='magnitude')
-
-                if fq.high < last:
-                    fq.high = last
-
-                if fq.low > last:
-                    fq.low = last
-
-                fq.day_range=f"{fq.low:.2f} - {fq.high:.2f}"
-
-            else:
-                # We are creating a new row
-                fq = FinanceQuotes(
-                    symbol=symbol,
-                    name=details['Company'],
-                    last=last,
-                    high=last,
-                    low=last,
-                    date=datetime.now().date(),
-                    time=datetime.now().time(),
-                    net=net,
-                    p_change=p_change,
-                    volume=volume,
-                    avg_vol=try_float(details['Avg Volume'], method='magnitude'),
-                    close=close,
-                    year_range=details['52W Range'],
-                    eps=eps,
-                    pe=pe,
-                    dividend=dividend,
-                    div_yield=try_float(details['Dividend %'], method='pct'),
-                    cap=try_float(details['Market Cap'], method='magnitude'),
-                    day_range=f"{last:.2f} - {last:.2f}"
-                    )
-                session.add(fq)
+    def update_finance_quote_table(self, update_type):
+        self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
+        if update_type == 'stock':
+            for details in self.stock_details:
+                symbol = details['Ticker']
+                last = try_float(details['Price'])
+                close = try_float(details['Prev Close'])
+                net = last - close
+                p_change = try_float(details['Change'][:-1]) / 100.0
+                volume = int(details['Volume'].replace(',', ''))
+                eps = try_float(details['EPS (ttm)'])
+                pe = try_float(details['P/E'])
+                dividend = try_float(details['Dividend'])
+            
+                # we have to check for existing row
+                query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
+                if query:
+                    # We have an existing row, let's update it
+                    self.logger.info(f"updating finance_quote row for {symbol}")
+                    fq = query[0]
+                    fq.symbol=symbol
+                    fq.name=details['Company']
+                    fq.last=last
+                    fq.date=datetime.now().date()
+                    fq.time=datetime.now().time()
+                    fq.net=net
+                    fq.p_change=p_change
+                    fq.volume=volume
+                    fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
+                    fq.close=close
+                    fq.year_range=details['52W Range']
+                    fq.eps=eps
+                    fq.pe=pe
+                    fq.dividend=dividend
+                    fq.div_yield=try_float(details['Dividend %'], method='pct')
+                    fq.cap=try_float(details['Market Cap'], method='magnitude')
+            
+                    if fq.high < last:
+                        fq.high = last
+            
+                    if fq.low > last:
+                        fq.low = last
+            
+                    fq.day_range=f"{fq.low:.2f} - {fq.high:.2f}"
+            
+                else:
+                    # We are creating a new row
+                    self.logger.info(f"creating finance_quote row for {symbol}")
+                    fq = FinanceQuotes(
+                        symbol=symbol,
+                        name=details['Company'],
+                        last=last,
+                        high=last,
+                        low=last,
+                        date=datetime.now().date(),
+                        time=datetime.now().time(),
+                        net=net,
+                        p_change=p_change,
+                        volume=volume,
+                        avg_vol=try_float(details['Avg Volume'], method='magnitude'),
+                        close=close,
+                        year_range=details['52W Range'],
+                        eps=eps,
+                        pe=pe,
+                        dividend=dividend,
+                        div_yield=try_float(details['Dividend %'], method='pct'),
+                        cap=try_float(details['Market Cap'], method='magnitude'),
+                        day_range=f"{last:.2f} - {last:.2f}"
+                        )
+                    session.add(fq)
 
         session.commit()
 
@@ -195,6 +212,7 @@ def get_symbols(fileportnames):
 
 def update_stocks(stock_symbols):
     logger = logging.getLogger('update_stocks')
+    finance_quote_table_list = []
     stocks = sorted(list(stock_symbols))
     passes = len(stock_symbols) // 100
     if (len(stock_symbols) % 100) > 0:
@@ -215,7 +233,7 @@ def update_stocks(stock_symbols):
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
-        finance_quote_table = FinanceQuoteTable(stock_details)
+        finance_quote_table_list.append(FinanceQuoteTable(stock_details=stock_details))
         stock_symbols.difference_update(stock_list)
 
     screened_stocks = sorted(list(screened_stock_symbols))
@@ -224,8 +242,16 @@ def update_stocks(stock_symbols):
         missing_symbols.difference_update(screened_stock_symbols)
         logger.info(f"missing symbols: {missing_symbols}")
 
-def object_as_dict(obj):
-    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
+    return finance_quote_table_list
+
+def update_indexes(index_symbols):
+    logger = logging.getLogger('update_indexes')
+    finance_quote_table_list = []
+
+    return finance_quote_table_list
+
+#def object_as_dict(obj):
+#    return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
 def process_arguments():
     global arguments
@@ -275,13 +301,24 @@ def main():
 
     process_arguments()
 
-    #log_transaction_list('port:fluffgazer')
-
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
 
+    finance_quote_table_dict = {}
+
     # Call for stock info
-    update_stocks(stock_symbols)
+    if stock_symbols:
+        finance_quote_table_dict['stock'] = []
+        finance_quote_table_dict['stock'].extend(update_stocks(stock_symbols))
+
+    # Call for index info
+    if index_symbols:
+        finance_quote_table_dict['index'] = []
+        finance_quote_table_dict['index'].extend(update_indexes(index_symbols))
+
+    for update_type, finance_quote_table_list in finance_quote_table_dict.items():
+        for finance_quote_table in finance_quote_table_list:
+            finance_quote_table.update_finance_quote_table(update_type=update_type)
 
     
 

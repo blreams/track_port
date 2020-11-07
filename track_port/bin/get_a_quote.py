@@ -61,7 +61,21 @@ def main(args=''):
         retval = pipe.stdout.decode().strip()
 
     if arguments.call:
-        return retval
+        retdict = {}
+        retlist = retval.split()
+        retdict['close'] = retlist[0]
+        retdict['last'] = retlist[1]
+        retdict['dayhigh'] = retlist[2]
+        retdict['daylow'] = retlist[3]
+        retdict['yearlow'] = retlist[4]
+        retdict['yearhigh'] = retlist[5]
+        retdict['volume'] = retlist[6]
+        retdict['pe'] = retlist[7]
+        retdict['net'] = retlist[8]
+        retdict['p_change'] = retlist[9]
+        retdict['bid'] = retlist[10]
+        retdict['ask'] = retlist[11]
+        return retdict
     else:
         print(retval)
 
