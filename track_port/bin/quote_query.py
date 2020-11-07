@@ -32,7 +32,9 @@ Session = sessionmaker(bind=engine)
 session = Session()
 #############################################################################
 
-logging.config.fileConfig('quote_query_logging.conf')
+thisdir = os.path.dirname(__file__)
+
+logging.config.fileConfig(os.path.join(thisdir, 'quote_query_logging.conf'))
 arguments = argparse.Namespace
 
 class TransactionLists(Base):
