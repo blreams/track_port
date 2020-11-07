@@ -163,10 +163,10 @@ def get_industry_index(id):
 
 if __name__ == "__main__":
     try:
-        print get_current_info(sys.argv[1:])
-        #print get_industry_ids()
+        print(get_current_info(sys.argv[1:]))
+        #print(get_industry_ids())
         #get_news_feed('yhoo')
     except QueryError, e:
-        print e
+        print(e)
         sys.exit(2)
 
