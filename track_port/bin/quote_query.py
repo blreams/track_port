@@ -12,6 +12,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from finviz.screener import Screener
 
+import urllib.parse
+import requests
+from bs4 import BeautifulSoup
 import get_a_quote
 
 #############################################################################
@@ -62,26 +65,20 @@ class MarketHolidays(Base):
 # Other classes
 #############################################################################
 class FinanceQuoteTable(object):
-    def __init__(self, data_datetime, market_closed, stock_details=None, index_details=None, mf_details=None):
+    def __init__(self, data_datetime, market_closed, stock_details):
         self.logger = logging.getLogger('FinanceQuoteTable')
         self.data_datetime = data_datetime
         self.market_closed = market_closed
         if stock_details is not None:
             self.logger.info(f"stock_details for {len(stock_details)} symbols")
             self.stock_details = stock_details
-        if index_details is not None:
-            self.logger.info(f"index_details for {len(index_details)} symbols")
-            self.index_details = index_details
-        if mf_details is not None:
-            self.logger.info(f"index_details for {len(index_details)} symbols")
-            self.mf_details = mf_details
 
     def __str__(self):
         return f"FinanceQuoteTable() with {len(stock_details)} stock symbols"
 
     def update_finance_quote_table(self, update_type):
         self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
-        if update_type == 'stock':
+        if update_type in ('stock', 'index', 'mf'):
             for details in self.stock_details:
                 symbol = details['Ticker']
                 last = try_float(details['Price'])
@@ -120,17 +117,25 @@ class FinanceQuoteTable(object):
                     fq.div_yield=div_yield
                     fq.cap=cap
             
-                    if fq.high < last:
-                        fq.high = last
-            
-                    if fq.low > last:
-                        fq.low = last
-            
-                    fq.day_range=f"'{fq.low:.2f} - {fq.high:.2f}'"
+                    if 'Day Range' in details:
+                        fq.day_range=f"'{details['Day Range']}'"
+                    else:
+                        if fq.high < last:
+                            fq.high = last
+                        
+                        if fq.low > last:
+                            fq.low = last
+                        
+                        fq.day_range=f"'{fq.low:.2f} - {fq.high:.2f}'"
             
                 else:
                     # We are creating a new row
                     self.logger.info(f"creating finance_quote row for {symbol}")
+                    if 'Day Range' in details:
+                        day_range = f"'{details['Day Range']}'"
+                    else:
+                        day_range = f"'{last:.2f} - {last:.2f}'"
+
                     fq = FinanceQuotes(
                         symbol=symbol,
                         name=details['Company'][:32],
@@ -150,7 +155,7 @@ class FinanceQuoteTable(object):
                         dividend=dividend,
                         div_yield=div_yield,
                         cap=cap,
-                        day_range=f"{last:.2f} - {last:.2f}"
+                        day_range=day_range,
                         )
                     session.add(fq)
 
@@ -239,9 +244,109 @@ def try_float(s, method=None, except_value=None):
         f = except_value
     return f
 
+def lookup_mf(symbol):
+    company_descriptor = { 'tag': 'h1', }
+    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
+    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
+    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
+    url = urllib.parse.quote(request)
+    response = requests.get("https:" + url, timeout=30)
+    page_content = BeautifulSoup(response.content, "html.parser")
+
+    elem = page_content.find(company_descriptor['tag'])
+    l_company = elem.text
+    elem = page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs'])
+    l_last = float(elem.text.replace(',', ''))
+    elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
+    elem = elem_list[0].find('span')
+    l_previous_close = float(elem.text.replace(',', ''))
+    l_change = l_last - l_previous_close
+    return_dict = {
+            'Ticker': symbol,
+            'Company': l_company,
+            'Price': l_last,
+            'Prev Close': l_previous_close,
+            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
+            'Volume': "0",
+            'Avg Volume': "0",
+            '52W Range': "'0.00 - 0.00'",
+            'Day Range': "'0.00 - 0.00'",
+            'EPS (ttm)': 0.0,
+            'P/E': 0.0,
+            'Dividend': 0.0,
+            'Dividend %': "0.0%",
+            'Market Cap': "0",
+            }
+
+    return return_dict
+
+def lookup_index(symbol):
+    company_descriptor = { 'tag': 'h1', }
+    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
+    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
+    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
+    url = urllib.parse.quote(request)
+    response = requests.get("https:" + url, timeout=30)
+    page_content = BeautifulSoup(response.content, "html.parser")
+
+    elem = page_content.find(company_descriptor['tag'])
+    l_company = elem.text
+    elem = page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs'])
+    l_last = float(elem.text.replace(',', ''))
+    elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
+    elem = elem_list[0].find('span')
+    l_previous_close = float(elem.text.replace(',', ''))
+    elem = elem_list[1].find('span')
+    l_open = float(elem.text.replace(',', ''))
+    elem = elem_list[2].find('span')
+    l_volume = elem.text
+    elem = elem_list[3]
+    l_day_range = elem.text
+    elem = elem_list[4]
+    l_year_range = elem.text
+    elem = elem_list[5].find('span')
+    l_avg_volume = elem.text
+
+    l_change = l_last - l_previous_close
+
+    return_dict = {
+            'Ticker': symbol,
+            'Company': l_company,
+            'Price': l_last,
+            'Prev Close': l_previous_close,
+            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
+            'Volume': l_volume,
+            'Avg Volume': l_avg_volume,
+            '52W Range': l_year_range,
+            'Day Range': l_day_range,
+            'EPS (ttm)': 0.0,
+            'P/E': 0.0,
+            'Dividend': 0.0,
+            'Dividend %': "0.0%",
+            'Market Cap': "0",
+            }
+
+    return return_dict
+
+def update_mfs(data_datetime, market_closed, mf_symbols):
+    logger = logging.getLogger('update_mfs')
+    finance_quote_table_list = []
+    mf_details = []
+    for mf_symbol in mf_symbols:
+        mf_details.append(lookup_mf(mf_symbol))
+
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=mf_details))
+
+    return finance_quote_table_list
+
 def update_indexes(data_datetime, market_closed, index_symbols):
     logger = logging.getLogger('update_indexes')
     finance_quote_table_list = []
+    index_details = []
+    for index_symbol in index_symbols:
+        index_details.append(lookup_index(index_symbol))
+
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=index_details))
 
     return finance_quote_table_list
 
@@ -350,6 +455,11 @@ def main():
     if index_symbols:
         finance_quote_table_dict['index'] = []
         finance_quote_table_dict['index'].extend(update_indexes(data_datetime, market_closed, index_symbols))
+
+    # Call for mf info
+    if mf_symbols:
+        finance_quote_table_dict['mf'] = []
+        finance_quote_table_dict['mf'].extend(update_mfs(data_datetime, market_closed, mf_symbols))
 
     for update_type, finance_quote_table_list in finance_quote_table_dict.items():
         for finance_quote_table in finance_quote_table_list:
