@@ -65,99 +65,109 @@ class MarketHolidays(Base):
 # Other classes
 #############################################################################
 class FinanceQuoteTable(object):
-    def __init__(self, data_datetime, market_closed, stock_details):
+    def __init__(self, data_datetime, market_closed, details_list, details_type):
         self.logger = logging.getLogger('FinanceQuoteTable')
         self.data_datetime = data_datetime
         self.market_closed = market_closed
-        if stock_details is not None:
-            self.logger.info(f"stock_details for {len(stock_details)} symbols")
-            self.stock_details = stock_details
+        self.logger.info(f"details_list for {len(details_list)} {details_type} symbols")
+        self.details_list = details_list
+        self.details_type = details_type
 
     def __str__(self):
-        return f"FinanceQuoteTable() with {len(stock_details)} stock symbols"
+        return f"FinanceQuoteTable() with {len(details_list)} stock symbols"
 
-    def update_finance_quote_table(self, update_type):
+    def update_finance_quote_table(self):
         self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
-        if update_type in ('stock', 'index', 'mf'):
-            for details in self.stock_details:
-                symbol = details['Ticker']
-                last = try_float(details['Price'])
-                close = try_float(details['Prev Close'])
-                if self.market_closed:
-                    pass
-                net = last - close
-                p_change = try_float(details['Change'][:-1])
-                volume = int(details['Volume'].replace(',', ''))
-                eps = try_float(details['EPS (ttm)'])
-                pe = try_float(details['P/E'], except_value=0.0)
-                dividend = try_float(details['Dividend'], except_value=0.0)
-                div_yield = try_float(details['Dividend %'], method='pct', except_value=0.0)
-                cap=try_float(details['Market Cap'], method='magnitude', except_value=0.0)
-            
-                # we have to check for existing row
-                query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
-                if query:
-                    # We have an existing row, let's update it
-                    self.logger.info(f"updating finance_quote row for {symbol}")
-                    fq = query[0]
-                    fq.symbol=symbol
-                    fq.name=details['Company'][:32]
-                    fq.last=last
-                    fq.date=self.data_datetime.date()
-                    fq.time=self.data_datetime.time()
-                    fq.net=net
-                    fq.p_change=p_change
-                    fq.volume=volume
-                    fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
-                    fq.close=close
-                    fq.year_range=f"'{details['52W Range']}'"
-                    fq.eps=eps
-                    fq.pe=pe
-                    fq.dividend=dividend
-                    fq.div_yield=div_yield
-                    fq.cap=cap
-            
-                    if 'Day Range' in details:
-                        fq.day_range=f"'{details['Day Range']}'"
-                    else:
-                        if fq.high < last:
-                            fq.high = last
-                        
-                        if fq.low > last:
-                            fq.low = last
-                        
-                        fq.day_range=f"'{fq.low:.2f} - {fq.high:.2f}'"
-            
-                else:
-                    # We are creating a new row
-                    self.logger.info(f"creating finance_quote row for {symbol}")
-                    if 'Day Range' in details:
-                        day_range = f"'{details['Day Range']}'"
-                    else:
-                        day_range = f"'{last:.2f} - {last:.2f}'"
+        for details in self.details_list:
+            symbol = details['Ticker']
+            last = try_float(details['Price'])
+            close = try_float(details['Prev Close'])
+            if self.market_closed:
+                pass
+            net = last - close
+            p_change = try_float(details['Change'][:-1])
+            volume = int(details['Volume'].replace(',', ''))
+            eps = try_float(details['EPS (ttm)'])
+            pe = try_float(details['P/E'], except_value=0.0)
+            dividend = try_float(details['Dividend'], except_value=0.0)
+            div_yield = try_float(details['Dividend %'], method='pct', except_value=0.0)
+            cap = try_float(details['Market Cap'], method='magnitude', except_value=0.0)
 
-                    fq = FinanceQuotes(
-                        symbol=symbol,
-                        name=details['Company'][:32],
-                        last=last,
-                        high=last,
-                        low=last,
-                        date=self.data_datetime.date(),
-                        time=self.data_datetime.time(),
-                        net=net,
-                        p_change=p_change,
-                        volume=volume,
-                        avg_vol=try_float(details['Avg Volume'], method='magnitude'),
-                        close=close,
-                        year_range=f"'{details['52W Range']}'",
-                        eps=eps,
-                        pe=pe,
-                        dividend=dividend,
-                        div_yield=div_yield,
-                        cap=cap,
-                        day_range=day_range,
-                        )
-                    session.add(fq)
+            bid=0.0
+            if 'Bid' in details:
+                bid = try_float(details['Bid'], except_value=0.0)
+            ask=0.0
+            if 'Ask' in details:
+                ask = try_float(details['Ask'], except_value=0.0)
+        
+            # we have to check for existing row
+            query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
+            if query:
+                # We have an existing row, let's update it
+                self.logger.info(f"updating finance_quote row for {symbol}")
+                fq = query[0]
+                fq.symbol=symbol
+                fq.name=details['Company'][:32]
+                fq.last=last
+                fq.date=self.data_datetime.date()
+                fq.time=self.data_datetime.time()
+                fq.net=net
+                fq.p_change=p_change
+                fq.volume=volume
+                fq.avg_vol=try_float(details['Avg Volume'], method='magnitude')
+                fq.close=close
+                fq.year_range=f"'{details['52W Range']}'"
+                fq.eps=eps
+                fq.pe=pe
+                fq.dividend=dividend
+                fq.div_yield=div_yield
+                fq.cap=cap
+                fq.bid=bid
+                fq.ask=ask
+        
+                if 'Day Range' in details:
+                    fq.day_range=f"'{details['Day Range']}'"
+                else:
+                    if fq.high < last:
+                        fq.high = last
+                    
+                    if fq.low > last:
+                        fq.low = last
+                    
+                    fq.day_range=f"'{fq.low:.2f} - {fq.high:.2f}'"
+
+            else:
+                # We are creating a new row
+                self.logger.info(f"creating finance_quote row for {symbol}")
+                if 'Day Range' in details:
+                    day_range = f"'{details['Day Range']}'"
+                else:
+                    day_range = f"'{last:.2f} - {last:.2f}'"
+
+                fq = FinanceQuotes(
+                    symbol=symbol,
+                    name=details['Company'][:32],
+                    last=last,
+                    high=last,
+                    low=last,
+                    date=self.data_datetime.date(),
+                    time=self.data_datetime.time(),
+                    net=net,
+                    p_change=p_change,
+                    volume=volume,
+                    avg_vol=try_float(details['Avg Volume'], method='magnitude'),
+                    close=close,
+                    year_range=f"'{details['52W Range']}'",
+                    eps=eps,
+                    pe=pe,
+                    dividend=dividend,
+                    div_yield=div_yield,
+                    cap=cap,
+                    day_range=day_range,
+                    bid=bid,
+                    ask=ask,
+                    )
+                session.add(fq)
 
         session.commit()
 
@@ -200,8 +210,7 @@ def get_portnames():
 def get_symbols(fileportnames):
     logger = logging.getLogger('get_symbols')
     stock_query = session.query(TransactionLists).filter_by(descriptor='stock', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
-    call_query = session.query(TransactionLists).filter_by(descriptor='call', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
-    put_query = session.query(TransactionLists).filter_by(descriptor='put', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
+    option_query = session.query(TransactionLists).filter_by(closed=False).filter(TransactionLists.fileportname.in_(fileportnames)).filter(TransactionLists.descriptor.in_(('call', 'put')))
     symbol_set = set([row.symbol for row in stock_query])
 
     ticker_query = session.query(TickerSymbols).all()
@@ -212,73 +221,13 @@ def get_symbols(fileportnames):
     mf_symbols = {symbol for symbol in list(symbol_set) if len(symbol) == 5 and symbol.endswith('X') and not symbol.startswith('^')}
     index_symbols = {symbol for symbol in list(symbol_set) if symbol.startswith('^')}
     stock_symbols = symbol_set - mf_symbols - index_symbols
-    call_symbols = get_option_symbols(call_query)
-    put_symbols = get_option_symbols(put_query)
+    option_symbols = get_option_symbols(option_query)
 
     logger.debug(f"stock_symbols({len(stock_symbols)})={sorted(list(stock_symbols))}")
     logger.debug(f"mf_symbols({len(mf_symbols)})={sorted(list(mf_symbols))}")
     logger.debug(f"index_symbols({len(index_symbols)})={sorted(list(index_symbols))}")
-    logger.debug(f"call_symbols({len(call_symbols)})={sorted(list(call_symbols))}")
-    logger.debug(f"put_symbols({len(put_symbols)})={sorted(list(put_symbols))}")
-    return stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols
-
-def try_float(s, method=None, except_value=None):
-    if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
-        if s.endswith('K'):
-            f = float(s[:-1]) * 1000.0
-        elif s.endswith('M'):
-            f = float(s[:-1]) * 1000000.0
-        elif s.endswith('B'):
-            f = float(s[:-1]) * 1000000000.0
-        elif s.endswith('T'):
-            f = float(s[:-1]) * 1000000000000.0
-        return f
-
-    s_in = s
-    if method == 'pct':
-        s_in = s[:-1]
-
-    try:
-        f = float(s_in)
-    except ValueError:
-        f = except_value
-    return f
-
-def lookup_mf(symbol):
-    company_descriptor = { 'tag': 'h1', }
-    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
-    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
-    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
-    url = urllib.parse.quote(request)
-    response = requests.get("https:" + url, timeout=30)
-    page_content = BeautifulSoup(response.content, "html.parser")
-
-    elem = page_content.find(company_descriptor['tag'])
-    l_company = elem.text
-    elem = page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs'])
-    l_last = float(elem.text.replace(',', ''))
-    elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
-    elem = elem_list[0].find('span')
-    l_previous_close = float(elem.text.replace(',', ''))
-    l_change = l_last - l_previous_close
-    return_dict = {
-            'Ticker': symbol,
-            'Company': l_company,
-            'Price': l_last,
-            'Prev Close': l_previous_close,
-            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
-            'Volume': "0",
-            'Avg Volume': "0",
-            '52W Range': "'0.00 - 0.00'",
-            'Day Range': "'0.00 - 0.00'",
-            'EPS (ttm)': 0.0,
-            'P/E': 0.0,
-            'Dividend': 0.0,
-            'Dividend %': "0.0%",
-            'Market Cap': "0",
-            }
-
-    return return_dict
+    logger.debug(f"option_symbols({len(option_symbols)})={sorted(list(option_symbols))}")
+    return stock_symbols, mf_symbols, index_symbols, option_symbols
 
 def lookup_index(symbol):
     company_descriptor = { 'tag': 'h1', }
@@ -328,16 +277,108 @@ def lookup_index(symbol):
 
     return return_dict
 
-def update_mfs(data_datetime, market_closed, mf_symbols):
-    logger = logging.getLogger('update_mfs')
-    finance_quote_table_list = []
-    mf_details = []
-    for mf_symbol in mf_symbols:
-        mf_details.append(lookup_mf(mf_symbol))
+def lookup_mf(symbol):
+    company_descriptor = { 'tag': 'h1', }
+    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
+    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
+    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
+    url = urllib.parse.quote(request)
+    response = requests.get("https:" + url, timeout=30)
+    page_content = BeautifulSoup(response.content, "html.parser")
 
-    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=mf_details))
+    elem = page_content.find(company_descriptor['tag'])
+    l_company = elem.text
+    elem = page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs'])
+    l_last = float(elem.text.replace(',', ''))
+    elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
+    elem = elem_list[0].find('span')
+    l_previous_close = float(elem.text.replace(',', ''))
+    l_change = l_last - l_previous_close
+    return_dict = {
+            'Ticker': symbol,
+            'Company': l_company,
+            'Price': l_last,
+            'Prev Close': l_previous_close,
+            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
+            'Volume': "0",
+            'Avg Volume': "0",
+            '52W Range': "'0.00 - 0.00'",
+            'Day Range': "'0.00 - 0.00'",
+            'EPS (ttm)': 0.0,
+            'P/E': 0.0,
+            'Dividend': 0.0,
+            'Dividend %': "0.0%",
+            'Market Cap': "0",
+            }
 
-    return finance_quote_table_list
+    return return_dict
+
+def lookup_option(symbol):
+    company_descriptor = { 'tag': 'h1', }
+    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
+    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
+    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
+    url = urllib.parse.quote(request)
+    response = requests.get("https:" + url, timeout=30)
+    page_content = BeautifulSoup(response.content, "html.parser")
+
+    elem = page_content.find(company_descriptor['tag'])
+    l_company = elem.text
+    elem = page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs'])
+    l_last = float(elem.text.replace(',', ''))
+    elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
+    elem = elem_list[0].find('span')
+    l_previous_close = float(elem.text.replace(',', ''))
+    elem = elem_list[2].find('span')
+    l_bid = float(elem.text.replace(',', ''))
+    elem = elem_list[3].find('span')
+    l_ask = float(elem.text.replace(',', ''))
+    elem = elem_list[6]
+    l_day_range = elem.text
+    elem = elem_list[8].find('span')
+    l_volume = elem.text
+    l_change = l_last - l_previous_close
+    return_dict = {
+            'Ticker': symbol,
+            'Company': l_company,
+            'Price': l_last,
+            'Prev Close': l_previous_close,
+            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
+            'Volume': f"{l_volume}",
+            'Avg Volume': "0",
+            '52W Range': "'0.00 - 0.00'",
+            'Day Range': f"'{l_day_range}'",
+            'EPS (ttm)': 0.0,
+            'P/E': 0.0,
+            'Dividend': 0.0,
+            'Dividend %': "0.0%",
+            'Market Cap': "0",
+            'Bid': l_bid,
+            'Ask': l_ask,
+            }
+    return return_dict
+
+def try_float(s, method=None, except_value=None):
+    if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
+        if s.endswith('K'):
+            f = float(s[:-1]) * 1000.0
+        elif s.endswith('M'):
+            f = float(s[:-1]) * 1000000.0
+        elif s.endswith('B'):
+            f = float(s[:-1]) * 1000000000.0
+        elif s.endswith('T'):
+            f = float(s[:-1]) * 1000000000000.0
+        return f
+
+    s_in = s
+    if method == 'pct':
+        s_in = s[:-1]
+
+    try:
+        f = float(s_in)
+    except ValueError:
+        f = except_value
+    return f
 
 def update_indexes(data_datetime, market_closed, index_symbols):
     logger = logging.getLogger('update_indexes')
@@ -345,9 +386,25 @@ def update_indexes(data_datetime, market_closed, index_symbols):
     index_details = []
     for index_symbol in index_symbols:
         index_details.append(lookup_index(index_symbol))
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, index_details, 'index'))
+    return finance_quote_table_list
 
-    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=index_details))
+def update_mfs(data_datetime, market_closed, mf_symbols):
+    logger = logging.getLogger('update_mfs')
+    finance_quote_table_list = []
+    mf_details = []
+    for mf_symbol in mf_symbols:
+        mf_details.append(lookup_mf(mf_symbol))
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, mf_details, 'mf'))
+    return finance_quote_table_list
 
+def update_options(data_datetime, market_closed, option_symbols):
+    logger = logging.getLogger('update_options')
+    finance_quote_table_list = []
+    option_details = []
+    for option_symbol in option_symbols:
+        option_details.append(lookup_option(option_symbol))
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, option_details, 'option'))
     return finance_quote_table_list
 
 def update_stocks(data_datetime, market_closed, stock_symbols):
@@ -373,7 +430,7 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
-        finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details=stock_details))
+        finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details, 'stock'))
         stock_symbols.difference_update(stock_list)
 
     screened_stocks = sorted(list(screened_stock_symbols))
@@ -421,6 +478,7 @@ def parse_arguments():
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('--fileportnames', action='append', default=[], help="Limit update to symbols from one (or more) file:port names. Default is all fpns")
     parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
+    parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
@@ -442,7 +500,7 @@ def main():
     data_datetime, market_closed = check_date_market_holidays()
 
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
-    stock_symbols, mf_symbols, index_symbols, call_symbols, put_symbols = get_symbols(arguments.fileportnames)
+    stock_symbols, mf_symbols, index_symbols, option_symbols = get_symbols(arguments.fileportnames)
 
     finance_quote_table_dict = {}
 
@@ -451,19 +509,25 @@ def main():
         finance_quote_table_dict['stock'] = []
         finance_quote_table_dict['stock'].extend(update_stocks(data_datetime, market_closed, stock_symbols))
 
-    # Call for index info
-    if index_symbols:
-        finance_quote_table_dict['index'] = []
-        finance_quote_table_dict['index'].extend(update_indexes(data_datetime, market_closed, index_symbols))
+    if not arguments.stock_only:
+        # Call for index info
+        if index_symbols:
+            finance_quote_table_dict['index'] = []
+            finance_quote_table_dict['index'].extend(update_indexes(data_datetime, market_closed, index_symbols))
+        
+        # Call for mf info
+        if mf_symbols:
+            finance_quote_table_dict['mf'] = []
+            finance_quote_table_dict['mf'].extend(update_mfs(data_datetime, market_closed, mf_symbols))
 
-    # Call for mf info
-    if mf_symbols:
-        finance_quote_table_dict['mf'] = []
-        finance_quote_table_dict['mf'].extend(update_mfs(data_datetime, market_closed, mf_symbols))
+        # Call for option info
+        if option_symbols:
+            finance_quote_table_dict['option'] = []
+            finance_quote_table_dict['option'].extend(update_options(data_datetime, market_closed, option_symbols))
 
     for update_type, finance_quote_table_list in finance_quote_table_dict.items():
         for finance_quote_table in finance_quote_table_list:
-            finance_quote_table.update_finance_quote_table(update_type=update_type)
+            finance_quote_table.update_finance_quote_table()
 
     
 
