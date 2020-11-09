@@ -432,13 +432,13 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
         else:
             stock_list = list(stock_symbols)
         logger.info(f"stock_list={','.join(stock_list)}")
-        for retry_attempt in range(2):
+        for retry_attempt in range(arguments.retries):
             logger.info(f"Screener retry attempt {retry_attempt}")
             try:
                 stock_screener = Screener(tickers=stock_list)
                 break
             except:
-                if retry_attempt == 2:
+                if retry_attempt == arguments.retries:
                     logger.info(f"Screener retry attempts exhausted, giving up")
 
         stock_details = stock_screener.get_ticker_details()
@@ -473,6 +473,7 @@ def parse_arguments():
     parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
     parser.add_argument('--clean', action='store_true', default=False, help="Delete rows from finance_quote table before committing new updates. Ignores arguments that limit fileportnames.")
     parser.add_argument('--chunk', type=int, default=100, help="Limits the number of symbols passed to finviz in one chunk, default=100")
+    parser.add_argument('--retries', type=int, default=5, help="Specifies number of retry attempts for Screener data.")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
