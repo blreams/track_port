@@ -76,6 +76,12 @@ class FinanceQuoteTable(object):
     def __str__(self):
         return f"FinanceQuoteTable() with {len(details_list)} stock symbols"
 
+    def delete_table_rows(self):
+        self.logger = logging.getLogger('FinanceQuoteTable:delete_table_rows')
+        deleted_rows = session.query(FinanceQuotes).delete()
+        self.logger.info(f"Deleting {deleted_rows} rows from finance_quote table.")
+        session.commit()
+
     def update_finance_quote_table(self):
         self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
         for details in self.details_list:
@@ -444,6 +450,25 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
 #############################################################################
 # Argument processing
 #############################################################################
+def parse_arguments():
+    global arguments
+    logger = logging.getLogger('parse_arguments')
+    parser = argparse.ArgumentParser(
+            prog="quote_query",
+            description="This is how we update stock quotes in the database"
+            )
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
+    parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
+    parser.add_argument('--fileportnames', action='append', default=[], help="Limit update to symbols from one (or more) file:port names. Default is all fpns")
+    parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
+    parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
+    parser.add_argument('--clean', action='store_true', default=False, help="Delete rows from finance_quote table before committing new updates. Ignores arguments that limit fileportnames.")
+    arguments = parser.parse_args()
+
+    logger.debug("Arguments:")
+    for arg, val in arguments.__dict__.items():
+        logger.debug(f"{arg}={val}")
+
 def process_arguments():
     global arguments
     logger = logging.getLogger('process_arguments')
@@ -463,29 +488,13 @@ def process_arguments():
     else:
         arguments.fileportnames = available_fileportnames
 
-    logger.debug("Arguments:")
-    for arg, val in arguments.__dict__.items():
-        logger.debug(f"{arg}={val}")
-
-
-def parse_arguments():
-    logger = logging.getLogger('parse_arguments')
-    parser = argparse.ArgumentParser(
-            prog="quote_query",
-            description="This is how we update stock quotes in the database"
-            )
-    parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
-    parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
-    parser.add_argument('--fileportnames', action='append', default=[], help="Limit update to symbols from one (or more) file:port names. Default is all fpns")
-    parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
-    parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
-    arguments = parser.parse_args()
+    if arguments.clean:
+        arguments.fileportnames = available_fileportnames
 
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
 
-    return arguments
 
 #############################################################################
 # Main
@@ -502,36 +511,35 @@ def main():
     # Get sets of symbols that will need quotes (stock, mutual fund, index, call, put)
     stock_symbols, mf_symbols, index_symbols, option_symbols = get_symbols(arguments.fileportnames)
 
-    finance_quote_table_dict = {}
+    finance_quote_table_list = []
 
     # Call for stock info
     if stock_symbols:
-        finance_quote_table_dict['stock'] = []
-        finance_quote_table_dict['stock'].extend(update_stocks(data_datetime, market_closed, stock_symbols))
+        finance_quote_table_list.extend(update_stocks(data_datetime, market_closed, stock_symbols))
 
     if not arguments.stock_only:
         # Call for index info
         if index_symbols:
-            finance_quote_table_dict['index'] = []
-            finance_quote_table_dict['index'].extend(update_indexes(data_datetime, market_closed, index_symbols))
+            finance_quote_table_list.extend(update_indexes(data_datetime, market_closed, index_symbols))
         
         # Call for mf info
         if mf_symbols:
-            finance_quote_table_dict['mf'] = []
-            finance_quote_table_dict['mf'].extend(update_mfs(data_datetime, market_closed, mf_symbols))
+            finance_quote_table_list.extend(update_mfs(data_datetime, market_closed, mf_symbols))
 
         # Call for option info
         if option_symbols:
-            finance_quote_table_dict['option'] = []
-            finance_quote_table_dict['option'].extend(update_options(data_datetime, market_closed, option_symbols))
+            finance_quote_table_list.extend(update_options(data_datetime, market_closed, option_symbols))
 
-    for update_type, finance_quote_table_list in finance_quote_table_dict.items():
-        for finance_quote_table in finance_quote_table_list:
-            finance_quote_table.update_finance_quote_table()
+    if arguments.clean and len(finance_quote_table_list) > 0:
+        finance_quote_table_list[0].delete_table_rows()
+
+    for finance_quote_table in finance_quote_table_list:
+        finance_quote_table.update_finance_quote_table()
 
     
 
 if __name__ == '__main__':
-    arguments = parse_arguments()
+    parse_arguments()
+    process_arguments()
     main()
 
