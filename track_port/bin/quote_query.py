@@ -414,11 +414,12 @@ def update_options(data_datetime, market_closed, option_symbols):
     return finance_quote_table_list
 
 def update_stocks(data_datetime, market_closed, stock_symbols):
+    max_chunk = arguments.chunk
     logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
     stocks = sorted(list(stock_symbols))
-    passes = len(stock_symbols) // 100
-    if (len(stock_symbols) % 100) > 0:
+    passes = len(stock_symbols) // max_chunk
+    if (len(stock_symbols) % max_chunk) > 0:
         passes += 1
     chunk_size = len(stock_symbols) // passes
     if (len(stock_symbols) % passes) > 0:
@@ -463,6 +464,7 @@ def parse_arguments():
     parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
     parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
     parser.add_argument('--clean', action='store_true', default=False, help="Delete rows from finance_quote table before committing new updates. Ignores arguments that limit fileportnames.")
+    parser.add_argument('--chunk', type=int, default=100, help="Limits the number of symbols passed to finviz in one chunk, default=100")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
