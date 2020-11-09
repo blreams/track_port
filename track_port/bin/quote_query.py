@@ -432,7 +432,15 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
         else:
             stock_list = list(stock_symbols)
         logger.info(f"stock_list={','.join(stock_list)}")
-        stock_screener = Screener(tickers=stock_list)
+        for retry_attempt in range(2):
+            logger.info(f"Screener retry attempt {retry_attempt}")
+            try:
+                stock_screener = Screener(tickers=stock_list)
+                break
+            except:
+                if retry_attempt == 2:
+                    logger.info(f"Screener retry attempts exhausted, giving up")
+
         stock_details = stock_screener.get_ticker_details()
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
