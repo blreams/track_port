@@ -242,6 +242,9 @@ def lookup_index(symbol):
     request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
     url = urllib.parse.quote(request)
     response = requests.get("https:" + url, timeout=30)
+    if response.status_code != 200:
+        return {}
+
     page_content = BeautifulSoup(response.content, "html.parser")
 
     elem = page_content.find(company_descriptor['tag'])
@@ -391,7 +394,11 @@ def update_indexes(data_datetime, market_closed, index_symbols):
     finance_quote_table_list = []
     index_details = []
     for index_symbol in index_symbols:
-        index_details.append(lookup_index(index_symbol))
+        index_details_item = lookup_index(index_symbol)
+        if index_details_item:
+            index_details.append(index_details_item)
+        else:
+            logger.warning(f"Unable to fetch details for {index_symbol}")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, index_details, 'index'))
     return finance_quote_table_list
 
@@ -400,7 +407,11 @@ def update_mfs(data_datetime, market_closed, mf_symbols):
     finance_quote_table_list = []
     mf_details = []
     for mf_symbol in mf_symbols:
-        mf_details.append(lookup_mf(mf_symbol))
+        mf_details_item = lookup_mf(mf_symbol)
+        if mf_details_item:
+            mf_details.append(mf_details_item)
+        else:
+            logger.warning(f"Unable to fetch details for {mf_symbol}")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, mf_details, 'mf'))
     return finance_quote_table_list
 
@@ -409,52 +420,58 @@ def update_options(data_datetime, market_closed, option_symbols):
     finance_quote_table_list = []
     option_details = []
     for option_symbol in option_symbols:
-        option_details.append(lookup_option(option_symbol))
+        option_details_item = lookup_option(option_symbol)
+        if option_details_item:
+            option_details.append(option_details_item)
+        else:
+            logger.warning(f"Unable to fetch details for {option_symbol}")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, option_details, 'option'))
     return finance_quote_table_list
 
 def update_stocks(data_datetime, market_closed, stock_symbols):
+    stock_symbols_to_fetch = set(stock_symbols)
     max_chunk = arguments.chunk
     logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
-    stocks = sorted(list(stock_symbols))
-    passes = len(stock_symbols) // max_chunk
-    if (len(stock_symbols) % max_chunk) > 0:
+    stocks = sorted(list(stock_symbols_to_fetch))
+    passes = len(stock_symbols_to_fetch) // max_chunk
+    if (len(stock_symbols_to_fetch) % max_chunk) > 0:
         passes += 1
-    chunk_size = len(stock_symbols) // passes
-    if (len(stock_symbols) % passes) > 0:
+    chunk_size = len(stock_symbols_to_fetch) // passes
+    if (len(stock_symbols_to_fetch) % passes) > 0:
         chunk_size += 1
     logger.info(f"passes={passes},chunk_size={chunk_size}")
     screened_stock_symbols = set()
-    while len(stock_symbols) > 0:
-        if len(stock_symbols) >= chunk_size:
-            stock_list = list(stock_symbols)[:chunk_size]
+    while len(stock_symbols_to_fetch) > 0:
+        if len(stock_symbols_to_fetch) >= chunk_size:
+            stock_list = list(stock_symbols_to_fetch)[:chunk_size]
         else:
-            stock_list = list(stock_symbols)
+            stock_list = list(stock_symbols_to_fetch)
         logger.info(f"stock_list={','.join(stock_list)}")
         for retry_attempt in range(arguments.retries):
             logger.info(f"Screener retry attempt {retry_attempt}")
             try:
                 stock_screener = Screener(tickers=stock_list)
+                stock_details = stock_screener.get_ticker_details()
                 break
             except:
-                if retry_attempt == arguments.retries:
+                if retry_attempt == (arguments.retries - 1):
+                    stock_details = []
                     logger.info(f"Screener retry attempts exhausted, giving up")
 
-        stock_details = stock_screener.get_ticker_details()
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
         
         finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details, 'stock'))
-        stock_symbols.difference_update(stock_list)
+        stock_symbols_to_fetch.difference_update(stock_list)
 
     screened_stocks = sorted(list(screened_stock_symbols))
+    missing_symbols = set(stocks)
+    missing_symbols.difference_update(screened_stock_symbols)
     if stocks != screened_stocks:
-        missing_symbols = set(stocks)
-        missing_symbols.difference_update(screened_stock_symbols)
         logger.info(f"missing symbols: {missing_symbols}")
 
-    return finance_quote_table_list
+    return finance_quote_table_list, missing_symbols
 
 #############################################################################
 # Argument processing
@@ -526,7 +543,16 @@ def main():
 
     # Call for stock info
     if stock_symbols:
-        finance_quote_table_list.extend(update_stocks(data_datetime, market_closed, stock_symbols))
+        for retry_attempt in range(arguments.retries):
+            logger.info(f"update_stocks() attempt {retry_attempt}")
+            finance_quote_table_sublist, missing_symbols = update_stocks(data_datetime, market_closed, stock_symbols)
+            finance_quote_table_list.extend(finance_quote_table_sublist)
+            logger.info(f"Got info for {len(stock_symbols)-len(missing_symbols)} of {len(stock_symbols)} symbols")
+            stock_symbols = missing_symbols
+            if len(stock_symbols) == 0:
+                break
+            if retry_attempt == (arguments.retries - 1):
+                logger.info("update_stocks() retry attempts exhausted, giving up")
 
     if not arguments.stock_only:
         # Call for index info
