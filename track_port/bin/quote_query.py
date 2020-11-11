@@ -391,6 +391,7 @@ def try_float(s, method=None, except_value=None):
 
 def update_indexes(data_datetime, market_closed, index_symbols):
     logger = logging.getLogger('update_indexes')
+    logger.info(f"fetching info for {len(index_symbols)} index symbols")
     finance_quote_table_list = []
     index_details = []
     for index_symbol in index_symbols:
@@ -399,11 +400,13 @@ def update_indexes(data_datetime, market_closed, index_symbols):
             index_details.append(index_details_item)
         else:
             logger.warning(f"Unable to fetch details for {index_symbol}")
+    logger.info(f"fetched info for {len(index_details)} index symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, index_details, 'index'))
     return finance_quote_table_list
 
 def update_mfs(data_datetime, market_closed, mf_symbols):
     logger = logging.getLogger('update_mfs')
+    logger.info(f"fetching info for {len(mf_symbols)} mf symbols")
     finance_quote_table_list = []
     mf_details = []
     for mf_symbol in mf_symbols:
@@ -412,11 +415,13 @@ def update_mfs(data_datetime, market_closed, mf_symbols):
             mf_details.append(mf_details_item)
         else:
             logger.warning(f"Unable to fetch details for {mf_symbol}")
+    logger.info(f"fetched info for {len(mf_details)} mf symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, mf_details, 'mf'))
     return finance_quote_table_list
 
 def update_options(data_datetime, market_closed, option_symbols):
     logger = logging.getLogger('update_options')
+    logger.info(f"fetching info for {len(option_symbols)} option symbols")
     finance_quote_table_list = []
     option_details = []
     for option_symbol in option_symbols:
@@ -425,6 +430,7 @@ def update_options(data_datetime, market_closed, option_symbols):
             option_details.append(option_details_item)
         else:
             logger.warning(f"Unable to fetch details for {option_symbol}")
+    logger.info(f"fetched info for {len(option_details)} option symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, option_details, 'option'))
     return finance_quote_table_list
 
@@ -434,25 +440,26 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
     logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
     stocks = sorted(list(stock_symbols_to_fetch))
-    passes = len(stock_symbols_to_fetch) // max_chunk
+    iterations = len(stock_symbols_to_fetch) // max_chunk
     if (len(stock_symbols_to_fetch) % max_chunk) > 0:
-        passes += 1
-    chunk_size = len(stock_symbols_to_fetch) // passes
-    if (len(stock_symbols_to_fetch) % passes) > 0:
+        iterations += 1
+    chunk_size = len(stock_symbols_to_fetch) // iterations
+    if (len(stock_symbols_to_fetch) % iterations) > 0:
         chunk_size += 1
-    logger.info(f"passes={passes},chunk_size={chunk_size}")
+    logger.info(f"iterations={iterations},chunk_size={chunk_size}")
     screened_stock_symbols = set()
     while len(stock_symbols_to_fetch) > 0:
         if len(stock_symbols_to_fetch) >= chunk_size:
             stock_list = list(stock_symbols_to_fetch)[:chunk_size]
         else:
             stock_list = list(stock_symbols_to_fetch)
-        logger.info(f"stock_list={','.join(stock_list)}")
+        logger.info(f"stock_list({len(stock_list)})={','.join(stock_list)}")
         for retry_attempt in range(arguments.retries):
             logger.info(f"Screener retry attempt {retry_attempt}")
             try:
                 stock_screener = Screener(tickers=stock_list)
                 stock_details = stock_screener.get_ticker_details()
+                logger.info(f"Screener successful")
                 break
             except:
                 if retry_attempt == (arguments.retries - 1):
@@ -531,7 +538,7 @@ def main():
     logger = logging.getLogger('main')
     logger.info('='*40 + " Start quote_query " + '='*40)
 
-    process_arguments()
+    #process_arguments()
 
     # Check date, market holidays
     data_datetime, market_closed = check_date_market_holidays()
