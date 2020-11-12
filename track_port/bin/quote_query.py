@@ -367,6 +367,63 @@ def lookup_option(symbol):
             }
     return return_dict
 
+def lookup_stock(symbol):
+    logger = logging.getLogger('lookup_stock')
+    company_descriptor = { 'tag': 'h1', }
+    last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
+    table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
+    request = f"//in.finance.yahoo.com/quote/{symbol}?p={symbol}"
+    url = urllib.parse.quote(request)
+    response = requests.get("https:" + url, timeout=30)
+    good_status = True
+    if response.status_code != 200:
+        logger.warning(f"yahoo fetch bad response for {symbol}")
+        return {}
+
+    page_content = BeautifulSoup(response.content, "html.parser")
+    try:
+        l_last = float(page_content.find(last_descriptor['tag'], attrs=last_descriptor['attrs']).text.replace(',', ''))
+        elem_list = page_content.find_all(table_descriptor['tag'], attrs=table_descriptor['attrs'])
+        l_previous_close = float(elem_list[0].find("span").text.replace(',', ''))
+    except:
+        logger.warning(f"Unable to get good yahoo fetch for {symbol}")
+        return {}
+
+
+    elem = page_content.find(company_descriptor['tag'])
+    l_company = elem.text
+    elem = elem_list[1].find('span')
+    l_open = float(elem.text.replace(',', ''))
+    elem = elem_list[4]
+    l_day_range = elem.text
+    elem = elem_list[5]
+    l_year_range = elem.text
+    elem = elem_list[6].find('span')
+    l_volume = elem.text
+    elem = elem_list[7].find('span')
+    l_avg_volume = elem.text
+
+    l_change = l_last - l_previous_close
+
+    return_dict = {
+            'Ticker': symbol,
+            'Company': l_company,
+            'Price': l_last,
+            'Prev Close': l_previous_close,
+            'Change': f"{(l_change / l_previous_close) * 100.0:.2f}",
+            'Volume': l_volume,
+            'Avg Volume': l_avg_volume,
+            '52W Range': l_year_range,
+            'Day Range': l_day_range,
+            'EPS (ttm)': 0.0,
+            'P/E': 0.0,
+            'Dividend': 0.0,
+            'Dividend %': "0.0%",
+            'Market Cap': "0",
+            }
+
+    return return_dict
+
 def try_float(s, method=None, except_value=None):
     if method == 'magnitude' and s.endswith(('K', 'M', 'B', 'T',)):
         if s.endswith('K'):
@@ -432,6 +489,21 @@ def update_options(data_datetime, market_closed, option_symbols):
             logger.warning(f"Unable to fetch details for {option_symbol}")
     logger.info(f"fetched info for {len(option_details)} option symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, option_details, 'option'))
+    return finance_quote_table_list
+
+def update_stocks_last_ditch(data_datetime, market_closed, stock_symbols):
+    logger = logging.getLogger('update_stocks_last_ditch')
+    logger.info(f"fetching info for {len(stock_symbols)} stock symbols")
+    finance_quote_table_list = []
+    stock_details = []
+    for stock_symbol in stock_symbols:
+        stock_details_item = lookup_stock(stock_symbol)
+        if stock_details_item:
+            stock_details.append(stock_details_item)
+        else:
+            logger.warning(f"Unable to fetch details for {stock_symbol}")
+    logger.info(f"fetched info for {len(stock_details)} stock symbols")
+    finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details, 'stock'))
     return finance_quote_table_list
 
 def update_stocks(data_datetime, market_closed, stock_symbols):
@@ -560,6 +632,9 @@ def main():
                 break
             if retry_attempt == (arguments.retries - 1):
                 logger.info("update_stocks() retry attempts exhausted, giving up")
+
+        if stock_symbols:
+            finance_quote_table_list.extend(update_stocks_last_ditch(data_datetime, market_closed, stock_symbols))
 
     if not arguments.stock_only:
         # Call for index info
