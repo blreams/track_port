@@ -202,7 +202,7 @@ def get_option_symbols(query):
     for row in query:
         expiration_year_month_date = row.expiration.strftime("%y%m%d")
         option_char = 'C' if row.descriptor == 'call' else 'P'
-        strike_formatted = f"{int(row.strike) * 1000:08d}"
+        strike_formatted = f"{int(row.strike * 1000):08d}"
         symbol = f"{row.symbol}{expiration_year_month_date}{option_char}{strike_formatted}"
         symbol_set.add(symbol)
     return symbol_set

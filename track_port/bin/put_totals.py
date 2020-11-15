@@ -5,6 +5,7 @@ import os
 import logging
 import logging.config
 import argparse
+from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 
 from sqlalchemy import create_engine, Table, MetaData, inspect
@@ -73,33 +74,82 @@ class PortHistories(Base):
 #############################################################################
 # Other classes
 #############################################################################
+class Port(object):
+    def __init__(self, portname, finance_quotes):
+        self.logger = logging.getLogger('Port.__init__')
+        self.portname = portname
+        self.fqs = finance_quotes
+        self.cash = Decimal(0)
+        self.basis = Decimal(0)
+        self.invested_total = Decimal(0)
+        self.gain = Decimal(0)
+        self.daygain = Decimal(0)
+        self.initialize()
+        self.total = self.cash + self.invested_total
+        self.logger.info(f"{self.portname} cash={self.cash} basis={self.basis} total={self.total}")
+
+    def initialize(self):
+        self.logger = logging.getLogger('Port.initialize')
+        self.logger.info(f"Initializing {self.portname}")
+        self.get_transactions()
+        self.parse_transactions()
+
+    def get_transactions(self):
+        self.query = session.query(TransactionLists).filter_by(fileportname=self.portname).all()
+
+    def parse_transactions(self):
+        self.logger = logging.getLogger('Port.parse_transaction')
+        for transaction in self.query:
+            if transaction.closed:
+                self.handle_closed_transaction(transaction)
+            elif transaction.position.lower() == 'cash':
+                self.handle_cash_transaction(transaction)
+            elif transaction.position.lower() == 'long':
+                self.handle_open_position(transaction)
+            else:
+                self.logger.warning(f"Unhandled transaction id={transaction.id}")
+
+    def handle_closed_transaction(self, transaction):
+        self.cash += transaction.shares * (transaction.close_price - transaction.open_price)
+
+    def handle_cash_transaction(self, transaction):
+        self.cash += transaction.open_price
+
+    def handle_open_position(self, transaction):
+        self.logger = logging.getLogger('Port.handle_open_position')
+        self.cash -= transaction.shares * transaction.open_price
+        self.basis += transaction.shares * transaction.open_price
+        fq = self.get_quote(transaction)
+        if hasattr(fq, 'last'):
+            self.invested_total += transaction.shares * fq.last
+        else:
+            self.logger.warning(f"Unable to find quote matching {fq}")
+
+
+    def get_quote(self, transaction):
+        symbol = transaction.symbol
+        if transaction.descriptor !=  'stock':
+            expiration = transaction.expiration.strftime("%y%m%d")
+            option = transaction.descriptor[0].upper()
+            strike = f"{int(transaction.strike * 1000):08d}"
+            symbol += expiration + option + strike
+        return self.fqs.get(symbol, symbol)
+
+
+
 class PortParamTable(object):
-    def __init__(self):
+    def __init__(self, ports):
         self.logger = logging.getLogger('PortParamTable')
-
-    def get_fileportnames(self):
-        pass
-
-    def parse_transactions(self, fileportname):
-        pass
-
-    def calculate_stats(self, fileportname):
-        pass
-
-    def create_table_dict(self):
-        pass
+        self.ports = ports
 
     def commit(self):
         pass
 
 
 class PortHistoryTable(object):
-    def __init__(self, port_param_table):
+    def __init__(self, ports):
         self.logger = logging.getLogger('PortHistoryTable')
-        self.port_param_table = port_param_table
-
-    def create_table_dict(self):
-        pass
+        self.ports = ports
 
     def commit(self):
         pass
@@ -140,6 +190,11 @@ def get_portnames():
     query = session.query(TransactionLists).all()
     portname_set = set([row.fileportname for row in query])
     return portname_set
+
+def get_finance_quotes():
+    logger = logging.getLogger('get_finance_quotes')
+    query = session.query(FinanceQuotes).all()
+    return {row.symbol: row for row in query}
 
 def get_symbols(fileportnames):
     logger = logging.getLogger('get_symbols')
@@ -196,10 +251,22 @@ def process_arguments():
 #############################################################################
 def main():
     logger = logging.getLogger('main')
-    logger.info('='*40 + " Start quote_query " + '='*40)
+    logger.info('='*40 + " Start put_totals " + '='*40)
 
     # Check date, market holidays
     data_datetime, market_closed = check_date_market_holidays()
+
+    # Get finance_quote data
+    finance_quotes = get_finance_quotes()
+
+    # Get ports and create a dict of FilePortName objects
+    ports = {portname: Port(portname, finance_quotes) for portname in get_portnames()}
+
+    port_param_table = PortParamTable(ports)
+    port_param_table.commit()
+
+    port_history_table = PortHistoryTable(ports)
+    port_history_table.commit()
 
 
 if __name__ == '__main__':
