@@ -243,8 +243,9 @@ class PortParamTable(object):
 
     def commit(self):
         logger = logging.getLogger('PortParamTable.commit')
-        logger.info("called...placeholder only")
-        pass
+        logger.info("call commit")
+        if arguments.commit:
+            session.commit()
 
 
 class PortHistoryTable(object):
@@ -352,6 +353,7 @@ def parse_arguments():
             )
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
+    parser.add_argument('-c', '--commit', action='store_true', default=False, help="Perform commit to databases")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
