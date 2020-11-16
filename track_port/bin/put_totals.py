@@ -131,7 +131,7 @@ class Port(object):
     def calculate(self):
         self.total = self.cash + self.invested_total
         self.pct_invested = self.invested_total / self.total
-        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, 30)
+        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, 1)
         self.daygain = self.total - previous_total_1d
         self.invested_total = self.total - self.cash
         try:
