@@ -8,7 +8,7 @@ import argparse
 from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 
-from sqlalchemy import create_engine, Table, MetaData, inspect
+from sqlalchemy import create_engine, Table, MetaData, inspect, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from finviz.screener import Screener
@@ -74,9 +74,29 @@ class PortHistories(Base):
 #############################################################################
 # Other classes
 #############################################################################
+class PortHistory(object):
+    def __init__(self):
+        logger = logging.getLogger('PortHistory.__init__')
+        self.query = session.query(PortHistories)
+
+    def get_total_cash(self, portname, days=None, date=None):
+        logger = logging.getLogger('PortHistory.get_total_cash')
+        if days is None and date is None:
+            days = 1
+        elif date:
+            days =(datetime.now() - date).days
+
+        latest_date = (datetime.now() - timedelta(days=days)).date()
+        port_histories = self.query.filter_by(fileportname=portname).filter(PortHistories.date<=latest_date).order_by(desc(PortHistories.date)).all()
+        if len(port_histories) == 0:
+            logger.warning(f"called with portname={portname},days={days}, unable to match port_history")
+            return Decimal(0)
+        logger.info(f"called with portname={portname},days={days}, returning port_history for date={port_histories[0].date},total={port_histories[0].total},cash={port_histories[0].cash}")
+        return port_histories[0].total, port_histories[0].cash
+
 class Port(object):
     def __init__(self, portname, finance_quotes):
-        self.logger = logging.getLogger('Port.__init__')
+        logger = logging.getLogger('Port.__init__')
         self.portname = portname
         self.fqs = finance_quotes
         self.cash = Decimal(0)
@@ -84,21 +104,54 @@ class Port(object):
         self.invested_total = Decimal(0)
         self.gain = Decimal(0)
         self.daygain = Decimal(0)
+        self.port_history = PortHistory()
         self.initialize()
-        self.total = self.cash + self.invested_total
-        self.logger.info(f"{self.portname} cash={self.cash} basis={self.basis} total={self.total}")
+        logger.info(str(self))
+
+    def __repr__(self):
+        return "{cls}:n={name},c={cash},t={total},d%={pct_daygain},d={daygain},it={invested_total},g%={pct_gain},g={gain},pi={pct_invested},b={basis}".format(
+                cls=__class__.__name__,
+                name=self.portname,
+                total=f"{self.total:.2f}",
+                cash=f"{self.cash:.2f}",
+                basis=f"{self.basis:.2f}",
+                gain=f"{self.gain:.2f}",
+                daygain=f"{self.daygain:.2f}",
+                pct_gain=f"{Decimal(100.0) * self.pct_gain:.2f}",
+                pct_daygain=f"{Decimal(100.0) * self.pct_daygain:.2f}",
+                invested_total=f"{self.invested_total}",
+                pct_invested=f"{Decimal(100.0) * self.pct_invested}",
+                )
 
     def initialize(self):
-        self.logger = logging.getLogger('Port.initialize')
-        self.logger.info(f"Initializing {self.portname}")
         self.get_transactions()
         self.parse_transactions()
+        self.calculate()
+
+    def calculate(self):
+        self.total = self.cash + self.invested_total
+        self.pct_invested = self.invested_total / self.total
+        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, 30)
+        self.daygain = self.total - previous_total_1d
+        self.invested_total = self.total - self.cash
+        try:
+            self.pct_gain = self.gain / self.basis
+        except:
+            self.pct_gain = Decimal(0)
+        try:
+            self.pct_daygain = self.daygain / (previous_total_1d - previous_cash_1d)
+        except:
+            self.pct_daygain = Decimal(0)
+        try:
+            self.pct_invested = self.invested_total / self.total
+        except:
+            self.pct_invested = Decimal(0)
 
     def get_transactions(self):
         self.query = session.query(TransactionLists).filter_by(fileportname=self.portname).all()
 
     def parse_transactions(self):
-        self.logger = logging.getLogger('Port.parse_transaction')
+        logger = logging.getLogger('Port.parse_transactions')
         for transaction in self.query:
             if transaction.closed:
                 self.handle_closed_transaction(transaction)
@@ -107,7 +160,7 @@ class Port(object):
             elif transaction.position.lower() == 'long':
                 self.handle_open_position(transaction)
             else:
-                self.logger.warning(f"Unhandled transaction id={transaction.id}")
+                logger.warning(f"Unhandled transaction id={transaction.id}")
 
     def handle_closed_transaction(self, transaction):
         self.cash += transaction.shares * (transaction.close_price - transaction.open_price)
@@ -116,14 +169,16 @@ class Port(object):
         self.cash += transaction.open_price
 
     def handle_open_position(self, transaction):
-        self.logger = logging.getLogger('Port.handle_open_position')
+        logger = logging.getLogger('Port.handle_open_position')
         self.cash -= transaction.shares * transaction.open_price
         self.basis += transaction.shares * transaction.open_price
         fq = self.get_quote(transaction)
         if hasattr(fq, 'last'):
+            #self.daygain += transaction.shares * fq.net
+            self.gain += transaction.shares * (fq.last - transaction.open_price)
             self.invested_total += transaction.shares * fq.last
         else:
-            self.logger.warning(f"Unable to find quote matching {fq}")
+            logger.warning(f"Unable to find quote matching {fq}")
 
 
     def get_quote(self, transaction):
@@ -139,19 +194,85 @@ class Port(object):
 
 class PortParamTable(object):
     def __init__(self, ports):
-        self.logger = logging.getLogger('PortParamTable')
+        logger = logging.getLogger('PortParamTable')
         self.ports = ports
+        self.port_params = self.query_port_param()
+        self.handle_ports()
+
+    def query_port_param(self):
+        query = session.query(PortParams).all()
+        return {row.fileportname: row for row in query}
+
+    def handle_ports(self):
+        for portname, port in self.ports.items():
+            if portname in self.port_params:
+                self.update_row(port)
+            else:
+                self.create_row(port)
+
+    def update_row(self, port):
+        logger = logging.getLogger('PortParamTable.update_row')
+        logger.info(f"updating with port={port}")
+        port_param = self.port_params[port.portname]
+        port_param.cash = port.cash
+        port_param.total = port.total
+        port_param.pct_daygain = port.pct_daygain
+        port_param.daygain = port.daygain
+        port_param.invested_total = port.invested_total
+        port_param.pct_gain = port.pct_gain
+        port_param.gain = port.gain
+        port_param.pct_invested = port.pct_invested
+        port_param.basis = port.basis
+
+    def create_row(self, port):
+        logger = logging.getLogger('PortParamTable.create_row')
+        logger.info(f"creating row with port={port}")
+        pp = PortParams(
+                fileportname=port.portname,
+                cash=port.cash,
+                total=port.total,
+                pct_daygain=port.pct_daygain,
+                daygain=port.daygain,
+                invested_total=port.invested_total,
+                pct_gain=port.pct_gain,
+                gain=port.gain,
+                pct_invested=port.pct_invested,
+                basis=port.basis,
+                portnum=len(ports),
+                )
 
     def commit(self):
+        logger = logging.getLogger('PortParamTable.commit')
+        logger.info("called...placeholder only")
         pass
 
 
 class PortHistoryTable(object):
     def __init__(self, ports):
-        self.logger = logging.getLogger('PortHistoryTable')
+        logger = logging.getLogger('PortHistoryTable')
         self.ports = ports
+        #self.port_histories = self.query_port_history()
+        #self.handle_ports()
+
+    def query_port_history(self):
+        query = session.query(PortHistories).all()
+
+    def handle_ports(self):
+        for portname, port in self.ports.items():
+            if portname in self.port_params:
+                self.update_row(port)
+            else:
+                self.create_row(port)
+
+    def update_row(self, port):
+        pass
+
+    def create_row(self, port):
+        pass
 
     def commit(self):
+        logger = logging.getLogger('PortHistoryTable.commit')
+        logger.info("called...placeholder only")
         pass
 
 
@@ -258,6 +379,8 @@ def main():
 
     # Get finance_quote data
     finance_quotes = get_finance_quotes()
+    #import pdb;pdb.set_trace()
+    # TODO figure out how to use date/time from finance_quote
 
     # Get ports and create a dict of FilePortName objects
     ports = {portname: Port(portname, finance_quotes) for portname in get_portnames()}
