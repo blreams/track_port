@@ -27,7 +27,8 @@ except:
     host = None
 
 if host and host in ('skx-linux',):
-    engine = create_engine('mysql://blreams@localhost/track_port')
+    #engine = create_engine('mysql://blreams@localhost/track_port')
+    engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
 else:
     engine = create_engine('sqlite:///track_port.db')
 Base = declarative_base(engine)
@@ -246,6 +247,7 @@ class PortParamTable(object):
                 basis=port.basis,
                 portnum=len(ports),
                 )
+        session.add(pp)
 
     def commit(self):
         logger = logging.getLogger('PortParamTable.commit')
@@ -257,19 +259,21 @@ class PortParamTable(object):
 class PortHistoryTable(object):
     def __init__(self, ports):
         logger = logging.getLogger('PortHistoryTable')
+        self.commit_needed = False
         self.ports = ports
         self.port_histories = self.query_port_history()
         self.handle_ports()
 
     def query_port_history(self):
-        if self.ports.get(list(self.ports.keys())[0]).data_datetime.date == datetime.now().date:
-            query = session.query(PortHistories).filter_by(date=datetime.now().date).all()
+        port0 = list(self.ports.keys())[0]
+        if self.ports.get(port0).data_datetime.date() == datetime.now().date():
+            query = session.query(PortHistories).filter_by(date=datetime.now().date()).all()
             return {row.fileportname: row for row in query}
         return None
 
 
     def handle_ports(self):
-        if self.port_histories:
+        if self.port_histories is not None:
             for portname, port in self.ports.items():
                 if portname in self.port_histories:
                     self.update_row(port)
@@ -282,21 +286,24 @@ class PortHistoryTable(object):
         port_history = self.port_histories.get(port.portname)
         port_history.cash = port.cash
         port_history.total = port.total
-        port_history.date = datetime.now().date
+        port_history.date = datetime.now().date()
+        self.commit_needed = True
 
     def create_row(self, port):
         logger = logging.getLogger('PortHistoryTable.create_row')
         logger.info(f"creating with port={port}")
         ph = PortHistories(
-                date=datetime.now().date,
+                date=datetime.now().date(),
                 fileportname=port.portname,
                 total=port.total,
                 cash=port.cash,
                 )
+        session.add(ph)
+        self.commit_needed = True
 
     def commit(self):
         logger = logging.getLogger('PortHistoryTable.commit')
-        if not arguments.skip_commit and (session.dirty or session.new):
+        if not arguments.skip_commit and self.commit_needed:
             logger.info("Committing")
             session.commit()
 
@@ -392,6 +399,8 @@ def main():
     port_param_table = PortParamTable(ports)
     port_param_table.commit()
 
+    if arguments.debug:
+        import pdb;pdb.set_trace()
     port_history_table = PortHistoryTable(ports)
     port_history_table.commit()
 

@@ -26,7 +26,8 @@ except:
     host = None
 
 if host and host in ('skx-linux',):
-    engine = create_engine('mysql://blreams@localhost/track_port')
+    #engine = create_engine('mysql://blreams@localhost/track_port')
+    engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
 else:
     engine = create_engine('sqlite:///track_port.db')
 Base = declarative_base(engine)
