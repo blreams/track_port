@@ -79,14 +79,14 @@ class PortHistory(object):
         logger = logging.getLogger('PortHistory.__init__')
         self.query = session.query(PortHistories)
 
-    def get_total_cash(self, portname, days=None, date=None):
+    def get_total_cash(self, portname, days, data_date):
+        """Return total and cash given a portname, days, data_date.
+        We use data_date as the starting point and subtract days from it.
+        Then we query port_history for dates less equal and return
+        the first entry in the list.
+        """
         logger = logging.getLogger('PortHistory.get_total_cash')
-        if days is None and date is None:
-            days = 1
-        elif date:
-            days =(datetime.now() - date).days
-
-        latest_date = (datetime.now() - timedelta(days=days)).date()
+        latest_date = data_date - timedelta(days=days)
         port_histories = self.query.filter_by(fileportname=portname).filter(PortHistories.date<=latest_date).order_by(desc(PortHistories.date)).all()
         if len(port_histories) == 0:
             logger.warning(f"called with portname={portname},days={days}, unable to match port_history")
@@ -104,6 +104,10 @@ class Port(object):
         self.invested_total = Decimal(0)
         self.gain = Decimal(0)
         self.daygain = Decimal(0)
+        try:
+            self.data_datetime = datetime.combine(self.fqs.get('^GSPC').date, self.fqs.get('^GSPC').time)
+        except:
+            self.data_datetime = datetime.now() + timedelta(days=1)
         self.port_history = PortHistory()
         self.initialize()
         logger.info(str(self))
@@ -131,8 +135,7 @@ class Port(object):
     def calculate(self):
         self.total = self.cash + self.invested_total
         self.pct_invested = self.invested_total / self.total
-        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, 1)
-        self.daygain = self.total - previous_total_1d
+        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, days=1, data_date=self.data_datetime)
         self.invested_total = self.total - self.cash
         try:
             self.pct_gain = self.gain / self.basis
@@ -164,6 +167,9 @@ class Port(object):
 
     def handle_closed_transaction(self, transaction):
         self.cash += transaction.shares * (transaction.close_price - transaction.open_price)
+        if transaction.close_date == self.data_datetime.date:
+            fq = self.get_quote(transaction)
+            self.daygain += transaction.shares * (transaction.close_price - fq.close)
 
     def handle_cash_transaction(self, transaction):
         self.cash += transaction.open_price
@@ -174,8 +180,8 @@ class Port(object):
         self.basis += transaction.shares * transaction.open_price
         fq = self.get_quote(transaction)
         if hasattr(fq, 'last'):
-            #self.daygain += transaction.shares * fq.net
             self.gain += transaction.shares * (fq.last - transaction.open_price)
+            self.daygain += transaction.shares * fq.net
             self.invested_total += transaction.shares * fq.last
         else:
             logger.warning(f"Unable to find quote matching {fq}")
@@ -243,8 +249,8 @@ class PortParamTable(object):
 
     def commit(self):
         logger = logging.getLogger('PortParamTable.commit')
-        logger.info("call commit")
-        if arguments.commit:
+        if not arguments.skip_commit:
+            logger.info("Committing")
             session.commit()
 
 
@@ -252,51 +258,52 @@ class PortHistoryTable(object):
     def __init__(self, ports):
         logger = logging.getLogger('PortHistoryTable')
         self.ports = ports
-        #self.port_histories = self.query_port_history()
-        #self.handle_ports()
+        self.port_histories = self.query_port_history()
+        self.handle_ports()
 
     def query_port_history(self):
-        query = session.query(PortHistories).all()
+        if self.ports.get(list(self.ports.keys())[0]).data_datetime.date == datetime.now().date:
+            query = session.query(PortHistories).filter_by(date=datetime.now().date).all()
+            return {row.fileportname: row for row in query}
+        return None
+
 
     def handle_ports(self):
-        for portname, port in self.ports.items():
-            if portname in self.port_params:
-                self.update_row(port)
-            else:
-                self.create_row(port)
+        if self.port_histories:
+            for portname, port in self.ports.items():
+                if portname in self.port_histories:
+                    self.update_row(port)
+                else:
+                    self.create_row(port)
 
     def update_row(self, port):
-        pass
+        logger = logging.getLogger('PortHistoryTable.update_row')
+        logger.info(f"updating with port={port}")
+        port_history = self.port_histories.get(port.portname)
+        port_history.cash = port.cash
+        port_history.total = port.total
+        port_history.date = datetime.now().date
 
     def create_row(self, port):
-        pass
+        logger = logging.getLogger('PortHistoryTable.create_row')
+        logger.info(f"creating with port={port}")
+        ph = PortHistories(
+                date=datetime.now().date,
+                fileportname=port.portname,
+                total=port.total,
+                cash=port.cash,
+                )
 
     def commit(self):
         logger = logging.getLogger('PortHistoryTable.commit')
-        logger.info("called...placeholder only")
-        pass
+        if not arguments.skip_commit and (session.dirty or session.new):
+            logger.info("Committing")
+            session.commit()
 
 
 #############################################################################
 # Function definitions
 #############################################################################
-def check_date_market_holidays():
-    today = datetime.now()
-    data_datetime = today
-    market_closed = False
-    if today.isoweekday() >= 6:
-        market_closed = True
-        data_datetime -= timedelta(days=today.isoweekday() - 5)
-
-    query = session.query(MarketHolidays).filter_by(date=data_datetime.date()).all()
-    while query or data_datetime.isoweekday() >= 6:
-        data_datetime -= timedelta(days=1)
-        query = session.query(MarketHolidays).filter_by(date=data_datetime.date()).all()
-
-    if data_datetime.date() != today.date():
-        data_datetime = datetime.combine(data_datetime.date(), time(16, 30))
-    return data_datetime, market_closed
-
 def get_option_symbols(query):
     symbol_set = set()
     for row in query:
@@ -353,7 +360,7 @@ def parse_arguments():
             )
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
-    parser.add_argument('-c', '--commit', action='store_true', default=False, help="Perform commit to databases")
+    parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
@@ -376,13 +383,8 @@ def main():
     logger = logging.getLogger('main')
     logger.info('='*40 + " Start put_totals " + '='*40)
 
-    # Check date, market holidays
-    data_datetime, market_closed = check_date_market_holidays()
-
     # Get finance_quote data
     finance_quotes = get_finance_quotes()
-    #import pdb;pdb.set_trace()
-    # TODO figure out how to use date/time from finance_quote
 
     # Get ports and create a dict of FilePortName objects
     ports = {portname: Port(portname, finance_quotes) for portname in get_portnames()}
