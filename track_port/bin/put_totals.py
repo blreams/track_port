@@ -265,15 +265,22 @@ class PortHistoryTable(object):
         self.handle_ports()
 
     def query_port_history(self):
+        logger = logging.getLogger("PortHistoryTable.query_port_history")
         port0 = list(self.ports.keys())[0]
-        if self.ports.get(port0).data_datetime.date() == datetime.now().date():
+        fq_date = self.ports.get(port0).data_datetime
+        if fq_date.date() == datetime.now().date():
             query = session.query(PortHistories).filter_by(date=datetime.now().date()).all()
-            return {row.fileportname: row for row in query}
+            return_rows = {row.fileportname: row for row in query}
+            logger.info(f"returning {len(return_rows)} rows from query")
+            return return_rows
+        logger.info(f"finance_quote date {fq_date.date()} != now date {datetime.now().date()}")
         return None
 
 
     def handle_ports(self):
+        logger = logging.getLogger("PortHistoryTable.handle_ports")
         if self.port_histories is not None:
+            logger.info(f"handling {len(self.port_histories)} port history rows")
             for portname, port in self.ports.items():
                 if portname in self.port_histories:
                     self.update_row(port)
