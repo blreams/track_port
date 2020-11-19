@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time as _time
 import logging
 import logging.config
 import argparse
@@ -197,6 +198,12 @@ def check_date_market_holidays():
     if data_datetime.date() != today.date():
         data_datetime = datetime.combine(data_datetime.date(), time(16, 30))
     return data_datetime, market_closed
+
+def delay_start():
+    logger = logging.getLogger('delay_start')
+    if arguments.delay:
+        logger.info(f"Delaying start for {arguments.delay} seconds...")
+        _time.sleep(arguments.delay)
 
 def get_option_symbols(query):
     symbol_set = set()
@@ -569,6 +576,7 @@ def parse_arguments():
     parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
     parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
     parser.add_argument('--clean', action='store_true', default=False, help="Delete rows from finance_quote table before committing new updates. Ignores arguments that limit fileportnames.")
+    parser.add_argument('--delay', type=int, default=0, help="Seconds to delay before starting")
     parser.add_argument('--chunk', type=int, default=100, help="Limits the number of symbols passed to finviz in one chunk, default=100")
     parser.add_argument('--retries', type=int, default=5, help="Specifies number of retry attempts for Screener data.")
     arguments = parser.parse_args()
@@ -611,7 +619,8 @@ def main():
     logger = logging.getLogger('main')
     logger.info('='*40 + " Start quote_query " + '='*40)
 
-    #process_arguments()
+    # Delay
+    delay_start()
 
     # Check date, market holidays
     data_datetime, market_closed = check_date_market_holidays()
