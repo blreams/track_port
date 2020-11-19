@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time as _time
 import logging
 import logging.config
 import argparse
@@ -318,6 +319,12 @@ class PortHistoryTable(object):
 #############################################################################
 # Function definitions
 #############################################################################
+def delay_start():
+    logger = logging.getLogger('delay_start')
+    if arguments.delay:
+        logger.info(f"Delaying start by {arguments.delay} seconds...")
+        _time.sleep(arguments.delay)
+
 def get_option_symbols(query):
     symbol_set = set()
     for row in query:
@@ -375,6 +382,7 @@ def parse_arguments():
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
+    parser.add_argument('--delay', type=int, default=0, help="Seconds to delay before starting")
     arguments = parser.parse_args()
 
     logger.debug("Arguments:")
@@ -396,6 +404,9 @@ def process_arguments():
 def main():
     logger = logging.getLogger('main')
     logger.info('='*40 + " Start put_totals " + '='*40)
+
+    # Delay
+    delay_start()
 
     # Get finance_quote data
     finance_quotes = get_finance_quotes()
