@@ -4,11 +4,11 @@ import sys
 import os
 import time as _time
 import logging
-import logging.config
+import logging.handlers
 import argparse
 from datetime import datetime, date, time, timedelta
 
-from sqlalchemy import create_engine, Table, MetaData, inspect
+from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from finviz.screener import Screener
@@ -40,9 +40,39 @@ session = Session()
 # Additional globals
 #############################################################################
 thisdir = os.path.dirname(__file__)
-
-logging.config.fileConfig(os.path.join(thisdir, 'quote_query_logging.conf'))
 arguments = argparse.Namespace
+logger = None
+
+#############################################################################
+# Logging Configuration
+#############################################################################
+def configure_logging():
+    global logger
+    # Let's get a logger
+    logger = logging.getLogger(__name__)
+    # Set the level to the lowest in any handler
+    logger.setLevel(logging.DEBUG)
+    # Create separate formatters for console/file
+    consFormatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    fileFormatter = logging.Formatter("%(asctime)s %(levelname)-8s: [%(module)s %(process)s %(name)s %(lineno)d] %(message)s")
+    # Create and configure console handler
+    consHandler = logging.StreamHandler(sys.stderr)
+    consHandler.setFormatter(consFormatter)
+    consHandler.setLevel(logging.INFO)
+    # Create and configure file handler
+    logger_filename = os.path.abspath(os.path.join(thisdir, 'quote_query.log'))
+    fileHandler = logging.handlers.RotatingFileHandler(filename=logger_filename, maxBytes=100000000, backupCount=10)
+    fileHandler.setFormatter(fileFormatter)
+    fileHandler.setLevel(logging.DEBUG)
+    # Add handlers to the logger
+    logger.addHandler(consHandler)
+    logger.addHandler(fileHandler)
+    # Test messages
+    first_message = f"STARTING {__file__}"
+    prefix_suffix_length = (80 - len(first_message)) // 2
+    logger.info('='*80)
+    logger.info('='*prefix_suffix_length + first_message + '='*prefix_suffix_length)
+    logger.info('='*80)
 
 #############################################################################
 # Classes related to database tables
@@ -68,10 +98,10 @@ class MarketHolidays(Base):
 #############################################################################
 class FinanceQuoteTable(object):
     def __init__(self, data_datetime, market_closed, details_list, details_type):
-        self.logger = logging.getLogger('FinanceQuoteTable')
+        logger = logging.getLogger(__name__ + '.' + 'FinanceQuoteTable')
         self.data_datetime = data_datetime
         self.market_closed = market_closed
-        self.logger.info(f"details_list for {len(details_list)} {details_type} symbols")
+        logger.debug(f"details_list for {len(details_list)} {details_type} symbols")
         self.details_list = details_list
         self.details_type = details_type
 
@@ -79,13 +109,13 @@ class FinanceQuoteTable(object):
         return f"FinanceQuoteTable() with {len(details_list)} stock symbols"
 
     def delete_table_rows(self):
-        self.logger = logging.getLogger('FinanceQuoteTable:delete_table_rows')
+        logger = logging.getLogger(__name__ + '.' + 'FinanceQuoteTable.delete_table_rows')
         deleted_rows = session.query(FinanceQuotes).delete()
-        self.logger.info(f"Deleting {deleted_rows} rows from finance_quote table.")
+        logger.debug(f"Deleting {deleted_rows} rows from finance_quote table.")
         session.commit()
 
     def update_finance_quote_table(self):
-        self.logger = logging.getLogger('FinanceQuoteTable:update_finance_quote_table')
+        logger = logging.getLogger(__name__ + '.' + 'FinanceQuoteTable.update_finance_quote_table')
         for details in self.details_list:
             symbol = details['Ticker']
             last = try_float(details['Price'])
@@ -112,7 +142,7 @@ class FinanceQuoteTable(object):
             query = session.query(FinanceQuotes).filter_by(symbol=symbol).all()
             if query:
                 # We have an existing row, let's update it
-                self.logger.info(f"updating finance_quote row for {symbol}")
+                logger.debug(f"updating finance_quote row for {symbol}")
                 fq = query[0]
                 fq.symbol=symbol
                 fq.name=details['Company'][:32]
@@ -146,7 +176,7 @@ class FinanceQuoteTable(object):
 
             else:
                 # We are creating a new row
-                self.logger.info(f"creating finance_quote row for {symbol}")
+                logger.debug(f"creating finance_quote row for {symbol}")
                 if 'Day Range' in details:
                     day_range = f"'{details['Day Range']}'"
                 else:
@@ -200,7 +230,7 @@ def check_date_market_holidays():
     return data_datetime, market_closed
 
 def delay_start():
-    logger = logging.getLogger('delay_start')
+    logger = logging.getLogger(__name__ + '.' + 'delay_start')
     if arguments.delay:
         logger.info(f"Delaying start for {arguments.delay} seconds...")
         _time.sleep(arguments.delay)
@@ -216,13 +246,13 @@ def get_option_symbols(query):
     return symbol_set
 
 def get_portnames():
-    logger = logging.getLogger('get_portnames')
+    logger = logging.getLogger(__name__ + '.' + 'get_portnames')
     query = session.query(TransactionLists).all()
     portname_set = set([row.fileportname for row in query])
     return portname_set
 
 def get_symbols(fileportnames):
-    logger = logging.getLogger('get_symbols')
+    logger = logging.getLogger(__name__ + '.' + 'get_symbols')
     stock_query = session.query(TransactionLists).filter_by(descriptor='stock', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
     option_query = session.query(TransactionLists).filter_by(closed=False).filter(TransactionLists.fileportname.in_(fileportnames)).filter(TransactionLists.descriptor.in_(('call', 'put')))
     symbol_set = set([row.symbol for row in stock_query])
@@ -376,7 +406,7 @@ def lookup_option(symbol):
     return return_dict
 
 def lookup_stock(symbol):
-    logger = logging.getLogger('lookup_stock')
+    logger = logging.getLogger(__name__ + '.' + 'lookup_stock')
     company_descriptor = { 'tag': 'h1', }
     last_descriptor = { 'tag': 'span', 'attrs': {'class': "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"}, }
     table_descriptor = { 'tag': 'td', 'attrs': {"class": "Ta(end) Fw(600) Lh(14px)"}, }
@@ -455,8 +485,8 @@ def try_float(s, method=None, except_value=None):
     return f
 
 def update_indexes(data_datetime, market_closed, index_symbols):
-    logger = logging.getLogger('update_indexes')
-    logger.info(f"fetching info for {len(index_symbols)} index symbols")
+    logger = logging.getLogger(__name__ + '.' + 'update_indexes')
+    logger.debug(f"fetching info for {len(index_symbols)} index symbols")
     finance_quote_table_list = []
     index_details = []
     for index_symbol in index_symbols:
@@ -465,13 +495,13 @@ def update_indexes(data_datetime, market_closed, index_symbols):
             index_details.append(index_details_item)
         else:
             logger.warning(f"Unable to fetch details for {index_symbol}")
-    logger.info(f"fetched info for {len(index_details)} index symbols")
+    logger.debug(f"fetched info for {len(index_details)} index symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, index_details, 'index'))
     return finance_quote_table_list
 
 def update_mfs(data_datetime, market_closed, mf_symbols):
-    logger = logging.getLogger('update_mfs')
-    logger.info(f"fetching info for {len(mf_symbols)} mf symbols")
+    logger = logging.getLogger(__name__ + '.' + 'update_mfs')
+    logger.debug(f"fetching info for {len(mf_symbols)} mf symbols")
     finance_quote_table_list = []
     mf_details = []
     for mf_symbol in mf_symbols:
@@ -480,13 +510,13 @@ def update_mfs(data_datetime, market_closed, mf_symbols):
             mf_details.append(mf_details_item)
         else:
             logger.warning(f"Unable to fetch details for {mf_symbol}")
-    logger.info(f"fetched info for {len(mf_details)} mf symbols")
+    logger.debug(f"fetched info for {len(mf_details)} mf symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, mf_details, 'mf'))
     return finance_quote_table_list
 
 def update_options(data_datetime, market_closed, option_symbols):
-    logger = logging.getLogger('update_options')
-    logger.info(f"fetching info for {len(option_symbols)} option symbols")
+    logger = logging.getLogger(__name__ + '.' + 'update_options')
+    logger.debug(f"fetching info for {len(option_symbols)} option symbols")
     finance_quote_table_list = []
     option_details = []
     for option_symbol in option_symbols:
@@ -495,13 +525,13 @@ def update_options(data_datetime, market_closed, option_symbols):
             option_details.append(option_details_item)
         else:
             logger.warning(f"Unable to fetch details for {option_symbol}")
-    logger.info(f"fetched info for {len(option_details)} option symbols")
+    logger.debug(f"fetched info for {len(option_details)} option symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, option_details, 'option'))
     return finance_quote_table_list
 
 def update_stocks_last_ditch(data_datetime, market_closed, stock_symbols):
-    logger = logging.getLogger('update_stocks_last_ditch')
-    logger.info(f"fetching info for {len(stock_symbols)} stock symbols")
+    logger = logging.getLogger(__name__ + '.' + 'update_stocks_last_ditch')
+    logger.info(f"Last ditch, fetching info for {len(stock_symbols)} stock symbols, {stock_symbols}")
     finance_quote_table_list = []
     stock_details = []
     for stock_symbol in stock_symbols:
@@ -510,14 +540,14 @@ def update_stocks_last_ditch(data_datetime, market_closed, stock_symbols):
             stock_details.append(stock_details_item)
         else:
             logger.warning(f"Unable to fetch details for {stock_symbol}")
-    logger.info(f"fetched info for {len(stock_details)} stock symbols")
+    logger.debug(f"fetched info for {len(stock_details)} stock symbols")
     finance_quote_table_list.append(FinanceQuoteTable(data_datetime, market_closed, stock_details, 'stock'))
     return finance_quote_table_list
 
 def update_stocks(data_datetime, market_closed, stock_symbols):
+    logger = logging.getLogger(__name__ + '.' + 'update_stocks')
     stock_symbols_to_fetch = set(stock_symbols)
     max_chunk = arguments.chunk
-    logger = logging.getLogger('update_stocks')
     finance_quote_table_list = []
     stocks = sorted(list(stock_symbols_to_fetch))
     iterations = len(stock_symbols_to_fetch) // max_chunk
@@ -526,25 +556,25 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
     chunk_size = len(stock_symbols_to_fetch) // iterations
     if (len(stock_symbols_to_fetch) % iterations) > 0:
         chunk_size += 1
-    logger.info(f"iterations={iterations},chunk_size={chunk_size}")
+    logger.debug(f"iterations={iterations},chunk_size={chunk_size}")
     screened_stock_symbols = set()
     while len(stock_symbols_to_fetch) > 0:
         if len(stock_symbols_to_fetch) >= chunk_size:
             stock_list = list(stock_symbols_to_fetch)[:chunk_size]
         else:
             stock_list = list(stock_symbols_to_fetch)
-        logger.info(f"stock_list({len(stock_list)})={','.join(stock_list)}")
+        logger.debug(f"stock_list({len(stock_list)})={','.join(stock_list)}")
         for retry_attempt in range(arguments.retries):
-            logger.info(f"Screener retry attempt {retry_attempt}")
+            logger.debug(f"Screener retry attempt {retry_attempt}")
             try:
                 stock_screener = Screener(tickers=stock_list)
                 stock_details = stock_screener.get_ticker_details()
-                logger.info(f"Screener successful")
+                logger.debug(f"Screener successful")
                 break
             except:
                 if retry_attempt == (arguments.retries - 1):
                     stock_details = []
-                    logger.info(f"Screener retry attempts exhausted, giving up")
+                    logger.debug(f"Screener retry attempts exhausted, giving up")
 
         screened_symbols = [detail['Ticker'] for detail in stock_details]
         screened_stock_symbols = screened_stock_symbols.union(screened_symbols)
@@ -556,7 +586,7 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
     missing_symbols = set(stocks)
     missing_symbols.difference_update(screened_stock_symbols)
     if stocks != screened_stocks:
-        logger.info(f"missing symbols: {missing_symbols}")
+        logger.debug(f"missing symbols: {missing_symbols}")
 
     return finance_quote_table_list, missing_symbols
 
@@ -565,7 +595,7 @@ def update_stocks(data_datetime, market_closed, stock_symbols):
 #############################################################################
 def parse_arguments():
     global arguments
-    logger = logging.getLogger('parse_arguments')
+    logger = logging.getLogger(__name__ + '.' + 'parse_arguments')
     parser = argparse.ArgumentParser(
             prog="quote_query",
             description="This is how we update stock quotes in the database"
@@ -575,6 +605,9 @@ def parse_arguments():
     parser.add_argument('--fileportnames', action='append', default=[], help="Limit update to symbols from one (or more) file:port names. Default is all fpns")
     parser.add_argument('--filenames', action='append', default=[], help="Use file:ports where file is in this list")
     parser.add_argument('--stock_only', action='store_true', default=False, help="Only get stock quotes (no index, mf or option)")
+    parser.add_argument('--index_skip', action='store_true', default=False, help="Skip quotes for indexes")
+    parser.add_argument('--mf_skip', action='store_true', default=False, help="Skip quotes for mutual funds")
+    parser.add_argument('--option_skip', action='store_true', default=False, help="Skip quotes for options")
     parser.add_argument('--clean', action='store_true', default=False, help="Delete rows from finance_quote table before committing new updates. Ignores arguments that limit fileportnames.")
     parser.add_argument('--delay', type=int, default=0, help="Seconds to delay before starting")
     parser.add_argument('--chunk', type=int, default=100, help="Limits the number of symbols passed to finviz in one chunk, default=100")
@@ -587,7 +620,7 @@ def parse_arguments():
 
 def process_arguments():
     global arguments
-    logger = logging.getLogger('process_arguments')
+    logger = logging.getLogger(__name__ + '.' + 'process_arguments')
 
     available_fileportnames = get_portnames()
     enabled_fileportnames = set()
@@ -616,8 +649,7 @@ def process_arguments():
 # Main
 #############################################################################
 def main():
-    logger = logging.getLogger('main')
-    logger.info('='*40 + " Start quote_query " + '='*40)
+    logger = logging.getLogger(__name__)
 
     # Delay
     delay_start()
@@ -632,11 +664,12 @@ def main():
 
     # Call for stock info
     if stock_symbols:
+        logger.info(f"Fetching quotes for {len(stock_symbols)} stock symbols")
         for retry_attempt in range(arguments.retries):
-            logger.info(f"update_stocks() attempt {retry_attempt}")
+            logger.debug(f"update_stocks() attempt {retry_attempt}")
             finance_quote_table_sublist, missing_symbols = update_stocks(data_datetime, market_closed, stock_symbols)
             finance_quote_table_list.extend(finance_quote_table_sublist)
-            logger.info(f"Got info for {len(stock_symbols)-len(missing_symbols)} of {len(stock_symbols)} symbols")
+            logger.debug(f"Got info for {len(stock_symbols)-len(missing_symbols)} of {len(stock_symbols)} symbols")
             stock_symbols = missing_symbols
             if len(stock_symbols) == 0:
                 break
@@ -648,15 +681,18 @@ def main():
 
     if not arguments.stock_only:
         # Call for index info
-        if index_symbols:
+        if not arguments.index_skip and index_symbols:
+            logger.info(f"Fetching quotes for {len(index_symbols)} index symbols")
             finance_quote_table_list.extend(update_indexes(data_datetime, market_closed, index_symbols))
         
         # Call for mf info
-        if mf_symbols:
+        if not arguments.mf_skip and mf_symbols:
+            logger.info(f"Fetching quotes for {len(mf_symbols)} mutual fund symbols")
             finance_quote_table_list.extend(update_mfs(data_datetime, market_closed, mf_symbols))
 
         # Call for option info
-        if option_symbols:
+        if not arguments.option_skip and option_symbols:
+            logger.info(f"Fetching quotes for {len(option_symbols)} option symbols")
             finance_quote_table_list.extend(update_options(data_datetime, market_closed, option_symbols))
 
     if arguments.clean and len(finance_quote_table_list) > 0:
@@ -668,6 +704,7 @@ def main():
     
 
 if __name__ == '__main__':
+    configure_logging()
     parse_arguments()
     process_arguments()
     main()

@@ -4,20 +4,15 @@ import sys
 import os
 import time as _time
 import logging
-import logging.config
+import logging.handlers
 import argparse
 from decimal import Decimal
 from datetime import datetime, date, time, timedelta
 
-from sqlalchemy import create_engine, Table, MetaData, inspect, desc
+from sqlalchemy import create_engine, Table, MetaData, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from finviz.screener import Screener
-
-import urllib.parse
-import requests
-from bs4 import BeautifulSoup
-import get_a_quote
 
 #############################################################################
 # This stuff needs to be done as globals
@@ -41,9 +36,40 @@ session = Session()
 # Additional globals
 #############################################################################
 thisdir = os.path.dirname(__file__)
-
-logging.config.fileConfig(os.path.join(thisdir, 'put_totals_logging.conf'))
 arguments = argparse.Namespace
+logger = None
+
+
+#############################################################################
+# Logging Configuration
+#############################################################################
+def configure_logging():
+    global logger
+    # Let's get a logger
+    logger = logging.getLogger(__name__)
+    # Set the level to the lowest in any handler
+    logger.setLevel(logging.DEBUG)
+    # Create separate formatters for console/file
+    consFormatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    fileFormatter = logging.Formatter("%(asctime)s %(levelname)-8s: [%(module)s %(process)s %(name)s %(lineno)d] %(message)s")
+    # Create and configure console handler
+    consHandler = logging.StreamHandler(sys.stderr)
+    consHandler.setFormatter(consFormatter)
+    consHandler.setLevel(logging.INFO)
+    # Create and configure file handler
+    logger_filename = os.path.abspath(os.path.join(thisdir, 'put_totals.log'))
+    fileHandler = logging.handlers.RotatingFileHandler(filename=logger_filename, maxBytes=100000000, backupCount=10)
+    fileHandler.setFormatter(fileFormatter)
+    fileHandler.setLevel(logging.DEBUG)
+    # Add handlers to the logger
+    logger.addHandler(consHandler)
+    logger.addHandler(fileHandler)
+    # Test messages
+    first_message = f"STARTING {__file__}"
+    prefix_suffix_length = (80 - len(first_message)) // 2
+    logger.info('='*80)
+    logger.info('='*prefix_suffix_length + first_message + '='*prefix_suffix_length)
+    logger.info('='*80)
 
 #############################################################################
 # Classes related to database tables
@@ -59,6 +85,9 @@ class TickerSymbols(Base):
 class FinanceQuotes(Base):
     __tablename__ = 'finance_quote'
     __table_args__ = {'autoload': True}
+
+    def __repr__(self):
+        return f"FinanceQuotes obtained {self.date} {self.time}"
 
 class MarketHolidays(Base):
     __tablename__ = 'market_holiday'
@@ -78,7 +107,7 @@ class PortHistories(Base):
 #############################################################################
 class PortHistory(object):
     def __init__(self):
-        logger = logging.getLogger('PortHistory.__init__')
+        logger = logging.getLogger(__name__ + '.' + 'PortHistory')
         self.query = session.query(PortHistories)
 
     def get_total_cash(self, portname, days, data_date):
@@ -87,18 +116,18 @@ class PortHistory(object):
         Then we query port_history for dates less equal and return
         the first entry in the list.
         """
-        logger = logging.getLogger('PortHistory.get_total_cash')
+        logger = logging.getLogger(__name__ + '.' + 'PortHistory.get_total_cash')
         latest_date = data_date - timedelta(days=days)
         port_histories = self.query.filter_by(fileportname=portname).filter(PortHistories.date<=latest_date).order_by(desc(PortHistories.date)).all()
         if len(port_histories) == 0:
             logger.warning(f"called with portname={portname},days={days}, unable to match port_history")
             return Decimal(0)
-        logger.info(f"called with portname={portname},days={days}, returning port_history for date={port_histories[0].date},total={port_histories[0].total},cash={port_histories[0].cash}")
+        logger.debug(f"called with portname={portname},days={days}, returning port_history for date={port_histories[0].date},total={port_histories[0].total},cash={port_histories[0].cash}")
         return port_histories[0].total, port_histories[0].cash
 
 class Port(object):
     def __init__(self, portname, finance_quotes):
-        logger = logging.getLogger('Port.__init__')
+        logger = logging.getLogger(__name__ + '.' + 'Port')
         self.portname = portname
         self.fqs = finance_quotes
         self.cash = Decimal(0)
@@ -112,7 +141,7 @@ class Port(object):
             self.data_datetime = datetime.now() + timedelta(days=1)
         self.port_history = PortHistory()
         self.initialize()
-        logger.info(str(self))
+        logger.debug(str(self))
 
     def __repr__(self):
         return "{cls}:n={name},c={cash},t={total},d%={pct_daygain},d={daygain},it={invested_total},g%={pct_gain},g={gain},pi={pct_invested},b={basis}".format(
@@ -156,7 +185,7 @@ class Port(object):
         self.query = session.query(TransactionLists).filter_by(fileportname=self.portname).all()
 
     def parse_transactions(self):
-        logger = logging.getLogger('Port.parse_transactions')
+        logger = logging.getLogger(__name__ + '.' + 'Port.parse_transactions')
         for transaction in self.query:
             if transaction.closed:
                 self.handle_closed_transaction(transaction)
@@ -177,7 +206,7 @@ class Port(object):
         self.cash += transaction.open_price
 
     def handle_open_position(self, transaction):
-        logger = logging.getLogger('Port.handle_open_position')
+        logger = logging.getLogger(__name__ + '.' + 'Port.handle_open_position')
         self.cash -= transaction.shares * transaction.open_price
         self.basis += transaction.shares * transaction.open_price
         fq = self.get_quote(transaction)
@@ -202,7 +231,7 @@ class Port(object):
 
 class PortParamTable(object):
     def __init__(self, ports):
-        logger = logging.getLogger('PortParamTable')
+        logger = logging.getLogger(__name__ + '.' + 'PortParamTable')
         self.ports = ports
         self.port_params = self.query_port_param()
         self.handle_ports()
@@ -219,8 +248,8 @@ class PortParamTable(object):
                 self.create_row(port)
 
     def update_row(self, port):
-        logger = logging.getLogger('PortParamTable.update_row')
-        logger.info(f"updating with port={port}")
+        logger = logging.getLogger(__name__ + '.' + 'PortParamTable.update_row')
+        logger.debug(f"updating with port={port}")
         port_param = self.port_params[port.portname]
         port_param.cash = port.cash
         port_param.total = port.total
@@ -233,8 +262,8 @@ class PortParamTable(object):
         port_param.basis = port.basis
 
     def create_row(self, port):
-        logger = logging.getLogger('PortParamTable.create_row')
-        logger.info(f"creating row with port={port}")
+        logger = logging.getLogger(__name__ + '.' + 'PortParamTable.create_row')
+        logger.debug(f"creating row with port={port}")
         pp = PortParams(
                 fileportname=port.portname,
                 cash=port.cash,
@@ -251,7 +280,7 @@ class PortParamTable(object):
         session.add(pp)
 
     def commit(self):
-        logger = logging.getLogger('PortParamTable.commit')
+        logger = logging.getLogger(__name__ + '.' + 'PortParamTable.commit')
         if not arguments.skip_commit:
             logger.info("Committing")
             session.commit()
@@ -259,29 +288,29 @@ class PortParamTable(object):
 
 class PortHistoryTable(object):
     def __init__(self, ports):
-        logger = logging.getLogger('PortHistoryTable')
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable')
         self.commit_needed = False
         self.ports = ports
         self.port_histories = self.query_port_history()
         self.handle_ports()
 
     def query_port_history(self):
-        logger = logging.getLogger("PortHistoryTable.query_port_history")
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable.query_port_history')
         port0 = list(self.ports.keys())[0]
         fq_date = self.ports.get(port0).data_datetime
         if fq_date.date() == datetime.now().date():
             query = session.query(PortHistories).filter_by(date=datetime.now().date()).all()
             return_rows = {row.fileportname: row for row in query}
-            logger.info(f"returning {len(return_rows)} rows from query")
+            logger.debug(f"returning {len(return_rows)} rows from query")
             return return_rows
-        logger.info(f"finance_quote date {fq_date.date()} != now date {datetime.now().date()}")
+        logger.debug(f"finance_quote date {fq_date.date()} != now date {datetime.now().date()}")
         return None
 
 
     def handle_ports(self):
-        logger = logging.getLogger("PortHistoryTable.handle_ports")
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable.handle_ports')
         if self.port_histories is not None:
-            logger.info(f"handling {len(self.port_histories)} port history rows")
+            logger.debug(f"handling {len(self.port_histories)} port history rows")
             for portname, port in self.ports.items():
                 if portname in self.port_histories:
                     self.update_row(port)
@@ -289,8 +318,8 @@ class PortHistoryTable(object):
                     self.create_row(port)
 
     def update_row(self, port):
-        logger = logging.getLogger('PortHistoryTable.update_row')
-        logger.info(f"updating with port={port}")
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable.update_row')
+        logger.debug(f"updating with port={port}")
         port_history = self.port_histories.get(port.portname)
         port_history.cash = port.cash
         port_history.total = port.total
@@ -298,8 +327,8 @@ class PortHistoryTable(object):
         self.commit_needed = True
 
     def create_row(self, port):
-        logger = logging.getLogger('PortHistoryTable.create_row')
-        logger.info(f"creating with port={port}")
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable.create_row')
+        logger.debug(f"creating with port={port}")
         ph = PortHistories(
                 date=datetime.now().date(),
                 fileportname=port.portname,
@@ -310,7 +339,7 @@ class PortHistoryTable(object):
         self.commit_needed = True
 
     def commit(self):
-        logger = logging.getLogger('PortHistoryTable.commit')
+        logger = logging.getLogger(__name__ + '.' + 'PortHistoryTable.commit')
         if not arguments.skip_commit and self.commit_needed:
             logger.info("Committing")
             session.commit()
@@ -320,7 +349,7 @@ class PortHistoryTable(object):
 # Function definitions
 #############################################################################
 def delay_start():
-    logger = logging.getLogger('delay_start')
+    logger = logging.getLogger(__name__ + '.' + 'delay_start')
     if arguments.delay:
         logger.info(f"Delaying start by {arguments.delay} seconds...")
         _time.sleep(arguments.delay)
@@ -336,18 +365,18 @@ def get_option_symbols(query):
     return symbol_set
 
 def get_portnames():
-    logger = logging.getLogger('get_portnames')
+    logger = logging.getLogger(__name__ + '.' + 'get_portnames')
     query = session.query(TransactionLists).all()
     portname_set = set([row.fileportname for row in query])
     return portname_set
 
 def get_finance_quotes():
-    logger = logging.getLogger('get_finance_quotes')
+    logger = logging.getLogger(__name__ + '.' + 'get_finance_quotes')
     query = session.query(FinanceQuotes).all()
     return {row.symbol: row for row in query}
 
 def get_symbols(fileportnames):
-    logger = logging.getLogger('get_symbols')
+    logger = logging.getLogger(__name__ + '.' + 'get_symbols')
     stock_query = session.query(TransactionLists).filter_by(descriptor='stock', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
     option_query = session.query(TransactionLists).filter_by(closed=False).filter(TransactionLists.fileportname.in_(fileportnames)).filter(TransactionLists.descriptor.in_(('call', 'put')))
     symbol_set = set([row.symbol for row in stock_query])
@@ -374,7 +403,7 @@ def get_symbols(fileportnames):
 #############################################################################
 def parse_arguments():
     global arguments
-    logger = logging.getLogger('parse_arguments')
+    logger = logging.getLogger(__name__ + '.' + 'parse_arguments')
     parser = argparse.ArgumentParser(
             prog="quote_query",
             description="This is how we update stock quotes in the database"
@@ -384,15 +413,13 @@ def parse_arguments():
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     parser.add_argument('--delay', type=int, default=0, help="Seconds to delay before starting")
     arguments = parser.parse_args()
-
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
 
 def process_arguments():
     global arguments
-    logger = logging.getLogger('process_arguments')
-
+    logger = logging.getLogger(__name__ + '.' + 'process_arguments')
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
@@ -402,8 +429,7 @@ def process_arguments():
 # Main
 #############################################################################
 def main():
-    logger = logging.getLogger('main')
-    logger.info('='*40 + " Start put_totals " + '='*40)
+    logger = logging.getLogger(__name__)
 
     # Delay
     delay_start()
@@ -424,6 +450,7 @@ def main():
 
 
 if __name__ == '__main__':
+    configure_logging()
     parse_arguments()
     process_arguments()
     main()
