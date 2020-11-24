@@ -19,6 +19,7 @@ from sqlalchemy.orm import sessionmaker
 #############################################################################
 # This stuff needs to be done as globals
 #############################################################################
+thisdir = os.path.dirname(__file__)
 try:
     host = os.uname()[1]
 except:
@@ -27,8 +28,10 @@ except:
 if host and host in ('skx-linux',):
     #engine = create_engine('mysql://blreams@localhost/track_port')
     engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
+    logpath = os.path.abspath(os.path.join(thisdir, '..', 'logs', 'port_edit.log'))
 else:
     engine = create_engine('sqlite:///track_port.db')
+    logpath = os.path.abspath(os.path.join(thisdir, 'port_edit.log'))
 Base = declarative_base(engine)
 metadata = Base.metadata
 Session = sessionmaker(bind=engine)
@@ -37,7 +40,6 @@ session = Session()
 #############################################################################
 # Additional globals
 #############################################################################
-thisdir = os.path.dirname(__file__)
 arguments = argparse.Namespace
 logger = None
 
@@ -59,8 +61,7 @@ def configure_logging():
     consHandler.setFormatter(consFormatter)
     consHandler.setLevel(logging.INFO)
     # Create and configure file handler
-    logger_filename = os.path.abspath(os.path.join(thisdir, 'put_totals.log'))
-    fileHandler = logging.handlers.RotatingFileHandler(filename=logger_filename, maxBytes=100000000, backupCount=10)
+    fileHandler = logging.handlers.RotatingFileHandler(filename=logpath, maxBytes=100000000, backupCount=10)
     fileHandler.setFormatter(fileFormatter)
     fileHandler.setLevel(logging.DEBUG)
     # Add handlers to the logger
