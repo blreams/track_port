@@ -100,6 +100,8 @@ class Transaction(object):
 # Function definitions
 #############################################################################
 def handle_cgi_args(cgi_fields):
+    logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
+    logger.debug(cgi_fields)
     cgi_args = {}
     return cgi_args
 
