@@ -145,7 +145,10 @@ def parse_arguments():
     fileportname_choices = get_portnames()
     parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
     parser.add_argument('--fileportname', choices=fileportname_choices, default=None, help="The fileportname being edited")
-    arguments = parser.parse_args()
+    try:
+        arguments = parser.parse_args()
+    except:
+        pass
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
@@ -183,7 +186,6 @@ def main():
 
 if __name__ == '__main__':
     configure_logging()
-    import pdb;pdb.set_trace()
     parse_arguments()
     process_arguments()
     main()
