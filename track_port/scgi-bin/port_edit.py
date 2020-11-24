@@ -155,6 +155,16 @@ def process_arguments():
     global arguments
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
     logger.debug("Arguments:")
+
+    cgi_fields = cgi.FieldStorage()
+    logger.debug(f"cgi_fields={cgi_fields}")
+    cgi_args = handle_cgi_args(cgi_fields)
+    logger.debug(f"cgi_args={cgi_args}")
+    if cgi_args['cgi']:
+        arguments.cgi = True
+        arguments.fileportname = cgi_args['fileportname']
+        arguments.action = cgi_args['action']
+
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
 
@@ -165,14 +175,6 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    cgi_fields = cgi.FieldStorage()
-    logger.debug(f"cgi_fields={cgi_fields}")
-    cgi_args = handle_cgi_args(cgi_fields)
-    logger.debug(f"cgi_args={cgi_args}")
-    if cgi_args['cgi']:
-        arguments.cgi = True
-        arguments.fileportname = cgi_args['fileportname']
-        arguments.action = cgi_args['action']
 
     context = {
             }
