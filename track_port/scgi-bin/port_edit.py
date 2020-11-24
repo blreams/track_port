@@ -99,10 +99,23 @@ class Transaction(object):
 #############################################################################
 # Function definitions
 #############################################################################
+def get_portnames():
+    logger = logging.getLogger(__name__ + '.' + 'get_portnames')
+    query = session.query(TransactionLists).all()
+    portnames = set([row.fileportname for row in query])
+    return portnames
+
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
     logger.debug(cgi_fields)
+    known_keys = ('action', 'fileportname')
+
     cgi_args = {}
+    for argkey in cgi_fields.keys():
+        if argkey in known_keys:
+            cgi_args[argkey] = cgi_fields[argkey].value
+
+    logger.debug(cgi_args)
     return cgi_args
 
 def render(template, context):
