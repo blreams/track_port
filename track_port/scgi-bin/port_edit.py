@@ -112,8 +112,10 @@ def handle_cgi_args(cgi_fields):
 
     cgi_args = {'cgi': True}
     for argkey in cgi_fields.keys():
-        if argkey in known_keys:
-            cgi_args[argkey] = cgi_fields[argkey].value
+        if argkey.startswith('-'):
+            cgi_args['cgi'] = False
+        if argkey.lstrip('-') in known_keys:
+            cgi_args[argkey.lstrip('-')] = cgi_fields[argkey].value
 
     logger.debug(cgi_args)
     return cgi_args
@@ -142,7 +144,7 @@ def parse_arguments():
     action_choices = ('show_transactions',)
     fileportname_choices = get_portnames()
     parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
-    parser.add_argument('--fileportname', choices=fileportname_choices, required=True, default=None, help="The fileportname being edited")
+    parser.add_argument('--fileportname', choices=fileportname_choices, default=None, help="The fileportname being edited")
     arguments = parser.parse_args()
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
@@ -162,8 +164,11 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    if arguments.fileportname is None:
-        cgi_args = handle_cgi_args(cgi.FieldStorage())
+    logger.info(cgi.FieldStorage())
+    cgi_fields = cgi.FieldStorage()
+    cgi_args = handle_cgi_args(cgi_fields)
+    logger.info(cgi_args)
+    if cgi_args['cgi']:
         arguments.fileportname = cgi_args['fileportname']
         arguments.action = cgi_args['action']
 
@@ -178,6 +183,7 @@ def main():
 
 if __name__ == '__main__':
     configure_logging()
+    import pdb;pdb.set_trace()
     parse_arguments()
     process_arguments()
     main()
