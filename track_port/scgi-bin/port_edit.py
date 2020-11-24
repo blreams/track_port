@@ -170,6 +170,7 @@ def main():
     cgi_args = handle_cgi_args(cgi_fields)
     logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
+        arguments.cgi = True
         arguments.fileportname = cgi_args['fileportname']
         arguments.action = cgi_args['action']
 
