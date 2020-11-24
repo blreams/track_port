@@ -107,7 +107,6 @@ def get_portnames():
 
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
-    logger.debug(cgi_fields)
     known_keys = ('action', 'fileportname')
 
     cgi_args = {'cgi': True}
@@ -117,7 +116,6 @@ def handle_cgi_args(cgi_fields):
         if argkey.lstrip('-') in known_keys:
             cgi_args[argkey.lstrip('-')] = cgi_fields[argkey].value
 
-    logger.debug(cgi_args)
     return cgi_args
 
 def render(template, context):
@@ -167,10 +165,10 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    logger.info(cgi.FieldStorage())
     cgi_fields = cgi.FieldStorage()
+    logger.debug(f"cgi_fields={cgi_fields}")
     cgi_args = handle_cgi_args(cgi_fields)
-    logger.info(cgi_args)
+    logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
         arguments.fileportname = cgi_args['fileportname']
         arguments.action = cgi_args['action']
