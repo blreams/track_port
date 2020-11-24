@@ -110,7 +110,7 @@ def handle_cgi_args(cgi_fields):
     logger.debug(cgi_fields)
     known_keys = ('action', 'fileportname')
 
-    cgi_args = {}
+    cgi_args = {'cgi': True}
     for argkey in cgi_fields.keys():
         if argkey in known_keys:
             cgi_args[argkey] = cgi_fields[argkey].value
@@ -138,6 +138,11 @@ def parse_arguments():
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('--simulate', action='store_true', default=False, help="Used from command line to force arguments")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
+    # The following arguments are mimicking what can be passed via cgi
+    action_choices = ('show_transactions',)
+    fileportname_choices = get_portnames()
+    parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
+    parser.add_argument('--fileportname', choices=fileportname_choices, required=True, default=None, help="The fileportname being edited")
     arguments = parser.parse_args()
     logger.debug("Arguments:")
     for arg, val in arguments.__dict__.items():
@@ -157,14 +162,16 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    if not arguments.simulate:
+    if arguments.fileportname is None:
         cgi_args = handle_cgi_args(cgi.FieldStorage())
+        arguments.fileportname = cgi_args['fileportname']
+        arguments.action = cgi_args['action']
 
     context = {
             }
 
     result = render(r'port_edit_layout.html', context)
-    if not arguments.simulate:
+    if hasattr(arguments, 'cgi') and arguments.cgi:
         print("Content-type: text/html\n\n")
     print(result)
 
