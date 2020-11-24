@@ -70,9 +70,9 @@ def configure_logging():
     # Test messages
     first_message = f"STARTING {__file__}"
     prefix_suffix_length = (80 - len(first_message)) // 2
-    #logger.info('='*80)
-    #logger.info('='*prefix_suffix_length + first_message + '='*prefix_suffix_length)
-    #logger.info('='*80)
+    logger.info('='*80)
+    logger.info('='*prefix_suffix_length + first_message + '='*prefix_suffix_length)
+    logger.info('='*80)
 
 #############################################################################
 # Classes related to database tables
