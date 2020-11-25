@@ -303,6 +303,8 @@ def main():
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_layout.html', context)
+    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
+        result = render(r'port_edit_edit_transaction.html', context)
 
     else:
         result = render(r'port_edit_else.html', context)
