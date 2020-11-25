@@ -247,9 +247,12 @@ def process_arguments():
 #############################################################################
 def main():
     logger = logging.getLogger(__name__)
+    schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray']
+    schemes = set(schemes)
 
     transactions = get_transactions(ttype=arguments.ttype)
     context = {
+            'schemes' : schemes,
             'cgi' : arguments.cgi,
             'transactions': transactions,
             }

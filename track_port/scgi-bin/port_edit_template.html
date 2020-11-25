@@ -13,6 +13,10 @@
   <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/theme.ice.css">
   <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/theme.grey.css">
   -->
+  {% for scheme in schemes %}
+  <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/theme.{{scheme}}.css">
+  {% endfor %}
+
 {% block head_js_block %}{% endblock %}
 </head>
 <body>
