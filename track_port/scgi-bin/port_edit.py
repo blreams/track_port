@@ -10,6 +10,7 @@ import cgi
 #import cgitb; cgitb.enable(display=0, logdir='/home/blreams') # for troubleshooting
 from decimal import Decimal
 from datetime import datetime, date, time, timedelta
+from collections import defaultdict
 
 import jinja2
 from sqlalchemy import create_engine, Table, MetaData, desc
@@ -86,14 +87,82 @@ class TransactionLists(Base):
 # Other classes
 #############################################################################
 class Transaction(object):
+
+    earliest_date = datetime.now().date()
+    column_order = (
+            'id',
+            'symbol',
+            'sector',
+            'position',
+            'descriptor',
+            'shares',
+            'open_price',
+            'open_date',
+            'closed',
+            'close_price',
+            'close_date',
+            'expiration',
+            'strike',
+            )
+
     def __init__(self, transaction_list_row):
         self.transaction_list_row = transaction_list_row
+        self.initialize()
 
-    def commit(self):
-        logger = logging.getLogger(__name__ + '.' + 'Transaction.commit')
-        if not arguments.skip_commit:
-            logger.info("Committing")
-            session.commit()
+    def __repr__(self):
+        return f"Transaction:ttype={self.ttype},symbol={self.symbol},position={self.position},descriptor={self.descriptor},shares={self.shares},earliest={self.earliest_date}"
+
+    def initialize(self):
+        tlr = self.transaction_list_row
+        if tlr.open_date is not None and tlr.open_date < self.earliest_date:
+            Transaction.earliest_date = tlr.open_date
+        self.ttype = 'unknown'
+        for key in tlr.__table__.columns.keys():
+            setattr(self, key, getattr(tlr, key))
+
+        # Initial cash transaction
+        if tlr.position == 'cash' and tlr.descriptor == 'initial':
+            self.ttype = 'initial'
+            self.amount = tlr.open_price
+
+        # Intermediate cash transaction
+        if tlr.position == 'cash' and tlr.descriptor == 'intermediate':
+            self.ttype = 'intermediate'
+            self.amount = tlr.open_price
+
+        # Open long stock
+        if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares > 0.0 and not tlr.closed:
+            self.ttype = 'open_long'
+            self.basis = tlr.shares * tlr.open_price
+
+        # Open short stock
+        if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares < 0.0 and not tlr.closed:
+            self.ttype = 'open_short'
+            self.basis = tlr.shares * tlr.open_price
+
+        # Open long option
+        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares > 0.0 and not tlr.closed:
+            self.ttype = f"open_{tlr_descriptor}"
+            self.basis = tlr.shares * tlr.open_price
+
+        # Open short option
+        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares < 0.0 and not tlr.closed:
+            self.ttype = f"open_{tlr_descriptor}"
+            self.basis = tlr.shares * tlr.open_price
+
+        # Close stock
+        if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.closed:
+            self.ttype = 'closed_stock'
+            self.basis = tlr.shares * tlr.open_price
+            self.close = tlr.shares * tlr.close_price
+            self.gain = self.close - self.basis
+
+        # Close option
+        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.closed:
+            self.ttype = f"closed_{tlr.descriptor}"
+            self.basis = tlr.shares * tlr.open_price
+            self.close = tlr.shares * tlr.close_price
+            self.gain = self.close - self.basis
 
 
 #############################################################################
@@ -105,16 +174,29 @@ def get_portnames():
     portnames = set([row.fileportname for row in query])
     return portnames
 
+def get_transactions():
+    logger = logging.getLogger(__name__ + '.' + 'get_transactions')
+    query = session.query(TransactionLists).filter_by(fileportname=arguments.fileportname).all()
+    transactions = defaultdict(list)
+    for row in query:
+        transaction = Transaction(row)
+        transactions[transaction.ttype].append(transaction)
+    return transactions
+
+
+
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
     known_keys = ('action', 'fileportname')
 
-    cgi_args = {'cgi': True}
+    cgi_args = {'cgi': None}
     for argkey in cgi_fields.keys():
         if argkey.startswith('-'):
             cgi_args['cgi'] = False
         if argkey.lstrip('-') in known_keys:
             cgi_args[argkey.lstrip('-')] = cgi_fields[argkey].value
+    if cgi_args['cgi'] is not None:
+        cgi_args['cgi'] = False
 
     return cgi_args
 
@@ -142,7 +224,7 @@ def parse_arguments():
     action_choices = ('show_transactions',)
     fileportname_choices = get_portnames()
     parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
-    parser.add_argument('--fileportname', choices=fileportname_choices, default=None, help="The fileportname being edited")
+    parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
     try:
         arguments = parser.parse_args()
     except:
@@ -175,9 +257,12 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-
+    transactions = get_transactions()
     context = {
+            'transactions': transactions,
+            'column_order': Transaction.column_order,
             }
+    import pdb;pdb.set_trace()
 
     result = render(r'port_edit_layout.html', context)
     if hasattr(arguments, 'cgi') and arguments.cgi:
