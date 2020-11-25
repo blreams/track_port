@@ -208,10 +208,10 @@ def parse_arguments():
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     # The following arguments are mimicking what can be passed via cgi
     action_choices = ('show_transactions',)
-    fileportname_choices = get_portnames()
-    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put',)
     parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
+    fileportname_choices = get_portnames()
     parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
+    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put',)
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     try:
         arguments = parser.parse_args()
@@ -235,6 +235,8 @@ def process_arguments():
         arguments.fileportname = cgi_args['fileportname']
         arguments.action = cgi_args['action']
         arguments.ttype = cgi_args['ttype']
+    else:
+        arguments.cgi = False
 
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
@@ -248,6 +250,7 @@ def main():
 
     transactions = get_transactions(ttype=arguments.ttype)
     context = {
+            'cgi' : arguments.cgi,
             'transactions': transactions,
             }
 
