@@ -262,7 +262,6 @@ def main():
             'transactions': transactions,
             'column_order': Transaction.column_order,
             }
-    import pdb;pdb.set_trace()
 
     result = render(r'port_edit_layout.html', context)
     if hasattr(arguments, 'cgi') and arguments.cgi:
