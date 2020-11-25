@@ -302,7 +302,6 @@ def main():
             'transactions': transactions,
             }
 
-    import pdb;pdb.set_trace()
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_layout.html', context)
 
