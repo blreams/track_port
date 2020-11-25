@@ -209,8 +209,10 @@ def parse_arguments():
     # The following arguments are mimicking what can be passed via cgi
     action_choices = ('show_transactions',)
     fileportname_choices = get_portnames()
+    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put',)
     parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
     parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
+    parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     try:
         arguments = parser.parse_args()
     except:
@@ -232,6 +234,7 @@ def process_arguments():
         arguments.cgi = True
         arguments.fileportname = cgi_args['fileportname']
         arguments.action = cgi_args['action']
+        arguments.ttype = cgi_args['ttype']
 
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
@@ -243,7 +246,7 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    transactions = get_transactions()
+    transactions = get_transactions(ttype=arguments.ttype)
     context = {
             'transactions': transactions,
             }
