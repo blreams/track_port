@@ -24,10 +24,7 @@
         </tr>
     </thead>
     <tbody>
-    {% for ttype in transactions %}
-        {% if ttype == 'intermediate' %}
-            {% set list_transactions = transactions[ttype] %}
-            {% for transaction in list_transactions %}
+            {% for transaction in transactions %}
         <tr>
             <td>{{transaction.id}}</td>
             <td>{{transaction.symbol}}</td>
@@ -44,8 +41,6 @@
             <td>{{transaction.strike}}</td>
         </tr>
             {% endfor %}
-        {% endif %}
-    {% endfor %}
     </tbody>
 </table>
 {% endif %}

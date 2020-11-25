@@ -89,21 +89,6 @@ class TransactionLists(Base):
 class Transaction(object):
 
     earliest_date = datetime.now().date()
-    column_order = (
-            'id',
-            'symbol',
-            'sector',
-            'position',
-            'descriptor',
-            'shares',
-            'open_price',
-            'open_date',
-            'closed',
-            'close_price',
-            'close_date',
-            'expiration',
-            'strike',
-            )
 
     def __init__(self, transaction_list_row):
         self.transaction_list_row = transaction_list_row
@@ -174,13 +159,14 @@ def get_portnames():
     portnames = set([row.fileportname for row in query])
     return portnames
 
-def get_transactions():
+def get_transactions(ttype=None):
     logger = logging.getLogger(__name__ + '.' + 'get_transactions')
     query = session.query(TransactionLists).filter_by(fileportname=arguments.fileportname).all()
-    transactions = defaultdict(list)
+    transactions = []
     for row in query:
         transaction = Transaction(row)
-        transactions[transaction.ttype].append(transaction)
+        if ttype is None or transaction.ttype == ttype:
+            transactions.append(transaction)
     return transactions
 
 
@@ -260,7 +246,6 @@ def main():
     transactions = get_transactions()
     context = {
             'transactions': transactions,
-            'column_order': Transaction.column_order,
             }
 
     result = render(r'port_edit_layout.html', context)
