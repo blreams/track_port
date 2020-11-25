@@ -1,47 +1,67 @@
 {% extends "port_edit_template.html" %}
 {% block title %}port_edit.py{% endblock %}
 {% block head_js_block %}
+  <script>
+    $(document).ready(function() { 
+      {% for tclass in tclassset %}
+      {% for scheme in schemes %}
+      $('.{{tclass}}Table-{{scheme}}').tablesorter({
+        {% for key in tsconfig[tclass] %}{{key}}: {{tsconfig[tclass][key]}},{% endfor %}theme: "{{scheme}}",
+      });
+      {% endfor %}
+      {% endfor %}
+      $('.tablesorter-childRow td').hide();
+      $('.tablesorter').delegate('.toggle', 'click', function() {
+        $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
+        return false;
+      });
+    });
+  </script>
 {% endblock %}
 
 {% block body_block %}
-{% if transactions %}
-<table>
-    <thead>
+<div style="width:100%">
+  <div style="display:table-cell;min-width:400px;vertical-align:top">
+    {% if transactions %}
+    <table class="mainTable-gray tablesorter">
+      <thead>
         <tr>
-            <th>id</th>
-            <th>symbol</th>
-            <th>sector</th>
-            <th>position</th>
-            <th>descriptor</th>
-            <th>shares</th>
-            <th>open_price</th>
-            <th>open_date</th>
-            <th>closed</th>
-            <th>close_price</th>
-            <th>close_date</th>
-            <th>expiration</th>
-            <th>strike</th>
+          <th>id</th>
+          <th>symbol</th>
+          <th>sector</th>
+          <th>position</th>
+          <th>descriptor</th>
+          <th>shares</th>
+          <th>open_price</th>
+          <th>open_date</th>
+          <th>closed</th>
+          <th>close_price</th>
+          <th>close_date</th>
+          <th>expiration</th>
+          <th>strike</th>
         </tr>
-    </thead>
-    <tbody>
-            {% for transaction in transactions %}
+      </thead>
+      <tbody>
+        {% for transaction in transactions %}
         <tr>
-            <td>{{transaction.id}}</td>
-            <td>{{transaction.symbol}}</td>
-            <td>{{transaction.sector}}</td>
-            <td>{{transaction.position}}</td>
-            <td>{{transaction.descriptor}}</td>
-            <td>{{transaction.shares}}</td>
-            <td>{{transaction.open_price}}</td>
-            <td>{{transaction.open_date}}</td>
-            <td>{{transaction.closed}}</td>
-            <td>{{transaction.close_price}}</td>
-            <td>{{transaction.close_date}}</td>
-            <td>{{transaction.expiration}}</td>
-            <td>{{transaction.strike}}</td>
+          <td>{{transaction.id}}</td>
+          <td>{{transaction.symbol}}</td>
+          <td>{{transaction.sector}}</td>
+          <td>{{transaction.position}}</td>
+          <td>{{transaction.descriptor}}</td>
+          <td>{{transaction.shares}}</td>
+          <td>{{transaction.open_price}}</td>
+          <td>{{transaction.open_date}}</td>
+          <td>{{transaction.closed}}</td>
+          <td>{{transaction.close_price}}</td>
+          <td>{{transaction.close_date}}</td>
+          <td>{{transaction.expiration}}</td>
+          <td>{{transaction.strike}}</td>
         </tr>
-            {% endfor %}
-    </tbody>
-</table>
-{% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
