@@ -21,6 +21,11 @@
 
 {% block body_block %}
 <p>Query returned {{transactions|length}} transactions</p>
+<form method="post" action="port_edit.py">
+    <input type="checkbox" name="happy" /> Happy
+    <input type="checkbox" name="sad" /> Sad
+    <input type="submit" value="Submit" />
+</form>
 <div style="width:100%">
   <div style="display:table-cell;min-width:400px;vertical-align:top">
     {% if transactions %}
