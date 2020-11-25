@@ -26,10 +26,9 @@
     <tbody>
     {% for ttype in transactions %}
         {% if ttype == 'intermediate' %}
-        <tr>
             {% set list_transactions = transactions[ttype] %}
             {% for transaction in list_transactions %}
-                {% for column in column_order %}
+        <tr>
             <td>{{transaction.id}}</td>
             <td>{{transaction.symbol}}</td>
             <td>{{transaction.sector}}</td>
@@ -43,9 +42,8 @@
             <td>{{transaction.close_date}}</td>
             <td>{{transaction.expiration}}</td>
             <td>{{transaction.strike}}</td>
-                {% endfor %}
-            {% endfor %}
         </tr>
+            {% endfor %}
         {% endif %}
     {% endfor %}
     </tbody>
