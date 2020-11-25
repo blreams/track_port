@@ -195,8 +195,8 @@ def handle_cgi_args(cgi_fields):
             cgi_args['cgi'] = False
         if argkey.lstrip('-') in known_keys:
             cgi_args[argkey.lstrip('-')] = cgi_fields[argkey].value
-    if cgi_args['cgi'] is not None:
-        cgi_args['cgi'] = False
+    if cgi_args['cgi'] is None:
+        cgi_args['cgi'] = True
 
     return cgi_args
 
