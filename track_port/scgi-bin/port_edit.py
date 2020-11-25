@@ -57,7 +57,7 @@ tsconfig = {
         'cssChildRow': '"tablesorter-childRow"',
         'cssInfoBlock': '"tablesorter-no-sort"',
         'sortInitialOrder': '"desc"',
-        'sortList': '[[0,1]]',
+        'sortList': '[[0,0]]',
         'widgets': '["zebra"]',
         'widgetOptions': '{zebra: ["odd", "even"],}',
         #'headers': '{' + ','.join(headersvals) + '}',
