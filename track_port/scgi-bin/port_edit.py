@@ -251,11 +251,25 @@ def main():
     tclasses = set(tclasses)
     schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray']
     schemes = set(schemes)
+    tsconfig = {
+        'main': {
+            'debug': 'true',
+            'cssChildRow': '"tablesorter-childRow"',
+            'cssInfoBlock': '"tablesorter-no-sort"',
+            'sortInitialOrder': '"desc"',
+            'sortList': '[[0,1]]',
+            'widgets': '["zebra"]',
+            'widgetOptions': '{zebra: ["odd", "even"],}',
+            #'headers': '{' + ','.join(headersvals) + '}',
+        },
+    }
+
 
     transactions = get_transactions(ttype=arguments.ttype)
     context = {
             'tclasses': tclasses,
             'schemes': schemes,
+            'tsconfig': tsconfig,
             'cgi': arguments.cgi,
             'transactions': transactions,
             }

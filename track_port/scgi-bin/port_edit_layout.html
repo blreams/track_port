@@ -3,7 +3,7 @@
 {% block head_js_block %}
   <script>
     $(document).ready(function() { 
-      {% for tclass in tclassset %}
+      {% for tclass in tclasses %}
       {% for scheme in schemes %}
       $('.{{tclass}}Table-{{scheme}}').tablesorter({
         {% for key in tsconfig[tclass] %}{{key}}: {{tsconfig[tclass][key]}},{% endfor %}theme: "{{scheme}}",
