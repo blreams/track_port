@@ -173,7 +173,7 @@ def get_transactions(ttype=None):
 
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
-    known_keys = ('action', 'fileportname')
+    known_keys = ('action', 'fileportname', 'ttype')
 
     cgi_args = {'cgi': None}
     for argkey in cgi_fields.keys():
