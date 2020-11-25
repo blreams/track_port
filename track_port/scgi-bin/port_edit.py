@@ -108,6 +108,21 @@ class TransactionLists(Base):
 class Transaction(object):
 
     earliest_date = datetime.now().date()
+    column_order = (
+            'id',
+            'symbol',
+            'sector',
+            'position',
+            'descriptor',
+            'shares',
+            'open_price',
+            'open_date',
+            'closed',
+            'close_price',
+            'close_date',
+            'expiration',
+            'strike',
+            )
 
     def __init__(self, transaction_list_row):
         self.transaction_list_row = transaction_list_row
@@ -275,6 +290,7 @@ def main():
             'schemes': schemes,
             'tsconfig': tsconfig,
             'cgi': arguments.cgi,
+            'column_order': Transaction.column_order,
             'transactions': transactions,
             }
 

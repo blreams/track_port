@@ -27,37 +27,17 @@
     <table class="mainTable-ice tablesorter">
       <thead>
         <tr>
-          <th>id</th>
-          <th>symbol</th>
-          <th>sector</th>
-          <th>position</th>
-          <th>descriptor</th>
-          <th>shares</th>
-          <th>open_price</th>
-          <th>open_date</th>
-          <th>closed</th>
-          <th>close_price</th>
-          <th>close_date</th>
-          <th>expiration</th>
-          <th>strike</th>
+          {% for column in column_order %}
+          <th>{{column}}</td>
+          {% endfor %}
         </tr>
       </thead>
       <tbody>
         {% for transaction in transactions %}
         <tr>
-          <td>{{transaction.id}}</td>
-          <td>{{transaction.symbol}}</td>
-          <td>{{transaction.sector}}</td>
-          <td>{{transaction.position}}</td>
-          <td>{{transaction.descriptor}}</td>
-          <td>{{transaction.shares}}</td>
-          <td>{{transaction.open_price}}</td>
-          <td>{{transaction.open_date}}</td>
-          <td>{{transaction.closed}}</td>
-          <td>{{transaction.close_price}}</td>
-          <td>{{transaction.close_date}}</td>
-          <td>{{transaction.expiration}}</td>
-          <td>{{transaction.strike}}</td>
+          {% for column in column_order %}
+          <td>{{transaction|attr(column)}}</td>
+          {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
