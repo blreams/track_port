@@ -31,25 +31,24 @@
     <table class="mainTable-ice tablesorter">
       <thead>
         <tr>
+          <th></th>
           {% for column in column_order %}
-          <th>{{column}}</td>
+          <th>{{column}}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
         {% for transaction in transactions %}
         <tr>
-          {% for column in column_order %}
-            {% if column == "id" %}
           <td>
             <form method="post" action="port_edit.py">
               <input type="hidden" name="action" value="edit_transaction" />
-              <input type="submit" value="{{transaction|attr(column)}}" />
+              <input type="hidden" name="transaction_id" value="{{transaction.id}}" />
+              <input type="submit" value="Edit" />
             </form>
           </td>
-            {% else %}
+          {% for column in column_order %}
           <td>{{transaction|attr(column)}}</td>
-            {% endif %}
           {% endfor %}
         </tr>
         {% endfor %}
