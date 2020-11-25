@@ -243,7 +243,6 @@ def parse_arguments():
             )
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
-    parser.add_argument('--simulate', action='store_true', default=False, help="Used from command line to force arguments")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     # The following arguments are mimicking what can be passed via cgi
     action_choices = ('show_transactions', "edit_transaction")
