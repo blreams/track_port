@@ -1,0 +1,24 @@
+{% extends "port_edit_template.html" %}
+{% block title %}port_edit.py{% endblock %}
+{% block head_js_block %}
+  <script>
+    $(document).ready(function() { 
+      {% for tclass in tclasses %}
+      {% for scheme in schemes %}
+      $('.{{tclass}}Table-{{scheme}}').tablesorter({
+        {% for key in tsconfig[tclass] %}{{key}}: {{tsconfig[tclass][key]}},{% endfor %}theme: "{{scheme}}",
+      });
+      {% endfor %}
+      {% endfor %}
+      $('.tablesorter-childRow td').hide();
+      $('.tablesorter').delegate('.toggle', 'click', function() {
+        $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
+        return false;
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block body_block %}
+{{arguments}}
+{% endblock %}

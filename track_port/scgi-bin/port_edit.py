@@ -13,6 +13,7 @@ from datetime import datetime, date, time, timedelta
 from collections import defaultdict
 
 import jinja2
+import jinja2.ext
 from sqlalchemy import create_engine, Table, MetaData, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -211,7 +212,7 @@ def get_transactions(ttype=None):
 
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
-    known_keys = ('action', 'fileportname', 'ttype')
+    known_keys = ('action', 'fileportname', 'ttype', 'transaction_id')
 
     cgi_args = {'cgi': None}
     for argkey in cgi_fields.keys():
@@ -245,12 +246,14 @@ def parse_arguments():
     parser.add_argument('--simulate', action='store_true', default=False, help="Used from command line to force arguments")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     # The following arguments are mimicking what can be passed via cgi
-    action_choices = ('show_transactions',)
-    parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
+    action_choices = ('show_transactions', "edit_transaction")
+    #parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
+    parser.add_argument('--action', choices=action_choices, help="Edit action")
     fileportname_choices = get_portnames()
     parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
     ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put',)
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
+    parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
     try:
         arguments = parser.parse_args()
     except:
@@ -290,6 +293,7 @@ def main():
 
     transactions = get_transactions(ttype=arguments.ttype)
     context = {
+            'arguments': arguments,
             'tclasses': tclasses,
             'schemes': schemes,
             'tsconfig': tsconfig,
@@ -298,7 +302,13 @@ def main():
             'transactions': transactions,
             }
 
-    result = render(r'port_edit_layout.html', context)
+    import pdb;pdb.set_trace()
+    if arguments.action == 'show_transactions':
+        result = render(r'port_edit_layout.html', context)
+
+    else:
+        result = render(r'port_edit_else.html', context)
+
     if hasattr(arguments, 'cgi') and arguments.cgi:
         print("Content-type: text/html\n\n")
     print(result)
