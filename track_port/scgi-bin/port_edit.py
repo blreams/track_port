@@ -250,10 +250,11 @@ def process_arguments():
     cgi_args = handle_cgi_args(cgi_fields)
     logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
-        arguments.cgi = True
-        arguments.fileportname = cgi_args['fileportname']
-        arguments.action = cgi_args['action']
-        arguments.ttype = cgi_args['ttype']
+        for key in cgi_args:
+            setattr(arguments, key, cgi_args[key])
+        #arguments.fileportname = cgi_args['fileportname']
+        #arguments.action = cgi_args['action']
+        #arguments.ttype = cgi_args['ttype']
     else:
         arguments.cgi = False
 
