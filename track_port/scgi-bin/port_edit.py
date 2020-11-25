@@ -110,6 +110,7 @@ class Transaction(object):
     earliest_date = datetime.now().date()
     column_order = (
             'id',
+            'ttype',
             'symbol',
             'sector',
             'position',
@@ -117,9 +118,12 @@ class Transaction(object):
             'shares',
             'open_price',
             'open_date',
+            'basis',
             'closed',
             'close_price',
             'close_date',
+            'close',
+            'gain',
             'expiration',
             'strike',
             )
