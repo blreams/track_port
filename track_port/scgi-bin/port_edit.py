@@ -165,12 +165,12 @@ class Transaction(object):
 
         # Open long option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares > 0.0 and not tlr.closed:
-            self.ttype = f"open_{tlr_descriptor}"
+            self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
 
         # Open short option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares < 0.0 and not tlr.closed:
-            self.ttype = f"open_{tlr_descriptor}"
+            self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
 
         # Close stock
