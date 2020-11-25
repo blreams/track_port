@@ -22,8 +22,7 @@
 {% block body_block %}
 <p>Query returned {{transactions|length}} transactions</p>
 <form method="post" action="port_edit.py">
-    <input type="checkbox" name="happy" /> Happy
-    <input type="checkbox" name="sad" /> Sad
+    <input type="hidden" name="fileportname" value="port:fluffgazer" />
     <input type="submit" value="Submit" />
 </form>
 <div style="width:100%">
