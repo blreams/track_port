@@ -144,6 +144,7 @@ class Transaction(object):
         self.ttype = 'unknown'
         for key in tlr.__table__.columns.keys():
             setattr(self, key, getattr(tlr, key))
+        self.transaction_id = tlr.id
 
         # Initial cash transaction
         if tlr.position == 'cash' and tlr.descriptor == 'initial':
@@ -193,10 +194,31 @@ class Transaction(object):
 
 
 class EditTransactionForm(object):
+    msg_no_change = 'You may not change this field'
+    msg_calculated = 'Info-Only: field is calculated based on other fields'
     def __init__(self, transaction):
         self.transaction = transaction
 
     def initialize(self):
+        self.message = {}
+        self.message['id'] = self.msg_no_change
+        self.message['ttype'] = self.msg_no_change
+        self.message['fileportname'] = self.msg_no_change
+        self.message['symbol'] = self.msg_no_change
+        self.message['sector'] = 'Free form text field (limit 32 chars)'
+        self.message['position'] = self.msg_no_change
+        self.message['descriptor'] = self.msg_no_change
+        self.message['shares'] = 'Number of shares (negative if short)'
+        self.message['open_price'] = 'Price per share at open'
+        self.message['open_date'] = 'Date transaction was opened'
+        self.message['basis'] = self.msg_calculated
+        self.message['closed'] = 'Indicates a "closed" transaction (set to 1)'
+        self.message['close_price'] = 'Price per share at close'
+        self.message['close_date'] = 'Date transaction was closed'
+        self.message['close'] = self.msg_calculated
+        self.message['days'] = self.msg_calculated
+        self.message['expiration'] = 'Expiration date (options-only)'
+        self.message['strike'] = 'Strike price (option-only)'
         pass
 
 #############################################################################
