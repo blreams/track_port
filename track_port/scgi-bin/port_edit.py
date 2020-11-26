@@ -125,6 +125,7 @@ class Transaction(object):
             'close_date',
             'close',
             'gain',
+            'days',
             'expiration',
             'strike',
             )
@@ -180,6 +181,7 @@ class Transaction(object):
             self.basis = tlr.shares * tlr.open_price
             self.close = tlr.shares * tlr.close_price
             self.gain = self.close - self.basis
+            self.days = (tlr.close_date - tlr.open_date).days
 
         # Close option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.closed:
@@ -187,6 +189,7 @@ class Transaction(object):
             self.basis = tlr.shares * tlr.open_price
             self.close = tlr.shares * tlr.close_price
             self.gain = self.close - self.basis
+            self.days = (tlr.close_date - tlr.open_date).days
 
 
 #############################################################################
