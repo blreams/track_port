@@ -272,6 +272,8 @@ def parse_arguments():
 def process_arguments():
     global arguments
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
+    logger.debug("ENV:")
+    logger.debug(f"REQUEST_METHOD: {os.environ.get('REQUEST_METHOD')}")
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
     for cgi_key in cgi_fields.keys():
@@ -301,7 +303,6 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-
     transactions = get_transactions(ttype=arguments.ttype)
     context = {
             'arguments': arguments,
@@ -330,6 +331,7 @@ def main():
 if __name__ == '__main__':
     configure_logging()
     parse_arguments()
+    import pdb;pdb.set_trace()
     process_arguments()
     main()
 
