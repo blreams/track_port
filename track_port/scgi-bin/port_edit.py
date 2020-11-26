@@ -287,7 +287,7 @@ def process_arguments():
     logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
         for key in cgi_args:
-            setattr(arguments, key, cgi_args[key])
+            setattr(arguments, key, cgi_fields.getlist(key)[0])
     else:
         arguments.cgi = False
 
