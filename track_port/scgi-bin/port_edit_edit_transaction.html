@@ -20,10 +20,24 @@
 {% endblock %}
 
 {% block body_block %}
-{{arguments}}
+{{transaction}}
 <table>
-{% for arg in arguments.__dict__ %}
-  <tr><td>arguments.{{arg}}</td><td>{{arguments|attr(arg)}}</td></tr>
-{% endfor %}
+    <tr><td>ttype</td><td>{{transaction.ttype}}</td></tr>
+    <tr><td>id</td><td>{{transaction.id}}</td></tr>
+    <tr><td>fileportname</td><td>{{transaction.fileportname}}</td></tr>
+    <tr><td>symbol</td><td>{{transaction.symbol}}</td></tr>
+    <tr><td>sector</td><td>{{transaction.sector}}</td></tr>
+    <tr><td>position</td><td>{{transaction.position}}</td></tr>
+    <tr><td>descriptor</td><td>{{transaction.descriptor}}</td></tr>
+    <tr><td>shares</td><td>{{transaction.shares}}</td></tr>
+    <tr><td>open_price</td><td>{{transaction.open_price}}</td></tr>
+    <tr><td>open_date</td><td>{{transaction.open_date}}</td></tr>
+    <tr><td>basis</td><td>{{transaction.basis}}</td></tr>
+    <tr><td>closed</td><td>{{transaction.closed}}</td></tr>
+    <tr><td>close_price</td><td>{{transaction.close_price}}</td></tr>
+    <tr><td>close_date</td><td>{{transaction.close_date}}</td></tr>
+    <tr><td>close</td><td>{{transaction.close}}</td></tr>
+    <tr><td>expiration</td><td>{{transaction.expiration}}</td></tr>
+    <tr><td>strike</td><td>{{transaction.strike}}</td></tr>
 </table>
 {% endblock %}

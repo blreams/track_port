@@ -198,6 +198,11 @@ def get_portnames():
     portnames = set([row.fileportname for row in query])
     return portnames
 
+def get_transaction(transaction_id):
+    logger = logging.getLogger(__name__ + '.' + 'get_transaction')
+    query = session.query(TransactionLists).filter_by(id=transaction_id).one()
+    return Transaction(query)
+
 def get_transactions(ttype=None):
     logger = logging.getLogger(__name__ + '.' + 'get_transactions')
     query = session.query(TransactionLists).filter_by(fileportname=arguments.fileportname).all()
@@ -304,6 +309,7 @@ def main():
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_layout.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
+        context['transaction'] = get_transaction(arguments.transaction_id)
         result = render(r'port_edit_edit_transaction.html', context)
 
     else:
