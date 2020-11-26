@@ -310,7 +310,7 @@ def main():
             }
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
-        result = render(r'port_edit_layout.html', context)
+        result = render(r'port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
         context['transaction'] = get_transaction(arguments.transaction_id)
         result = render(r'port_edit_edit_transaction.html', context)

@@ -20,13 +20,13 @@
 {% endblock %}
 
 {% block body_block %}
-{{transaction}}
-<table>
+<form method="post" name="port_edit.py">
+  <table>
     <tr><td>ttype</td><td>{{transaction.ttype}}</td></tr>
     <tr><td>id</td><td>{{transaction.id}}</td></tr>
     <tr><td>fileportname</td><td>{{transaction.fileportname}}</td></tr>
     <tr><td>symbol</td><td>{{transaction.symbol}}</td></tr>
-    <tr><td>sector</td><td>{{transaction.sector}}</td></tr>
+    <tr><td>sector</td><td><input type="text" name="sector" value="{{transaction.sector}}" /></td></tr>
     <tr><td>position</td><td>{{transaction.position}}</td></tr>
     <tr><td>descriptor</td><td>{{transaction.descriptor}}</td></tr>
     <tr><td>shares</td><td>{{transaction.shares}}</td></tr>
@@ -40,5 +40,6 @@
     <tr><td>days</td><td>{{transaction.days}}</td></tr>
     <tr><td>expiration</td><td>{{transaction.expiration}}</td></tr>
     <tr><td>strike</td><td>{{transaction.strike}}</td></tr>
-</table>
+  </table>
+</form>
 {% endblock %}
