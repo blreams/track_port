@@ -202,7 +202,7 @@ class EditTransactionForm(object):
 
     def initialize(self):
         self.message = {}
-        self.message['id'] = self.msg_no_change
+        self.message['transaction_id'] = self.msg_no_change
         self.message['ttype'] = self.msg_no_change
         self.message['fileportname'] = self.msg_no_change
         self.message['symbol'] = self.msg_no_change
