@@ -43,6 +43,8 @@
       <tr><td>expiration</td><td><input type="date" name="expiration" value="{{transaction.expiration}}" /></td><td>{{message.expiration}}</td></tr>
       <tr><td>strike</td><td><input type="text" name="strike" value="{{transaction.strike}}" /></td><td>{{message.strike}}</td></tr>
   </table>
+  <p>* - {{form.msg_no_change}}</p>
+  <p>** - {{form.msg_calculated}}</p>
   <input type="submit" value="Submit" />
 </form>
 {% endblock %}
