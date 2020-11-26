@@ -198,6 +198,7 @@ class EditTransactionForm(object):
     msg_calculated = 'Info-Only: field is calculated based on other fields'
     def __init__(self, transaction):
         self.transaction = transaction
+        self.initialize()
 
     def initialize(self):
         self.message = {}
