@@ -272,9 +272,13 @@ def parse_arguments():
 def process_arguments():
     global arguments
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
+    logger.debug("CGI Arguments:")
+    cgi_fields = cgi.FieldStorage()
+    for cgi_key in cgi_fields.keys():
+        logger.debug(f"{cgi_key}: <{cgi_fields.getlist(cgi_key)}>")
+
     logger.debug("Arguments:")
 
-    cgi_fields = cgi.FieldStorage()
     logger.debug(f"cgi_fields={cgi_fields}")
     cgi_args = handle_cgi_args(cgi_fields)
     logger.debug(f"cgi_args={cgi_args}")
