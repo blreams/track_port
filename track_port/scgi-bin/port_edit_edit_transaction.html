@@ -20,6 +20,7 @@
 {% endblock %}
 
 {% block body_block %}
+{% set transaction = form.transaction %}
 <form method="post" name="port_edit.py">
   <table>
     <tr><td>ttype</td><td><input type="text" name="ttype" value="{{transaction.ttype}}" disabled /></td></tr>

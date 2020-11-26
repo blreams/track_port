@@ -192,6 +192,13 @@ class Transaction(object):
             self.days = (tlr.close_date - tlr.open_date).days
 
 
+class EditTransactionForm(object):
+    def __init__(self, transaction):
+        self.transaction = transaction
+
+    def initialize(self):
+        pass
+
 #############################################################################
 # Function definitions
 #############################################################################
@@ -314,7 +321,8 @@ def main():
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
-        context['transaction'] = get_transaction(arguments.transaction_id)
+        form = EditTransactionForm(get_transaction(arguments.transaction_id))
+        context['form'] = form
         result = render(r'port_edit_edit_transaction.html', context)
 
     else:
