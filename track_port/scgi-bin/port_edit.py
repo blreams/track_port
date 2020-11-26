@@ -274,6 +274,7 @@ def process_arguments():
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
     logger.debug("ENV:")
     logger.debug(f"REQUEST_METHOD: {os.environ.get('REQUEST_METHOD')}")
+    arguments.request_method = os.environ.get('REQUEST_METHOD')
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
     for cgi_key in cgi_fields.keys():
@@ -287,9 +288,6 @@ def process_arguments():
     if cgi_args['cgi']:
         for key in cgi_args:
             setattr(arguments, key, cgi_args[key])
-        #arguments.fileportname = cgi_args['fileportname']
-        #arguments.action = cgi_args['action']
-        #arguments.ttype = cgi_args['ttype']
     else:
         arguments.cgi = False
 
@@ -316,7 +314,7 @@ def main():
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
-    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
+    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
         context['transaction'] = get_transaction(arguments.transaction_id)
         result = render(r'port_edit_edit_transaction.html', context)
 
