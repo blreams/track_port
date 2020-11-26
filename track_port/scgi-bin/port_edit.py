@@ -220,14 +220,13 @@ def get_transactions(ttype=None):
 
 def handle_cgi_args(cgi_fields):
     logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
-    known_keys = ('action', 'fileportname', 'ttype', 'transaction_id')
+    #known_keys = ('action', 'fileportname', 'ttype', 'transaction_id')
 
     cgi_args = {'cgi': None}
     for argkey in cgi_fields.keys():
         if argkey.startswith('-'):
             cgi_args['cgi'] = False
-        if argkey.lstrip('-') in known_keys:
-            cgi_args[argkey.lstrip('-')] = cgi_fields[argkey].value
+        cgi_args[argkey.lstrip('-')] = cgi_fields.getlist(argkey)[0]
     if cgi_args['cgi'] is None:
         cgi_args['cgi'] = True
 
@@ -287,7 +286,7 @@ def process_arguments():
     logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
         for key in cgi_args:
-            setattr(arguments, key, cgi_fields.getlist(key)[0])
+            setattr(arguments, key, cgi_args[key])
     else:
         arguments.cgi = False
 
