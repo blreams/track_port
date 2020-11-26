@@ -21,10 +21,6 @@
 
 {% block body_block %}
 <p>Query returned {{transactions|length}} transactions</p>
-<form method="post" action="port_edit.py">
-    <input type="hidden" name="fileportname" value="port:fluffgazer" />
-    <input type="submit" value="Submit" />
-</form>
 <div style="width:100%">
   <div style="display:table-cell;min-width:400px;vertical-align:top">
     {% if transactions %}
@@ -41,7 +37,7 @@
         {% for transaction in transactions %}
         <tr>
           <td>
-            <form method="post" action="port_edit.py">
+            <form method="get" action="port_edit.py">
               <input type="hidden" name="action" value="edit_transaction" />
               <input type="hidden" name="transaction_id" value="{{transaction.id}}" />
               <input type="submit" value="Edit" />
