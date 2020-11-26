@@ -331,7 +331,6 @@ def main():
 if __name__ == '__main__':
     configure_logging()
     parse_arguments()
-    import pdb;pdb.set_trace()
     process_arguments()
     main()
 
