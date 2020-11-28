@@ -313,9 +313,7 @@ def process_arguments():
     logger.debug(f"REQUEST_METHOD: {os.environ.get('REQUEST_METHOD')}")
     logger.debug(f"QUERY_STRING: {os.environ.get('QUERY_STRING')}")
     logger.debug(f"CONTENT_LENGTH: {os.environ.get('CONTENT_LENGTH')}")
-    request_method = os.environ.get('REQUEST_METHOD')
-    #if request_method is not None:
-    #    arguments.request_method = request_method
+    arguments.request_method = os.environ.get('REQUEST_METHOD')
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
     for cgi_key in cgi_fields.keys():
