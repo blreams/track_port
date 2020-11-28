@@ -313,6 +313,9 @@ def process_arguments():
     logger.debug(f"REQUEST_METHOD: {os.environ.get('REQUEST_METHOD')}")
     logger.debug(f"QUERY_STRING: {os.environ.get('QUERY_STRING')}")
     logger.debug(f"CONTENT_LENGTH: {os.environ.get('CONTENT_LENGTH')}")
+    if os.environ.get('CONTENT_LENGTH'):
+        logger.debug("sys.stdin.read():")
+        logger.debug(f"{sys.stdin.read()}")
     arguments.request_method = os.environ.get('REQUEST_METHOD')
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
