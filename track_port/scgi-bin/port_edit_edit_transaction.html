@@ -24,9 +24,9 @@
 {% set message = form.message %}
 <form method="post" name="port_edit.py">
   <table>
-      {% for form_key in form.form %}
-      {% set form_row = form.form[form_key] %}
-      <tr><td>{{form_key}}</td><td><input type="{{form_row.itype}}" name="{{form_key}}" value="{{form_row.value}}" {{form_row.disabled}} /></td><td>{{form_row.message}}</td></tr>
+      {% for input_name in form.form.inputs %}
+      {% set form_input = form.form|attr(input_name) %}
+      <tr><td>{{input_name}}</td><td><input type="{{form_input.itype}}" name="{{input_name}}" value="{{form_input.value}}" {{form_input.disabled}} /></td><td>{{form_input.message}}</td></tr>
       {% endfor %}
   </table>
   <p>* - {{form.msg_no_change}}</p>

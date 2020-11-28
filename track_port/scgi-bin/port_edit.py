@@ -205,38 +205,91 @@ class EditTransactionForm(object):
         self.initialize()
 
     def initialize(self):
-        self.form = {
-                'transaction_id': {'value': self.transaction.id, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'ttype': {'value': self.transaction.ttype, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'fileportname': {'value': self.transaction.fileportname, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'symbol': {'value': self.transaction.symbol, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'sector': {'value': self.transaction.sector, 'message': 'Free form text field (limit 32 chars)', 'itype': 'text', 'disabled': ''},
-                'position': {'value': self.transaction.position, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'descriptor': {'value': self.transaction.descriptor, 'message': self.msg_asterisk, 'itype': 'text', 'disabled': 'disabled'},
-                'shares': {'value': self.transaction.shares, 'message': 'Number of shares (negative if short)', 'itype': 'text', 'disabled': ''},
-                'open_price': {'value': self.transaction.open_price, 'message': 'Price per share at open', 'itype': 'text', 'disabled': ''},
-                'open_date': {'value': self.transaction.open_date, 'message': 'Date transaction was opened', 'itype': 'date', 'disabled': ''},
-                'basis': {'value': self.transaction.basis, 'message': self.msg_asterisk * 2, 'itype': 'text', 'disabled': 'disabled'},
-                'closed': {'value': self.transaction.closed, 'message': 'Indicates a "closed" transaction (set to 1)', 'itype': 'text', 'disabled': ''},
-                'close_price': {'value': self.transaction.close_price, 'message': 'Price per share at close', 'itype': 'text', 'disabled': ''},
-                'close_date': {'value': self.transaction.close_date, 'message': 'Date transaction was closed', 'itype': 'date', 'disabled': ''},
-                'close': {'value': self.transaction.close, 'message': self.msg_asterisk * 2, 'itype': 'text', 'disabled': 'disabled'},
-                'days': {'value': self.transaction.days, 'message': self.msg_asterisk * 2, 'itype': 'text', 'disabled': 'disabled'},
-                'expiration': {'value': self.transaction.expiration, 'message': 'Expiration date (options-only)', 'itype': 'date', 'disabled': ''},
-                'stike': {'value': self.transaction.strike, 'message': 'Strike price (options-only)', 'itype': 'text', 'disabled': ''},
-                }
+        self.form = Form()
+        self.form.add_input('transaction_id', FormInput(value=self.transaction.id, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('ttype', FormInput(value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('fileportname', FormInput(value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('symbol', FormInput(value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('position', FormInput(value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('descriptor', FormInput(value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input('shares', FormInput(value=self.transaction.shares, message='Number of shares (negative if short)'))
+        self.form.add_input('open_price', FormInput(value=self.transaction.open_price, message='Price per share at open'))
+        self.form.add_input('open_date', FormInput(value=self.transaction.open_date, message='Date transaction was opened'))
+        self.form.add_input('basis', FormInput(value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input('closed', FormInput(value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
+        self.form.add_input('close_price', FormInput(value=self.transaction.close_price, message='Price per share at close'))
+        self.form.add_input('close_date', FormInput(value=self.transaction.close_date, message='Date transaction was closed'))
+        self.form.add_input('close', FormInput(value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input('days', FormInput(value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input('expiration', FormInput(value=self.transaction.expiration, message='Expiration date (options-only)'))
+        self.form.add_input('strike', FormInput(value=self.transaction.strike, message='Strike price (options-only)'))
 
     def validate(self):
-        form = cgi.FieldStorage()
-        self.validated = True
+        change = False
+        if hasattr(arguments, 'transaction_id') and self.transaction.transaction_id != arguments.transaction_id:
+            self.form.transaction_id.message = 'Illegal change'
+        if hasattr(arguments, 'ttype') and self.transaction.ttype != arguments.ttype:
+            self.form.ttype.message = 'Illegal change'
+        if hasattr(arguments, 'fileportname') and self.transaction.fileportname != arguments.fileportname:
+            self.form.fileportname.message = 'Illegal change'
+        if hasattr(arguments, 'symbol') and self.transaction.symbol != arguments.symbol:
+            self.form.symbol.message = 'Illegal change'
+        if hasattr(arguments, 'position') and self.transaction.position != arguments.position:
+            self.form.position.message = 'Illegal change'
+        if hasattr(arguments, 'descriptor') and self.transaction.descriptor != arguments.descriptor:
+            self.form.descriptor.message = 'Illegal change'
+        if hasattr(arguments, 'sector') and self.transaction.sector != arguments.sector:
+            self.form.sector.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'shares') and self.transaction.shares != arguments.shares:
+            self.form.shares.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'open_price') and self.transaction.open_price != arguments.open_price:
+            self.form.open_price.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'open_date') and self.transaction.open_date != arguments.open_date:
+            self.form.open_date.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'closed') and self.transaction.closed != arguments.closed:
+            self.form.closed.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'close_price') and self.transaction.close_price != arguments.close_price:
+            self.form.close_price.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'close_date') and self.transaction.close_date != arguments.close_date:
+            self.form.close_date.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'expiration') and self.transaction.expiration != arguments.expiration:
+            self.form.expiration.message = 'Modified'
+            change = True
+        if hasattr(arguments, 'strike') and self.transaction.strike != arguments.strike:
+            self.form.strike.message = 'Modified'
+            change = True
+        if self.form.shares.message == 'Modified' or self.form.open_price.message == 'Modified':
+            self.form.basis.message = 'Recalculated'
+            change = True
+        if self.form.shares.message == 'Modified' or self.form.close_price.message == 'Modified':
+            self.form.close.message = 'Recalculated'
+            change = True
+        if self.form.open_date.message == 'Modified' or self.form.close_date.message == 'Modified':
+            self.form.days.message = 'Recalculated'
+            change = True
+        self.validated = False
 
-        sector = form.getlist('sector')[0][:32]
+class Form(object):
+    def __init__(self):
+        self.inputs = []
 
-        try:
-            shares = form.getlist('shares')[0]
-        except:
-            self.transaction.shares
+    def add_input(self, input_name, form_input):
+        self.inputs.append(input_name)
+        setattr(self, input_name, form_input)
 
+class FormInput(object):
+    def __init__(self, value, message, itype='text', disabled=''):
+        self.value = value
+        self.message = message
+        self.itype = itype
+        self.disabled = disabled
 
 #############################################################################
 # Function definitions
@@ -305,6 +358,7 @@ def parse_arguments():
 def process_arguments():
     global arguments
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
+    stdin_save = sys.stdin
 
     if os.environ.get('REQUEST_METHOD') is None:
         # In order to mimic cgi arguments using command line arguments
@@ -326,7 +380,7 @@ def process_arguments():
     logger.debug(f"CONTENT_LENGTH: {os.environ.get('CONTENT_LENGTH')}")
     if os.environ.get('CONTENT_LENGTH'):
         logger.debug("sys.stdin.read():")
-        stdin_contents = sys.stdin.read()
+        stdin_contents = sys.stdin.read().strip()
         logger.debug(f"{stdin_contents}")
         with open(stdin_file, 'w') as f:
             f.write(stdin_contents)
@@ -335,6 +389,7 @@ def process_arguments():
     arguments.request_method = os.environ.get('REQUEST_METHOD')
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
+    sys.stdin = stdin_save
     for cgi_key in cgi_fields.keys():
         logger.debug(f"{cgi_key}: <{cgi_fields.getlist(cgi_key)}>")
 
@@ -377,13 +432,17 @@ def main():
             'transactions': transactions,
             }
 
+    import pdb;pdb.set_trace()
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
         edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
         context['form'] = edit_transaction_form
         result = render(r'port_edit_edit_transaction.html', context)
-
+    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'POST':
+        edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
+        edit_transaction_form.validate()
+        result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
 
