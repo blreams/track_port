@@ -31,9 +31,11 @@ if host and host in ('skx-linux',):
     #engine = create_engine('mysql://blreams@localhost/track_port')
     engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
     logpath = os.path.abspath(os.path.join(thisdir, '..', 'logs', 'port_edit.log'))
+    stdin_file = os.path.abspath(os.path.join(thisdir, '..', 'logs', 'post_args.stdin'))
 else:
     engine = create_engine('sqlite:///track_port.db')
     logpath = os.path.abspath(os.path.join(thisdir, 'port_edit.log'))
+    stdin_file = os.path.abspath(os.path.join(thisdir, 'post_args.stdin'))
 Base = declarative_base(engine)
 metadata = Base.metadata
 Session = sessionmaker(bind=engine)
@@ -326,7 +328,6 @@ def process_arguments():
         logger.debug("sys.stdin.read():")
         stdin_contents = sys.stdin.read()
         logger.debug(f"{stdin_contents}")
-        stdin_file = os.path.abspath(os.path.join(thisdir, 'post_args.stdin'))
         with open(stdin_file, 'w') as f:
             f.write(stdin_contents)
         sys.stdin = open(stdin_file, 'r')
