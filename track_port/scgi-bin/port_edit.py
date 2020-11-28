@@ -434,14 +434,14 @@ def main():
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
-    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
+    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
         edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
         context['form'] = edit_transaction_form
+        if arguments.request_method == 'GET':
+            result = render(r'port_edit_edit_transaction.html', context)
+        elif arguments.request_method == 'POST':
+            context['validated'] = edit_transaction_form.validate()
         result = render(r'port_edit_edit_transaction.html', context)
-    elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'POST':
-        edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
-        edit_transaction_form.validate()
-        result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
 

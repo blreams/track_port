@@ -20,8 +20,6 @@
 {% endblock %}
 
 {% block body_block %}
-{% set transaction = form.transaction %}
-{% set message = form.message %}
 <form method="post" name="port_edit.py">
   <table>
       {% for input_name in form.form.inputs %}
