@@ -10,4 +10,4 @@ port_plot.html
 *.tmp
 ~*.docx
 *.db
-
+*.stdin

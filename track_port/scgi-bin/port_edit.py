@@ -328,7 +328,13 @@ def process_arguments():
     logger.debug(f"CONTENT_LENGTH: {os.environ.get('CONTENT_LENGTH')}")
     if os.environ.get('CONTENT_LENGTH'):
         logger.debug("sys.stdin.read():")
-        logger.debug(f"{sys.stdin.read()}")
+        stdin_contents = sys.stdin.read()
+        logger.debug(f"{stdin_contents}")
+        stdin_file = 'post_args.stdin'
+        with open(stdin_file, 'w') as f:
+            f.write(stdin_contents)
+        sys.stdin = open(stdin_file, 'r')
+
     arguments.request_method = os.environ.get('REQUEST_METHOD')
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
