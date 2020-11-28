@@ -432,7 +432,6 @@ def main():
             'transactions': transactions,
             }
 
-    import pdb;pdb.set_trace()
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
