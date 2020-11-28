@@ -281,7 +281,7 @@ def parse_arguments():
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
     request_method_choices = (None, 'GET', 'POST')
-    #parser.add_argument('--request_method', choices=request_method_choices, default=request_method_choices[0], help="Used for debugging")
+    parser.add_argument('--request_method', choices=request_method_choices, default=request_method_choices[0], help="Used for debugging")
     # The following arguments are mimicking what can be passed via cgi
     action_choices = ('show_transactions', "edit_transaction")
     #parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
@@ -301,9 +301,6 @@ def parse_arguments():
 
     if arguments.post_args is not None:
         assert os.path.isfile(arguments.post_args), f"Unable to open file {arguments.post_args}"
-        arguments.request_method = 'POST'
-    else:
-        arguments.request_method = 'GET'
 
 def process_arguments():
     global arguments
@@ -311,15 +308,16 @@ def process_arguments():
 
     # In order to mimic cgi arguments using command line arguments
     # we must set a few environment variables.
-    if arguments.request_method == 'GET':
-        os.environ['REQUEST_METHOD'] = 'GET'
-        query_string_parts = [f"{key}={value}" for key, value in arguments.__dict__.items() if value is not None and key not in ('verbose', 'debug', 'skip_commit', 'request_method')]
-        query_string = '&'.join(query_string_parts)
-        os.environ['QUERY_STRING'] = query_string
-    elif arguments.request_method == 'POST':
-        os.environ['REQUEST_METHOD'] = 'POST'
-        os.environ['CONTENT_LENGTH'] = str(os.stat(arguments.post_args).st_size)
-        sys.stdin = open(arguments.post_args, 'r')
+    if arguments.request_method is None:
+        if arguments.post_args is None:
+            os.environ['REQUEST_METHOD'] = 'GET'
+            query_string_parts = [f"{key}={value}" for key, value in arguments.__dict__.items() if value is not None and key not in ('verbose', 'debug', 'skip_commit', 'request_method')]
+            query_string = '&'.join(query_string_parts)
+            os.environ['QUERY_STRING'] = query_string
+        else:
+            os.environ['REQUEST_METHOD'] = 'POST'
+            os.environ['CONTENT_LENGTH'] = str(os.stat(arguments.post_args).st_size)
+            sys.stdin = open(arguments.post_args, 'r')
 
 
     logger.debug("ENV:")
