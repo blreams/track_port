@@ -260,22 +260,6 @@ def get_transactions(ttype=None):
             transactions.append(transaction)
     return transactions
 
-
-
-def handle_cgi_args(cgi_fields):
-    logger = logging.getLogger(__name__ + '.' + 'handle_cgi_args')
-    #known_keys = ('action', 'fileportname', 'ttype', 'transaction_id')
-
-    cgi_args = {'cgi': None}
-    for argkey in cgi_fields.keys():
-        if argkey.startswith('-'):
-            cgi_args['cgi'] = False
-        cgi_args[argkey.lstrip('-')] = cgi_fields.getlist(argkey)[0]
-    if cgi_args['cgi'] is None:
-        cgi_args['cgi'] = True
-
-    return cgi_args
-
 def render(template, context):
     """Helper function to render page using jinja2
     """
@@ -295,13 +279,15 @@ def parse_arguments():
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
+    request_method_choices = ('GET', 'POST')
+    parser.add_argument('--request_method', choices=request_method_choices, default=request_method_choices[0], help="Used for debugging")
     # The following arguments are mimicking what can be passed via cgi
     action_choices = ('show_transactions', "edit_transaction")
     #parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
     parser.add_argument('--action', choices=action_choices, help="Edit action")
     fileportname_choices = get_portnames()
     parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
-    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put',)
+    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
     try:
@@ -315,18 +301,37 @@ def parse_arguments():
 def process_arguments():
     global arguments
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
+
+    # In order to mimic cgi arguments using command line arguments
+    # we must set a few environment variables.
+    if arguments.request_method == 'GET':
+        os.environ['REQUEST_METHOD'] = 'GET'
+        query_string_parts = [f"{key}={value}" for key, value in arguments.__dict__.items() if value is not None and key not in ('verbose', 'debug', 'skip_commit', 'request_method')]
+        query_string = '&'.join(query_string_parts)
+        os.environ['QUERY_STRING'] = query_string
     logger.debug("ENV:")
     logger.debug(f"REQUEST_METHOD: {os.environ.get('REQUEST_METHOD')}")
-    arguments.request_method = os.environ.get('REQUEST_METHOD')
+    logger.debug(f"QUERY_STRING: {os.environ.get('QUERY_STRING')}")
+    logger.debug(f"CONTENT_LENGTH: {os.environ.get('CONTENT_LENGTH')}")
+    request_method = os.environ.get('REQUEST_METHOD')
+    #if request_method is not None:
+    #    arguments.request_method = request_method
     logger.debug("CGI Arguments:")
     cgi_fields = cgi.FieldStorage()
     for cgi_key in cgi_fields.keys():
         logger.debug(f"{cgi_key}: <{cgi_fields.getlist(cgi_key)}>")
 
+    cgi_args = {'cgi': None}
+    for argkey in cgi_fields.keys():
+        if argkey.startswith('-'):
+            cgi_args['cgi'] = False
+        cgi_args[argkey.lstrip('-')] = cgi_fields.getlist(argkey)[0]
+    if cgi_args['cgi'] is None:
+        cgi_args['cgi'] = True
+
     logger.debug("Arguments:")
 
     logger.debug(f"cgi_fields={cgi_fields}")
-    cgi_args = handle_cgi_args(cgi_fields)
     logger.debug(f"cgi_args={cgi_args}")
     if cgi_args['cgi']:
         for key in cgi_args:
