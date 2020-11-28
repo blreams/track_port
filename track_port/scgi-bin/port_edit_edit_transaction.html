@@ -24,24 +24,10 @@
 {% set message = form.message %}
 <form method="post" name="port_edit.py">
   <table>
-      <tr><td>ttype</td><td><input type="text" name="ttype" value="{{transaction.ttype}}" disabled /></td><td>{{message.ttype}}</td></tr>
-      <tr><td>id</td><td><input type="text" name="transaction_id" value="{{transaction.transaction_id}}" disabled /></td><td>{{message.transaction_id}}</td></tr>
-      <tr><td>fileportname</td><td><input type="text" name="fileportname" value="{{transaction.fileportname}}" disabled /></td><td>{{message.fileportname}}</td></tr>
-      <tr><td>symbol</td><td><input type="text" name="symbol" value="{{transaction.symbol}}" disabled /></td><td>{{message.symbol}}</td></tr>
-      <tr><td>sector</td><td><input type="text" name="sector" value="{{transaction.sector}}" /></td><td>{{message.sector}}</td></tr>
-      <tr><td>position</td><td><input type="text" name="position" value="{{transaction.position}}" disabled /></td><td>{{message.position}}</td></tr>
-      <tr><td>descriptor</td><td><input type="text" name="descriptor" value="{{transaction.descriptor}}" disabled /></td><td>{{message.descriptor}}</td></tr>
-      <tr><td>shares</td><td><input type="text" name="shares" value="{{transaction.shares}}" /></td><td>{{message.shares}}</td></tr>
-      <tr><td>open_price</td><td><input type="text" name="open_price" value="{{transaction.open_price}}" /></td><td>{{message.open_price}}</td></tr>
-      <tr><td>open_date</td><td><input type="date" name="open_date" value="{{transaction.open_date}}" /></td><td>{{message.open_date}}</td></tr>
-      <tr><td>basis</td><td><input type="text" name="basis" value="{{transaction.basis}}" disabled /></td><td>{{message.basis}}</td></tr>
-      <tr><td>closed</td><td><input type="text" name="closed" value="{{transaction.closed}}" /></td><td>{{message.closed}}</td></tr>
-      <tr><td>close_price</td><td><input type="text" name="close_price" value="{{transaction.close_price}}" /></td><td>{{message.close_price}}</td></tr>
-      <tr><td>close_date</td><td><input type="date" name="close_date" value="{{transaction.close_date}}" /></td><td>{{message.close_date}}</td></tr>
-      <tr><td>close</td><td><input type="text" name="close" value="{{transaction.close}}" disabled /></td><td>{{message.close}}</td></tr>
-      <tr><td>days</td><td><input type="text" name="days" value="{{transaction.days}}" disabled /></td><td>{{message.days}}</td></tr>
-      <tr><td>expiration</td><td><input type="date" name="expiration" value="{{transaction.expiration}}" /></td><td>{{message.expiration}}</td></tr>
-      <tr><td>strike</td><td><input type="text" name="strike" value="{{transaction.strike}}" /></td><td>{{message.strike}}</td></tr>
+      {% for form_key in form.form %}
+      {% set form_row = form.form.form_key %}
+      <tr><td>{{form_key}}</td><td><input type="{{form_row.itype}}" name="{{form_key}}" value="{{form_row.value}}" disabled /></td><td>{{form_row.message}}</td></tr>
+      {% endfor %}
   </table>
   <p>* - {{form.msg_no_change}}</p>
   <p>** - {{form.msg_calculated}}</p>

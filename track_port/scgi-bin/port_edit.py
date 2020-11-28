@@ -195,33 +195,46 @@ class Transaction(object):
 
 class EditTransactionForm(object):
     msg_no_change = 'You may not change this field'
-    msg_asterisk = '*'
     msg_calculated = 'Info-Only: field is calculated based on other fields'
+    msg_asterisk = '*'
+
     def __init__(self, transaction):
         self.transaction = transaction
         self.initialize()
 
     def initialize(self):
-        self.message = {}
-        self.message['transaction_id'] = self.msg_asterisk
-        self.message['ttype'] = self.msg_asterisk
-        self.message['fileportname'] = self.msg_asterisk
-        self.message['symbol'] = self.msg_asterisk
-        self.message['sector'] = 'Free form text field (limit 32 chars)'
-        self.message['position'] = self.msg_asterisk
-        self.message['descriptor'] = self.msg_asterisk
-        self.message['shares'] = 'Number of shares (negative if short)'
-        self.message['open_price'] = 'Price per share at open'
-        self.message['open_date'] = 'Date transaction was opened'
-        self.message['basis'] = self.msg_asterisk * 2
-        self.message['closed'] = 'Indicates a "closed" transaction (set to 1)'
-        self.message['close_price'] = 'Price per share at close'
-        self.message['close_date'] = 'Date transaction was closed'
-        self.message['close'] = self.msg_asterisk * 2
-        self.message['days'] = self.msg_asterisk * 2
-        self.message['expiration'] = 'Expiration date (options-only)'
-        self.message['strike'] = 'Strike price (option-only)'
-        pass
+        self.form = {
+                'transaction_id': {'value': self.transaction.id, 'message': self.msg_asterisk, 'itype': 'text'},
+                'ttype': {'value': self.transaction.ttype, 'message': self.msg_asterisk, 'itype': 'text'},
+                'fileportname': {'value': self.transaction.fileportname, 'message': self.msg_asterisk, 'itype': 'text'},
+                'symbol': {'value': self.transaction.symbol, 'message': self.msg_asterisk, 'itype': 'text'},
+                'sector': {'value': self.transaction.sector, 'message': 'Free form text field (limit 32 chars)', 'itype': 'text'},
+                'position': {'value': self.transaction.position, 'message': self.msg_asterisk, 'itype': 'text'},
+                'descriptor': {'value': self.transaction.descriptor, 'message': self.msg_asterisk, 'itype': 'text'},
+                'shares': {'value': self.transaction.shares, 'message': 'Number of shares (negative if short)', 'itype': 'text'},
+                'open_price': {'value': self.transaction.open_price, 'message': 'Price per share at open', 'itype': 'text'},
+                'open_date': {'value': self.transaction.open_date, 'message': 'Date transaction was opened', 'itype': 'date'},
+                'basis': {'value': self.transaction.basis, 'message': self.msg_asterisk * 2, 'itype': 'text'},
+                'closed': {'value': self.transaction.closed, 'message': 'Indicates a "closed" transaction (set to 1)', 'itype': 'text'},
+                'close_price': {'value': self.transaction.close_price, 'message': 'Price per share at close', 'itype': 'text'},
+                'close_date': {'value': self.transaction.close_date, 'message': 'Date transaction was closed', 'itype': 'date'},
+                'close': {'value': self.transaction.close, 'message': self.msg_asterisk * 2, 'itype': 'text'},
+                'days': {'value': self.transaction.days, 'message': self.msg_asterisk * 2, 'itype': 'text'},
+                'expiration': {'value': self.transaction.expiration, 'message': 'Expiration date (options-only)', 'itype': 'date'},
+                'stike': {'value': self.transaction.strike, 'message': 'Strike price (options-only)', 'itype': 'text'},
+                }
+
+    def validate(self):
+        form = cgi.FieldStorage()
+        self.validated = True
+
+        sector = form.getlist('sector')[0][:32]
+
+        try:
+            shares = form.getlist('shares')[0]
+        except:
+            self.transaction.shares
+
 
 #############################################################################
 # Function definitions
@@ -345,8 +358,8 @@ def main():
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
         result = render(r'port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction' and arguments.request_method == 'GET':
-        form = EditTransactionForm(get_transaction(arguments.transaction_id))
-        context['form'] = form
+        edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
+        context['form'] = edit_transaction_form
         result = render(r'port_edit_edit_transaction.html', context)
 
     else:
