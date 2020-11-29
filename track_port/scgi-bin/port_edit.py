@@ -10,6 +10,7 @@ import cgi
 #import cgitb; cgitb.enable(display=0, logdir='/home/blreams') # for troubleshooting
 from decimal import Decimal
 from datetime import datetime, date, time, timedelta
+import dateparser
 from collections import defaultdict
 
 import jinja2
@@ -199,6 +200,7 @@ class EditTransactionForm(object):
     msg_no_change = 'You may not change this field'
     msg_calculated = 'Info-Only: field is calculated based on other fields'
     msg_asterisk = '*'
+    msg_modified = 'Modified'
 
     def __init__(self, transaction):
         self.transaction = transaction
@@ -206,58 +208,77 @@ class EditTransactionForm(object):
 
     def initialize(self):
         self.form = Form()
-        self.form.add_input('transaction_id', FormInput(value=self.transaction.id, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('ttype', FormInput(value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('fileportname', FormInput(value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('symbol', FormInput(value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('position', FormInput(value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('descriptor', FormInput(value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input('shares', FormInput(value=self.transaction.shares, message='Number of shares (negative if short)'))
-        self.form.add_input('open_price', FormInput(value=self.transaction.open_price, message='Price per share at open'))
-        self.form.add_input('open_date', FormInput(value=self.transaction.open_date, message='Date transaction was opened'))
-        self.form.add_input('basis', FormInput(value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input('closed', FormInput(value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
-        self.form.add_input('close_price', FormInput(value=self.transaction.close_price, message='Price per share at close'))
-        self.form.add_input('close_date', FormInput(value=self.transaction.close_date, message='Date transaction was closed'))
-        self.form.add_input('close', FormInput(value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input('days', FormInput(value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input('expiration', FormInput(value=self.transaction.expiration, message='Expiration date (options-only)'))
-        self.form.add_input('strike', FormInput(value=self.transaction.strike, message='Strike price (options-only)'))
+        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)'))
+        self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
+        self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)'))
+        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open'))
+        self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
+        self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
+        self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
+        self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
+        self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
+        self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
+        self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)'))
 
     def validate(self):
+        return_value = True
         for input_name in self.form.inputs:
             if input_name in ('ttype', 'fileportname'):
                 continue
+            if input_name in ('transaction_id', 'symbol', 'position', 'descriptor'):
+                continue
+            if not hasattr(arguments, input_name):
+                continue
             form_input = getattr(self.form, input_name)
             if input_name in ('sector',):
-                setattr(form_input, 'message', 'Modified')
-                setattr(form_input, 'changed', True)
-                setattr(form_input, 'validated', True)
-                setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
+                if hasattr(arguments, input_name) and getattr(arguments, input_name) != getattr(self.transaction, input_name):
+                    setattr(form_input, 'message', self.msg_modified)
+                    setattr(form_input, 'changed', True)
+                    setattr(form_input, 'validated', True)
+                    setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
             elif input_name in ('shares', 'open_price', 'close_price', 'strike'):
-                setattr(form_input, 'message', 'Modified')
-                setattr(form_input, 'changed', True)
                 try:
-                    setattr(form_input, 'validated_value', float(getattr(arguments, input_name)))
+                    validated_value = Decimal(float(getattr(arguments, input_name)))
+                    setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
                 except:
                     setattr(form_input, 'validated', False)
+                if abs(validated_value - getattr(self.transaction, input_name)) > Decimal(0.00001):
+                    setattr(form_input, 'message', self.msg_modified)
+                    setattr(form_input, 'changed', True)
             elif input_name in ('open_date', 'close_date', 'expiration'):
-                setattr(form_input, 'message', 'Modified')
-                setattr(form_input, 'changed', True)
+                if getattr(arguments, input_name) == 'None':
+                    validated_value = None
+                    setattr(form_input, 'validated_value', validated_value)
+                    setattr(form_input, 'validated', True)
+                else:
+                    try:
+                        validated_value = dateparser.parse(getattr(arguments, input_name)).date()
+                        setattr(form_input, 'validated_value', validated_value)
+                        setattr(form_input, 'validated', True)
+                    except:
+                        setattr(form_input, 'validated', False)
+                if validated_value != getattr(self.transaction, input_name):
+                    setattr(form_input, 'message', self.msg_modified)
+                    setattr(form_input, 'changed', True)
+            elif input_name in ('closed',):
+                if arguments.debug and input_name == 'closed': import pdb;pdb.set_trace()
                 try:
-                    setattr(form_input, 'validated_value', getattr(arguments, input_name))
+                    validated_value = int(getattr(arguments, input_name))
+                    setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
                 except:
                     setattr(form_input, 'validated', False)
-
-            elif input_name in ('closed',):
-                setattr(form_input, 'message', 'Modified')
-                setattr(form_input, 'changed', True)
-                try:
-                    setattr(form_input, 'validated_value', 1 if getattr(arguments, input_name) else 0)
-                except:
-                    setattr(form_input, 'validated', False)
+                if validated_value != getattr(self.transaction, input_name):
+                    setattr(form_input, 'message', self.msg_modified)
+                    setattr(form_input, 'changed', True)
             else:
                 setattr(form_input, 'message', 'Illegal change')
                 setattr(form_input, 'changed', True)
@@ -271,22 +292,28 @@ class EditTransactionForm(object):
             if self.form.open_date.message == 'Modified' or self.form.close_date.message == 'Modified':
                 self.form.days.message = 'Recalculated'
                 change = True
-        return False
+
+            return_value &= getattr(form_input, 'validated', True)
+        return return_value
 
 class Form(object):
     def __init__(self):
         self.inputs = []
 
-    def add_input(self, input_name, form_input):
-        self.inputs.append(input_name)
-        setattr(self, input_name, form_input)
+    def add_input(self, form_input):
+        self.inputs.append(form_input.name)
+        setattr(self, form_input.name, form_input)
 
 class FormInput(object):
-    def __init__(self, value, message, itype='text', disabled=''):
+    def __init__(self, name, value, message, itype='text', disabled=''):
+        self.name = name
         self.value = value
         self.message = message
         self.itype = itype
         self.disabled = disabled
+
+    def __repr__(self):
+        return f"FormInput: name={self.name},value={self.value}"
 
 #############################################################################
 # Function definitions
@@ -437,6 +464,7 @@ def main():
         if arguments.request_method == 'GET':
             result = render(r'port_edit_edit_transaction.html', context)
         elif arguments.request_method == 'POST':
+            if arguments.debug: import pdb;pdb.set_trace()
             context['validated'] = edit_transaction_form.validate()
         result = render(r'port_edit_edit_transaction.html', context)
     else:
