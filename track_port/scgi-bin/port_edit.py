@@ -225,56 +225,53 @@ class EditTransactionForm(object):
         self.form.add_input('strike', FormInput(value=self.transaction.strike, message='Strike price (options-only)'))
 
     def validate(self):
-        change = False
-        if hasattr(arguments, 'transaction_id') and self.transaction.transaction_id != arguments.transaction_id:
-            self.form.transaction_id.message = 'Illegal change'
-        if hasattr(arguments, 'ttype') and self.transaction.ttype != arguments.ttype:
-            self.form.ttype.message = 'Illegal change'
-        if hasattr(arguments, 'fileportname') and self.transaction.fileportname != arguments.fileportname:
-            self.form.fileportname.message = 'Illegal change'
-        if hasattr(arguments, 'symbol') and self.transaction.symbol != arguments.symbol:
-            self.form.symbol.message = 'Illegal change'
-        if hasattr(arguments, 'position') and self.transaction.position != arguments.position:
-            self.form.position.message = 'Illegal change'
-        if hasattr(arguments, 'descriptor') and self.transaction.descriptor != arguments.descriptor:
-            self.form.descriptor.message = 'Illegal change'
-        if hasattr(arguments, 'sector') and self.transaction.sector != arguments.sector:
-            self.form.sector.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'shares') and self.transaction.shares != arguments.shares:
-            self.form.shares.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'open_price') and self.transaction.open_price != arguments.open_price:
-            self.form.open_price.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'open_date') and self.transaction.open_date != arguments.open_date:
-            self.form.open_date.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'closed') and self.transaction.closed != arguments.closed:
-            self.form.closed.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'close_price') and self.transaction.close_price != arguments.close_price:
-            self.form.close_price.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'close_date') and self.transaction.close_date != arguments.close_date:
-            self.form.close_date.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'expiration') and self.transaction.expiration != arguments.expiration:
-            self.form.expiration.message = 'Modified'
-            change = True
-        if hasattr(arguments, 'strike') and self.transaction.strike != arguments.strike:
-            self.form.strike.message = 'Modified'
-            change = True
-        if self.form.shares.message == 'Modified' or self.form.open_price.message == 'Modified':
-            self.form.basis.message = 'Recalculated'
-            change = True
-        if self.form.shares.message == 'Modified' or self.form.close_price.message == 'Modified':
-            self.form.close.message = 'Recalculated'
-            change = True
-        if self.form.open_date.message == 'Modified' or self.form.close_date.message == 'Modified':
-            self.form.days.message = 'Recalculated'
-            change = True
-        self.validated = False
+        for input_name in self.form.inputs:
+            if input_name in ('ttype', 'fileportname'):
+                continue
+            form_input = getattr(self.form, input_name)
+            if input_name in ('sector',):
+                setattr(form_input, 'message', 'Modified')
+                setattr(form_input, 'changed', True)
+                setattr(form_input, 'validated', True)
+                setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
+            elif input_name in ('shares', 'open_price', 'close_price', 'strike'):
+                setattr(form_input, 'message', 'Modified')
+                setattr(form_input, 'changed', True)
+                try:
+                    setattr(form_input, 'validated_value', float(getattr(arguments, input_name)))
+                    setattr(form_input, 'validated', True)
+                except:
+                    setattr(form_input, 'validated', False)
+            elif input_name in ('open_date', 'close_date', 'expiration'):
+                setattr(form_input, 'message', 'Modified')
+                setattr(form_input, 'changed', True)
+                try:
+                    setattr(form_input, 'validated_value', getattr(arguments, input_name))
+                    setattr(form_input, 'validated', True)
+                except:
+                    setattr(form_input, 'validated', False)
+
+            elif input_name in ('closed',):
+                setattr(form_input, 'message', 'Modified')
+                setattr(form_input, 'changed', True)
+                try:
+                    setattr(form_input, 'validated_value', 1 if getattr(arguments, input_name) else 0)
+                except:
+                    setattr(form_input, 'validated', False)
+            else:
+                setattr(form_input, 'message', 'Illegal change')
+                setattr(form_input, 'changed', True)
+                setattr(form_input, 'validated', False)
+            if self.form.shares.message == 'Modified' or self.form.open_price.message == 'Modified':
+                self.form.basis.message = 'Recalculated'
+                change = True
+            if self.form.shares.message == 'Modified' or self.form.close_price.message == 'Modified':
+                self.form.close.message = 'Recalculated'
+                change = True
+            if self.form.open_date.message == 'Modified' or self.form.close_date.message == 'Modified':
+                self.form.days.message = 'Recalculated'
+                change = True
+        return False
 
 class Form(object):
     def __init__(self):
