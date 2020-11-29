@@ -221,9 +221,9 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
             self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
-        self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
-        self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
+            self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
+            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
+            self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
             self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.startswith('closed_'):
