@@ -200,6 +200,7 @@ class EditTransactionForm(object):
     msg_no_change = 'You may not change this field'
     msg_calculated = 'Info-Only: field is calculated based on other fields'
     msg_asterisk = '*'
+    msg_illegal_change = 'Illegal change'
     msg_modified = 'Modified'
 
     def __init__(self, transaction):
@@ -218,17 +219,22 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)'))
         self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open'))
         self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
-        self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
+        if self.transaction.ttype not in ('initial', 'intermediate'):
+            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
         self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
         self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
         self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
-        self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
-        self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
-        self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)'))
+        if self.transaction.ttype not in ('initial', 'intermediate'):
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
+        if self.transaction.ttype.startswith('closed_'):
+            self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
+        if self.transaction.ttype.endswith(('_call', '_put')):
+            self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
+            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)'))
 
     def validate(self):
-        return_value = True
+        validated = True
+        changed = False
         for input_name in self.form.inputs:
             if input_name in ('ttype', 'fileportname'):
                 continue
@@ -269,7 +275,6 @@ class EditTransactionForm(object):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
             elif input_name in ('closed',):
-                if arguments.debug and input_name == 'closed': import pdb;pdb.set_trace()
                 try:
                     validated_value = int(getattr(arguments, input_name))
                     setattr(form_input, 'validated_value', validated_value)
@@ -280,21 +285,26 @@ class EditTransactionForm(object):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
             else:
-                setattr(form_input, 'message', 'Illegal change')
+                setattr(form_input, 'message', self.msg_illegal_change)
                 setattr(form_input, 'changed', True)
                 setattr(form_input, 'validated', False)
-            if self.form.shares.message == 'Modified' or self.form.open_price.message == 'Modified':
-                self.form.basis.message = 'Recalculated'
-                change = True
-            if self.form.shares.message == 'Modified' or self.form.close_price.message == 'Modified':
-                self.form.close.message = 'Recalculated'
-                change = True
-            if self.form.open_date.message == 'Modified' or self.form.close_date.message == 'Modified':
-                self.form.days.message = 'Recalculated'
-                change = True
 
-            return_value &= getattr(form_input, 'validated', True)
-        return return_value
+            validated &= getattr(form_input, 'validated', True)
+            changed |= getattr(form_input, 'changed', False)
+
+        """
+        if (self.form.shares.changed or self.form.open_price.changed) and self.form.shares.validated and self.form.open_price.validated:
+            self.form.basis.message = 'Recalculated'
+            self.form.basis.value = self.form.shares.validated_value * self.form.open_price.validated_value
+        if (self.form.shares.changed or self.form.close_price.changed) and self.form.shares.validated and self.form.close_price.validated:
+            self.form.close.message = 'Recalculated'
+            self.form.close.value = self.form.shares.validated_value * self.form.close_price.validated_value
+        if (self.form.open_date.changed or self.form.close_date.changed):
+            self.form.days.message = 'Recalculated'
+            change = True
+        """
+
+        return validated, changed
 
 class Form(object):
     def __init__(self):
@@ -464,8 +474,7 @@ def main():
         if arguments.request_method == 'GET':
             result = render(r'port_edit_edit_transaction.html', context)
         elif arguments.request_method == 'POST':
-            if arguments.debug: import pdb;pdb.set_trace()
-            context['validated'] = edit_transaction_form.validate()
+            context['validated'], context['changed'] = edit_transaction_form.validate()
         result = render(r'port_edit_edit_transaction.html', context)
     else:
         result = render(r'port_edit_else.html', context)
