@@ -236,13 +236,16 @@ class EditTransactionForm(object):
         validated = True
         changed = False
         for input_name in self.form.inputs:
+            form_input = getattr(self.form, input_name)
             if input_name in ('ttype', 'fileportname'):
                 continue
             if input_name in ('transaction_id', 'symbol', 'position', 'descriptor'):
+                setattr(form_input, 'changed', False)
+                setattr(form_input, 'validated', True)
+                setattr(form_input, 'validated_value', getattr(self.transaction, input_name))
                 continue
             if not hasattr(arguments, input_name):
                 continue
-            form_input = getattr(self.form, input_name)
             if input_name in ('sector',):
                 if hasattr(arguments, input_name) and getattr(arguments, input_name) != getattr(self.transaction, input_name):
                     setattr(form_input, 'message', self.msg_modified)
@@ -285,17 +288,18 @@ class EditTransactionForm(object):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
             else:
-                setattr(form_input, 'message', self.msg_illegal_change)
-                setattr(form_input, 'changed', True)
+                #setattr(form_input, 'message', self.msg_illegal_change)
+                setattr(form_input, 'changed', False)
                 setattr(form_input, 'validated', False)
 
             validated &= getattr(form_input, 'validated', True)
             changed |= getattr(form_input, 'changed', False)
 
+        if hasattr(self.form, 'basis'):
+            if (getattr(self.form.shares, 'changed', False) or getattr(self.form.open_price, 'changed', False)) and self.form.shares.validated and self.form.open_price.validated:
+                self.form.basis.message = 'Recalculated'
+                self.form.basis.value = self.form.shares.validated_value * self.form.open_price.validated_value
         """
-        if (self.form.shares.changed or self.form.open_price.changed) and self.form.shares.validated and self.form.open_price.validated:
-            self.form.basis.message = 'Recalculated'
-            self.form.basis.value = self.form.shares.validated_value * self.form.open_price.validated_value
         if (self.form.shares.changed or self.form.close_price.changed) and self.form.shares.validated and self.form.close_price.validated:
             self.form.close.message = 'Recalculated'
             self.form.close.value = self.form.shares.validated_value * self.form.close_price.validated_value
