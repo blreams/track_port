@@ -24,7 +24,7 @@
   <table>
       {% for input_name in form.form.inputs %}
       {% set form_input = form.form|attr(input_name) %}
-      <tr><td>{{input_name}}</td><td><input type="{{form_input.itype}}" name="{{input_name}}" value="{{form_input.value}}" {{form_input.disabled}} /></td><td>{{form_input.message}}</td></tr>
+      <tr><td>{{input_name}}</td><td><input type="{{form_input.itype}}" name="{{input_name}}" value="{{form_input.value}}" {{form_input.disabled}}{{form_input.autofocus}} /></td><td>{{form_input.message}}</td></tr>
       {% endfor %}
   </table>
   <p>* - {{form.msg_no_change}}</p>

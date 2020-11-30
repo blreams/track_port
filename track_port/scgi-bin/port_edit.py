@@ -265,7 +265,7 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)'))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus'))
         self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)'))
@@ -371,12 +371,13 @@ class Form(object):
         setattr(self, form_input.name, form_input)
 
 class FormInput(object):
-    def __init__(self, name, value, message='', itype='text', disabled=''):
+    def __init__(self, name, value, message='', itype='text', disabled='', autofocus=''):
         self.name = name
         self.value = value
         self.message = message
         self.itype = itype
         self.disabled = disabled
+        self.autofocus = autofocus
 
     def __repr__(self):
         return f"FormInput: name={self.name},value={self.value}"
