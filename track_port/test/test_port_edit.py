@@ -1,3 +1,5 @@
+import sys
+import os
 import importlib
 import unittest
 from argparse import Namespace
@@ -37,17 +39,68 @@ class TestFunctions:
         assert transaction.symbol == 'BWLD'
 
 class TestUrlShowTransactions(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        port_edit.arguments = Namespace(
-                test=True,
-                fileportname='port:fluffgazer', 
-                action='show_transactions',
-                )
+    configure_logging_called = False
+    def startup(self, argv):
+        sys.argv = argv
+        port_edit.configure_logging()
         port_edit.parse_arguments()
         port_edit.process_arguments()
-        cls.soup = BeautifulSoup(port_edit.main(), 'html.parser')
+        self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
 
     def test_show_transactions(self):
-        assert self.soup.title.string == 'port_edit.py'
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=show_transactions',
+                '--fileportname=port:fluffgazer',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("td").find_all("input")
+        values = [i.get('value') for i in inputs]
+        self.assertEqual(values, ['edit_transaction', '254', 'Edit'])
+
+    def test_show_transactions_closed_put(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=show_transactions',
+                '--fileportname=port:fluffgazer',
+                '--ttype=closed_put',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("td").find_all("input")
+        values = [i.get('value') for i in inputs]
+        self.assertEqual(values, ['edit_transaction', '7779', 'Edit'])
+
+    def test_edit_transaction_271(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=271',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        names = [i.get('name') for i in inputs]
+        values = [i.get('value') for i in inputs]
+        expected = {
+                'transaction_id': '271',
+                'ttype': 'closed_stock',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'BWLD',
+                'sector': 'Services',
+                'position': 'long',
+                'descriptor': 'stock',
+                'shares': '50.0000',
+                'open_price': '36.2900',
+                'open_date': '2010-05-21',
+                'basis': '1814.5000',
+                'closed': '1',
+                'close_price': '62.6320',
+                'close_date': '2011-08-15',
+                'close': '3131.6000',
+                'days': '451',
+                }
+        self.assertListEqual(names, list(expected.keys()))
+        self.assertListEqual(values, list(expected.values()))
 

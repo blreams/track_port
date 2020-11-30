@@ -8,7 +8,7 @@ import logging.handlers
 import argparse
 import cgi
 #import cgitb; cgitb.enable(display=0, logdir='/home/blreams') # for troubleshooting
-from decimal import Decimal
+from decimal import Decimal, getcontext
 from datetime import datetime, date, time, timedelta
 import dateparser
 from collections import defaultdict
@@ -73,6 +73,8 @@ tsconfig = {
 #############################################################################
 def configure_logging():
     global logger
+    if logger is not None:
+        return
     # Let's get a logger
     logger = logging.getLogger(__name__)
     # Set the level to the lowest in any handler
@@ -97,6 +99,7 @@ def configure_logging():
     logger.info('='*80)
     logger.info('='*prefix_suffix_length + first_message + '='*prefix_suffix_length)
     logger.info('='*80)
+    logging_configured = True
 
 #############################################################################
 # Classes related to database tables
@@ -220,12 +223,12 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open'))
         self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='basis', value=f"{self.transaction.basis:.4f}", message=self.msg_asterisk*2, disabled='disabled'))
             self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
             self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
             self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='close', value=f"{self.transaction.close:.4f}", message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.startswith('closed_'):
             self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.endswith(('_call', '_put')):
@@ -364,6 +367,7 @@ def render(template, context):
 #############################################################################
 def parse_arguments():
     global arguments
+    global non_cgi_arguments
     logger = logging.getLogger(__name__ + '.' + 'parse_arguments')
     parser = argparse.ArgumentParser(
             prog="port_edit",
@@ -373,8 +377,8 @@ def parse_arguments():
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('-t', '--test', action='store_true', default=False, help="Use this when testing")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
-    parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
     # The following arguments are mimicking what can be passed via cgi
+    parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
     action_choices = ('show_transactions', "edit_transaction")
     #parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
     parser.add_argument('--action', choices=action_choices, help="Edit action")
@@ -399,12 +403,15 @@ def process_arguments():
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
     stdin_save = sys.stdin
 
+    non_cgi_arguments = ('verbose', 'debug', 'test', 'skip_commit')
+    logger.debug(f"non_cgi_arguments={non_cgi_arguments} skipped when processing cgi arguments")
+
     if os.environ.get('REQUEST_METHOD') is None:
         # In order to mimic cgi arguments using command line arguments
         # we must set a few environment variables.
         if arguments.post_args is None:
             os.environ['REQUEST_METHOD'] = 'GET'
-            query_string_parts = [f"{key}={value}" for key, value in arguments.__dict__.items() if value is not None and key not in ('verbose', 'debug', 'skip_commit')]
+            query_string_parts = [f"{key}={value}" for key, value in arguments.__dict__.items() if value is not None and key not in non_cgi_arguments]
             query_string = '&'.join(query_string_parts)
             os.environ['QUERY_STRING'] = query_string
         else:
@@ -452,6 +459,11 @@ def process_arguments():
 
     for arg, val in arguments.__dict__.items():
         logger.debug(f"{arg}={val}")
+
+    # Removing environment variables, needed for unittest where module is imported
+    os.environ.pop('REQUEST_METHOD', None)
+    os.environ.pop('QUERY_STRING', None)
+    os.environ.pop('CONTENT_LENGTH', None)
 
 
 #############################################################################
