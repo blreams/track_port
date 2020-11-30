@@ -484,6 +484,7 @@ def main():
             }
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
+        # TODO let's create a ShowTransactionsForm class
         result = render('port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
         edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
