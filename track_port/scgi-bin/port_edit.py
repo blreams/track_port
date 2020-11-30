@@ -200,6 +200,8 @@ class Transaction(object):
 
 
 class ShowTransactionsForm(object):
+    default_decimal_format = '.4f'
+
     def __init__(self, transactions):
         self.transactions = transactions
         self.table = []
@@ -213,18 +215,18 @@ class ShowTransactionsForm(object):
                 'sector': None,
                 'position': None,
                 'descriptor': None,
-                'shares': None,
-                'open_price': None,
+                'shares': self.default_decimal_format,
+                'open_price': self.default_decimal_format,
                 'open_date': None,
-                'basis': '.4f',
+                'basis': self.default_decimal_format,
                 'closed': None,
-                'close_price': None,
+                'close_price': self.default_decimal_format,
                 'close_date': None,
-                'close': '.4f',
-                'gain': None,
+                'close': self.default_decimal_format,
+                'gain': self.default_decimal_format,
                 'days': None,
                 'expiration': None,
-                'strike': None,
+                'strike': self.default_decimal_format,
                 }
         for transaction in self.transactions:
             self.add_row(transaction)
