@@ -356,7 +356,7 @@ def get_transactions(ttype=None):
 def render(template, context):
     """Helper function to render page using jinja2
     """
-    path, filename = os.path.split(template)
+    path, filename = os.path.split(os.path.join(thisdir, template))
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(filename).render(context)
 
 #############################################################################
@@ -371,6 +371,7 @@ def parse_arguments():
             )
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
+    parser.add_argument('-t', '--test', action='store_true', default=False, help="Use this when testing")
     parser.add_argument('--skip_commit', action='store_true', default=False, help="Skip commit to databases")
     parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
     # The following arguments are mimicking what can be passed via cgi
@@ -471,7 +472,7 @@ def main():
             }
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
-        result = render(r'port_edit_show_transactions.html', context)
+        result = render('port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
         edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
         context['form'] = edit_transaction_form
@@ -482,6 +483,9 @@ def main():
         result = render(r'port_edit_edit_transaction.html', context)
     else:
         result = render(r'port_edit_else.html', context)
+
+    if arguments.test:
+        return result
 
     if hasattr(arguments, 'cgi') and arguments.cgi:
         print("Content-type: text/html\n\n")
