@@ -199,6 +199,53 @@ class Transaction(object):
             self.days = (tlr.close_date - tlr.open_date).days
 
 
+class ShowTransactionsForm(object):
+    def __init__(self, transactions):
+        self.transactions = transactions
+        self.table = []
+        self.initialize()
+
+    def initialize(self):
+        self.headers = {
+                'transaction_id': None,
+                'ttype': None,
+                'symbol': None,
+                'sector': None,
+                'position': None,
+                'descriptor': None,
+                'shares': None,
+                'open_price': None,
+                'open_date': None,
+                'basis': '.4f',
+                'closed': None,
+                'close_price': None,
+                'close_date': None,
+                'close': '.4f',
+                'gain': None,
+                'days': None,
+                'expiration': None,
+                'strike': None,
+                }
+        for transaction in self.transactions:
+            self.add_row(transaction)
+
+    def add_row(self, transaction):
+        row = {}
+        for header, fmt in self.headers.items():
+            if hasattr(transaction, header):
+                if fmt is None:
+                    row[header] = getattr(transaction, header)
+                else:
+                    row[header] = f"{getattr(transaction, header):{fmt}}"
+                if header == 'transaction_id':
+                    form = Form()
+                    form.add_input(FormInput(name='action', value='edit_transaction', itype='hidden'))
+                    form.add_input(FormInput(name='transaction_id', value=transaction.id, itype='hidden'))
+            else:
+                row[header] = ''
+
+        self.table.append((row, form))
+
 class EditTransactionForm(object):
     msg_no_change = 'You may not change this field'
     msg_calculated = 'Info-Only: field is calculated based on other fields'
@@ -322,7 +369,7 @@ class Form(object):
         setattr(self, form_input.name, form_input)
 
 class FormInput(object):
-    def __init__(self, name, value, message, itype='text', disabled=''):
+    def __init__(self, name, value, message='', itype='text', disabled=''):
         self.name = name
         self.value = value
         self.message = message
@@ -472,7 +519,7 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    transactions = get_transactions(ttype=arguments.ttype)
+    #transactions = get_transactions(ttype=arguments.ttype)
     context = {
             'arguments': arguments,
             'tclasses': tclasses,
@@ -480,11 +527,12 @@ def main():
             'tsconfig': tsconfig,
             'cgi': arguments.cgi,
             'column_order': Transaction.column_order,
-            'transactions': transactions,
+            #'transactions': transactions,
             }
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':
-        # TODO let's create a ShowTransactionsForm class
+        show_transactions_form = ShowTransactionsForm(get_transactions(ttype=arguments.ttype))
+        context['form'] = show_transactions_form
         result = render('port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
         edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))

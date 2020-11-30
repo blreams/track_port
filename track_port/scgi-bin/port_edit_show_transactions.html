@@ -20,31 +20,33 @@
 {% endblock %}
 
 {% block body_block %}
-<p>Query returned {{transactions|length}} transactions</p>
+<p>Query returned {{form.table|length}} transactions</p>
 <div style="width:100%">
   <div style="display:table-cell;min-width:400px;vertical-align:top">
-    {% if transactions %}
+    {% if form.table %}
     <table class="mainTable-ice tablesorter">
       <thead>
         <tr>
           <th></th>
-          {% for column in column_order %}
-          <th>{{column}}</th>
+          {% for header in form.headers %}
+          <th>{{header}}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
-        {% for transaction in transactions %}
+        {% for row, row_form in form.table %}
         <tr>
           <td>
             <form method="get" action="port_edit.py">
-              <input type="hidden" name="action" value="edit_transaction" />
-              <input type="hidden" name="transaction_id" value="{{transaction.id}}" />
+              {% for input_name in row_form.inputs %}
+                {% set form_input = row_form|attr(input_name) %}
+                <input type="{{form_input.itype}}" name="{{form_input.name}}" value="{{form_input.value}}" />
+              {% endfor %}
               <input type="submit" value="Edit" />
             </form>
           </td>
-          {% for column in column_order %}
-          <td>{{transaction|attr(column)}}</td>
+          {% for column, value in row.items() %}
+          <td>{{value}}</td>
           {% endfor %}
         </tr>
         {% endfor %}
