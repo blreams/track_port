@@ -1,5 +1,5 @@
 {% extends "port_edit_template.html" %}
-{% block title %}port_edit.py{% endblock %}
+{% block title %}port_edit.py edit_transaction{% endblock %}
 {% block head_js_block %}
   <script>
     $(document).ready(function() { 
@@ -20,21 +20,22 @@
 {% endblock %}
 
 {% block body_block %}
+<h1>Edit Transaction{% if arguments.request_method == 'POST' %} (Verify){% endif %}</h1>
 <form method="post" name="port_edit.py">
   <table>
       {% for input_name in form.form.inputs %}
       {% set form_input = form.form|attr(input_name) %}
-      <tr><td>{{input_name}}</td><td><input type="{{form_input.itype}}" name="{{input_name}}" value="{{form_input.value}}" {{form_input.disabled}}{{form_input.autofocus}}{% if not form_input.disabled %} onfocus="this.select()" tabindex="{{form_input.tabindex}}"{% endif %} /></td><td>{{form_input.message}}</td></tr>
+      <tr><td><label for="id_{{input_name}}">{{input_name}}:</label></td><td><input id="id_{{input_name}}" type="{{form_input.itype}}" name="{{input_name}}" value="{{form_input.form_value}}" {{form_input.disabled}}{{form_input.autofocus}}{% if not form_input.disabled %} onfocus="this.select()" tabindex="{{form_input.tabindex}}"{% endif %} /></td><td>{{form_input.message}}</td></tr>
       {% endfor %}
   </table>
+  <input type="submit" value="Submit" />
   <p>* - {{form.msg_no_change}}</p>
   <p>** - {{form.msg_calculated}}</p>
-  <input type="submit" value="Submit" />
 </form>
 {% if validated %}
-<h1>VALIDATED</h1>
+<h2>VALIDATED</h2>
 {% endif %}
 {% if changed %}
-<h1>CHANGED</h1>
+<h2>CHANGED</h2>
 {% endif %}
 {% endblock %}

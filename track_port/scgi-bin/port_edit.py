@@ -254,6 +254,7 @@ class EditTransactionForm(object):
     msg_asterisk = '*'
     msg_illegal_change = 'Illegal change'
     msg_modified = 'Modified'
+    default_decimal_format = '.4f'
 
     def __init__(self, transaction):
         self.transaction = transaction
@@ -268,79 +269,102 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
         self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)'))
-        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open'))
+        self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)', fmt=self.default_decimal_format))
+        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open', fmt=self.default_decimal_format))
         self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='basis', value=f"{self.transaction.basis:.4f}", message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
             self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
-            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close'))
+            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close', fmt=self.default_decimal_format))
             self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='close', value=f"{self.transaction.close:.4f}", message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
         if self.transaction.ttype.startswith('closed_'):
             self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.endswith(('_call', '_put')):
             self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
-            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)'))
+            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)', fmt=self.default_decimal_format))
 
     def validate(self):
+        logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate')
         validated = True
         changed = False
+
         for input_name in self.form.inputs:
             form_input = getattr(self.form, input_name)
             if input_name in ('ttype', 'fileportname'):
                 continue
+
             if input_name in ('transaction_id', 'symbol', 'position', 'descriptor'):
                 setattr(form_input, 'changed', False)
                 setattr(form_input, 'validated', True)
                 setattr(form_input, 'validated_value', getattr(self.transaction, input_name))
                 continue
+
             if not hasattr(arguments, input_name):
                 continue
+
             if input_name in ('sector',):
                 if hasattr(arguments, input_name) and getattr(arguments, input_name) != getattr(self.transaction, input_name):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
                     setattr(form_input, 'validated', True)
                     setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
+
             elif input_name in ('shares', 'open_price', 'close_price', 'strike'):
                 try:
                     validated_value = Decimal(float(getattr(arguments, input_name)))
+                except:
+                    logger.warning(f"validate failed on {getattr(arguments, input_name)}")
+                    setattr(form_input, 'validated', False)
+                else:
                     setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
-                except:
-                    setattr(form_input, 'validated', False)
+                    if form_input.fmt:
+                        setattr(form_input, 'form_value', f"{validated_value:{form_input.fmt}}")
+                    else:
+                        setattr(form_input, 'form_value', f"{validated_value}")
+
                 if abs(validated_value - getattr(self.transaction, input_name)) > Decimal(0.00001):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
+
             elif input_name in ('open_date', 'close_date', 'expiration'):
                 if getattr(arguments, input_name) == 'None':
                     validated_value = None
                     setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
+                    setattr(form_input, 'form_value', validated_value)
                 else:
                     try:
                         validated_value = dateparser.parse(getattr(arguments, input_name)).date()
+                    except:
+                        logger.warning(f"validate failed on {getattr(arguments, input_name)}")
+                        setattr(form_input, 'validated', False)
+                    else:
                         setattr(form_input, 'validated_value', validated_value)
                         setattr(form_input, 'validated', True)
-                    except:
-                        setattr(form_input, 'validated', False)
+                        setattr(form_input, 'form_value', validated_value)
+
                 if validated_value != getattr(self.transaction, input_name):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
+
             elif input_name in ('closed',):
                 try:
                     validated_value = int(getattr(arguments, input_name))
+                except:
+                    logger.warning(f"validate failed on {getattr(arguments, input_name)}")
+                    setattr(form_input, 'validated', False)
+                else:
                     setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
-                except:
-                    setattr(form_input, 'validated', False)
+
                 if validated_value != getattr(self.transaction, input_name):
                     setattr(form_input, 'message', self.msg_modified)
                     setattr(form_input, 'changed', True)
+
             else:
-                #setattr(form_input, 'message', self.msg_illegal_change)
                 setattr(form_input, 'changed', False)
                 setattr(form_input, 'validated', False)
 
@@ -348,19 +372,28 @@ class EditTransactionForm(object):
             changed |= getattr(form_input, 'changed', False)
 
         if hasattr(self.form, 'basis'):
+            form_input = getattr(self.form, 'basis')
             if (getattr(self.form.shares, 'changed', False) or getattr(self.form.open_price, 'changed', False)) and self.form.shares.validated and self.form.open_price.validated:
                 self.form.basis.message = 'Recalculated'
-                self.form.basis.value = self.form.shares.validated_value * self.form.open_price.validated_value
-        """
-        if (self.form.shares.changed or self.form.close_price.changed) and self.form.shares.validated and self.form.close_price.validated:
-            self.form.close.message = 'Recalculated'
-            self.form.close.value = self.form.shares.validated_value * self.form.close_price.validated_value
-        if (self.form.open_date.changed or self.form.close_date.changed):
-            self.form.days.message = 'Recalculated'
-            change = True
-        """
+                self.form.basis.validated_value = self.form.shares.validated_value * self.form.open_price.validated_value
+                self.form.basis.form_value = f"{self.form.basis.validated_value:{form_input.fmt}}"
+
+        if hasattr(self.form, 'close'):
+            form_input = getattr(self.form, 'close')
+            if (getattr(self.form.shares, 'changed', False) or getattr(self.form.close_price, 'changed', False)) and self.form.shares.validated and self.form.close_price.validated:
+                self.form.close.message = 'Recalculated'
+                self.form.close.validated_value = self.form.shares.validated_value * self.form.close_price.validated_value
+                self.form.close.form_value = f"{self.form.close.validated_value:{form_input.fmt}}"
+
+        if hasattr(self.form, 'days'):
+            form_input = getattr(self.form, 'days')
+            if (getattr(self.form.open_date, 'changed', False) or getattr(self.form.close_date, 'changed', False)) and self.form.open_date.validated and self.form.close_date.validated:
+                self.form.days.message = 'Recalculated'
+                self.form.days.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
+                self.form.days.form_value = f"{self.form.days.validated_value}"
 
         return validated, changed
+
 
 class Form(object):
     def __init__(self):
@@ -376,21 +409,36 @@ class Form(object):
 
 class FormInput(object):
     tabindex_count = 0
-    def __init__(self, name, value, message='', itype='text', disabled='', autofocus='', first=False):
+    def __init__(self, name, value, fmt='', message='', itype='text', disabled='', autofocus='', first=False):
         self.name = name
         self.value = value
+        self.fmt = fmt
         self.message = message
         self.itype = itype
         self.disabled = disabled
         self.autofocus = autofocus
+        self.first = first
+
         if not disabled:
             if first:
                 self.tabindex_count = 0
             self.tabindex_count += 1
             self.tabindex = self.tabindex_count
+        self.validated_value = value
+        if fmt:
+            self.form_value = f"{value:{fmt}}"
+        else:
+            self.form_value = f"{value}"
 
     def __repr__(self):
-        return f"FormInput: name={self.name},value={self.value}"
+        base_repr = f"FormInput: name={self.name},value={self.value},form_value={self.form_value}"
+        if hasattr(self, 'validated_value'):
+            base_repr += f",validated_value={self.validated_value}"
+        if hasattr(self, 'changed'):
+            base_repr += f",changed={self.changed}"
+        if hasattr(self, 'validated'):
+            base_repr += f",validated={self.validated}"
+        return base_repr
 
 #############################################################################
 # Function definitions
@@ -532,7 +580,6 @@ def process_arguments():
 def main():
     logger = logging.getLogger(__name__)
 
-    #transactions = get_transactions(ttype=arguments.ttype)
     context = {
             'arguments': arguments,
             'tclasses': tclasses,
@@ -540,7 +587,6 @@ def main():
             'tsconfig': tsconfig,
             'cgi': arguments.cgi,
             'column_order': Transaction.column_order,
-            #'transactions': transactions,
             }
 
     if hasattr(arguments, 'action') and arguments.action == 'show_transactions':

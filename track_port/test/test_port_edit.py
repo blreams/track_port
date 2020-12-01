@@ -104,3 +104,36 @@ class TestUrlShowTransactions(unittest.TestCase):
         self.assertListEqual(names, list(expected.keys()))
         self.assertListEqual(values, list(expected.values()))
 
+    def test_edit_transaction_271_post(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=271',
+                '--post_args=../scgi-bin/post_args_edit_transaction_271.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        names = [i.get('name') for i in inputs]
+        values = [i.get('value') for i in inputs]
+        expected = {
+                'transaction_id': '271',
+                'ttype': 'closed_stock',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'BWLD',
+                'sector': 'Services',
+                'position': 'long',
+                'descriptor': 'stock',
+                'shares': '150.0000',
+                'open_price': '26.2900',
+                'open_date': '2010-04-21',
+                'basis': '3943.5000',
+                'closed': '1',
+                'close_price': '72.6320',
+                'close_date': '2011-09-15',
+                'close': '10894.8000',
+                'days': '512',
+                }
+        self.assertListEqual(names, list(expected.keys()))
+        self.assertListEqual(values, list(expected.values()))
+

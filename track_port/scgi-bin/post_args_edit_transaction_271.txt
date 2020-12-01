@@ -1,1 +1,1 @@
-shares=50.0000&open_price=36.2900&open_date=2010-05-21&closed=1&close_price=62.6320&close_date=2011-08-15&expiration=None&strike=0.0000
+shares=150.0000&open_price=26.2900&open_date=2010-04-21&closed=1&close_price=72.6320&close_date=2011-09-15&expiration=None&strike=0.0000
