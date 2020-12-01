@@ -29,24 +29,20 @@ except:
     host = None
 
 if host and host in ('skx-linux',):
-    #engine = create_engine('mysql://blreams@localhost/track_port')
-    engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
     logpath = os.path.abspath(os.path.join(thisdir, '..', 'logs', 'port_edit.log'))
     stdin_file = os.path.abspath(os.path.join(thisdir, '..', 'logs', 'post_args.stdin'))
 else:
-    engine = create_engine('sqlite:///track_port.db')
     logpath = os.path.abspath(os.path.join(thisdir, 'port_edit.log'))
     stdin_file = os.path.abspath(os.path.join(thisdir, 'post_args.stdin'))
-Base = declarative_base(engine)
-metadata = Base.metadata
-Session = sessionmaker(bind=engine)
-session = Session()
 
 #############################################################################
 # Additional globals
 #############################################################################
-arguments = argparse.Namespace
-logger = None
+arguments = argparse.Namespace # defined in parse_arguments
+logger = None # defined in configure_logging
+Base = None # defined in setup_database
+session = None # defined in setup_database
+TransactionLists = None # defined in setup_database
 
 #############################################################################
 # tablesorter stuff
@@ -102,11 +98,28 @@ def configure_logging():
     logging_configured = True
 
 #############################################################################
-# Classes related to database tables
+# Database Setup
 #############################################################################
-class TransactionLists(Base):
-    __tablename__ = 'transaction_list'
-    __table_args__ = {'autoload': True}
+def setup_database():
+    global Base
+    global session
+    global TransactionLists
+    if host and host in ('skx-linux',):
+        #engine = create_engine('mysql://blreams@localhost/track_port')
+        engine = create_engine('sqlite:////home/blreams/bin/track_port.db')
+    else:
+        engine = create_engine('sqlite:///track_port.db')
+    Base = declarative_base(engine)
+    metadata = Base.metadata
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    #############################################################################
+    # Classes related to database tables
+    #############################################################################
+    class TransactionLists(Base):
+        __tablename__ = 'transaction_list'
+        __table_args__ = {'autoload': True}
 
 
 #############################################################################
@@ -490,10 +503,8 @@ def parse_arguments():
     # The following arguments are mimicking what can be passed via cgi
     parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
     action_choices = ('show_transactions', "edit_transaction")
-    #parser.add_argument('--action', choices=action_choices, default=action_choices[0], help="Edit action")
     parser.add_argument('--action', choices=action_choices, help="Edit action")
-    fileportname_choices = get_portnames()
-    parser.add_argument('--fileportname', choices=fileportname_choices, help="The fileportname being edited")
+    parser.add_argument('--fileportname', default=None, help="The fileportname being edited")
     ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
@@ -577,6 +588,15 @@ def process_arguments():
 
 
 #############################################################################
+# Initialize
+#############################################################################
+def initialize():
+    configure_logging()
+    parse_arguments()
+    setup_database()
+    process_arguments()
+
+#############################################################################
 # Main
 #############################################################################
 def main():
@@ -615,8 +635,6 @@ def main():
 
 
 if __name__ == '__main__':
-    configure_logging()
-    parse_arguments()
-    process_arguments()
+    initialize()
     main()
 

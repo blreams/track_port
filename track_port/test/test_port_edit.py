@@ -18,7 +18,11 @@ def decimal_equal(num1, num2):
         print(f"error diff = {err}")
         return False
 
-class TestFunctions:
+class TestFunctions(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        port_edit.initialize()
+
     def test_get_portnames(self):
         portnames = port_edit.get_portnames()
         assert 'port:fluffgazer' in portnames
@@ -39,12 +43,9 @@ class TestFunctions:
         assert transaction.symbol == 'BWLD'
 
 class TestUrlShowTransactions(unittest.TestCase):
-    configure_logging_called = False
     def startup(self, argv):
         sys.argv = argv
-        port_edit.configure_logging()
-        port_edit.parse_arguments()
-        port_edit.process_arguments()
+        port_edit.initialize()
         self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
 
     def test_show_transactions(self):
