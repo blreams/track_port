@@ -241,7 +241,7 @@ class ShowTransactionsForm(object):
                     row[header] = f"{getattr(transaction, header):{fmt}}"
                 if header == 'transaction_id':
                     form = Form()
-                    form.add_input(FormInput(name='action', value='edit_transaction', itype='hidden'))
+                    form.add_input(FormInput(name='action', value='edit_transaction', itype='hidden', first=True))
                     form.add_input(FormInput(name='transaction_id', value=transaction.id, itype='hidden'))
             else:
                 row[header] = ''
@@ -265,7 +265,7 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus'))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
         self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)'))
@@ -365,19 +365,29 @@ class EditTransactionForm(object):
 class Form(object):
     def __init__(self):
         self.inputs = []
+        self.tabindex = 1
 
     def add_input(self, form_input):
         self.inputs.append(form_input.name)
         setattr(self, form_input.name, form_input)
+        if not form_input.disabled:
+            setattr(form_input, 'tabindex', self.tabindex)
+            self.tabindex += 1
 
 class FormInput(object):
-    def __init__(self, name, value, message='', itype='text', disabled='', autofocus=''):
+    tabindex_count = 0
+    def __init__(self, name, value, message='', itype='text', disabled='', autofocus='', first=False):
         self.name = name
         self.value = value
         self.message = message
         self.itype = itype
         self.disabled = disabled
         self.autofocus = autofocus
+        if not disabled:
+            if first:
+                self.tabindex_count = 0
+            self.tabindex_count += 1
+            self.tabindex = self.tabindex_count
 
     def __repr__(self):
         return f"FormInput: name={self.name},value={self.value}"
