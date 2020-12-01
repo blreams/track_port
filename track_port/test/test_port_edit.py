@@ -121,7 +121,7 @@ class TestUrlShowTransactions(unittest.TestCase):
                 'ttype': 'closed_stock',
                 'fileportname': 'port:fluffgazer',
                 'symbol': 'BWLD',
-                'sector': 'Services',
+                'sector': 'New Services',
                 'position': 'long',
                 'descriptor': 'stock',
                 'shares': '150.0000',

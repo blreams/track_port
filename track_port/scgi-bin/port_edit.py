@@ -310,6 +310,7 @@ class EditTransactionForm(object):
                     setattr(form_input, 'changed', True)
                     setattr(form_input, 'validated', True)
                     setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
+                    setattr(form_input, 'form_value', getattr(arguments, input_name)[:32])
 
             elif input_name in ('shares', 'open_price', 'close_price', 'strike'):
                 try:
