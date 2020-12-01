@@ -294,9 +294,9 @@ class EditTransactionForm(object):
             self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
             self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close', fmt=self.default_decimal_format))
             self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
-        if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
         if self.transaction.ttype.startswith('closed_'):
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
+        if self.transaction.ttype not in ('initial', 'intermediate'):
             self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.endswith(('_call', '_put')):
             self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))

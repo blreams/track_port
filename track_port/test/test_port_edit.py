@@ -2,6 +2,8 @@ import sys
 import os
 import importlib
 import unittest
+from datetime import datetime
+import dateparser
 from argparse import Namespace
 from decimal import Decimal
 from bs4 import BeautifulSoup
@@ -73,7 +75,7 @@ class TestUrlShowTransactions(unittest.TestCase):
         values = [i.get('value') for i in inputs]
         self.assertEqual(values, ['edit_transaction', '7779', 'Edit'])
 
-    def test_edit_transaction_271(self):
+    def test_edit_transaction_closed_271(self):
         argv = [
                 'port_edit.py',
                 '--test',
@@ -101,6 +103,37 @@ class TestUrlShowTransactions(unittest.TestCase):
                 'close_date': '2011-08-15',
                 'close': '3131.6000',
                 'days': '451',
+                }
+        self.assertListEqual(names, list(expected.keys()))
+        self.assertListEqual(values, list(expected.values()))
+
+    def test_edit_transaction_open_12460(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=12460',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        names = [i.get('name') for i in inputs]
+        values = [i.get('value') for i in inputs]
+        expected = {
+                'transaction_id': '12460',
+                'ttype': 'open_long',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'MA',
+                'sector': 'mfp',
+                'position': 'long',
+                'descriptor': 'stock',
+                'shares': '120.0000',
+                'open_price': '52.7000',
+                'open_date': '2013-03-07',
+                'basis': '6324.0000',
+                'closed': '0',
+                'close_price': '0.0000',
+                'close_date': 'None',
+                'days': str((datetime.now().date() - dateparser.parse('2013-03-07').date()).days),
                 }
         self.assertListEqual(names, list(expected.keys()))
         self.assertListEqual(values, list(expected.values()))
