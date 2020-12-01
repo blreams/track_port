@@ -137,3 +137,5 @@ class TestUrlShowTransactions(unittest.TestCase):
         self.assertListEqual(names, list(expected.keys()))
         self.assertListEqual(values, list(expected.values()))
 
+    def test_edit_transaction_xxxx_post_including_closed(self):
+        pass

@@ -360,6 +360,7 @@ class EditTransactionForm(object):
                 else:
                     setattr(form_input, 'validated_value', validated_value)
                     setattr(form_input, 'validated', True)
+                    setattr(form_input, 'form_value', validated_value)
 
                 if validated_value != getattr(self.transaction, input_name):
                     setattr(form_input, 'message', self.msg_modified)
