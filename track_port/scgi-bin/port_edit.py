@@ -179,21 +179,25 @@ class Transaction(object):
         if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares > 0.0 and not tlr.closed:
             self.ttype = 'open_long'
             self.basis = tlr.shares * tlr.open_price
+            self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open short stock
         if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares < 0.0 and not tlr.closed:
             self.ttype = 'open_short'
             self.basis = tlr.shares * tlr.open_price
+            self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open long option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares > 0.0 and not tlr.closed:
             self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
+            self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open short option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares < 0.0 and not tlr.closed:
             self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
+            self.days = (datetime.now().date() - tlr.open_date).days
 
         # Close stock
         if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.closed:
