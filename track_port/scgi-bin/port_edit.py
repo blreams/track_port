@@ -165,38 +165,55 @@ class Transaction(object):
             setattr(self, key, getattr(tlr, key))
         self.transaction_id = tlr.id
 
+        # For each ttype, execute calculated fields
         # Initial cash transaction
         if tlr.position == 'cash' and tlr.descriptor == 'initial':
             self.ttype = 'initial'
             self.amount = tlr.open_price
+            if tlr.open_date is not None:
+                self.days = (datetime.now().date() - tlr.open_date).days
+            else:
+                self.days = 0
 
         # Intermediate cash transaction
         if tlr.position == 'cash' and tlr.descriptor == 'intermediate':
             self.ttype = 'intermediate'
             self.amount = tlr.open_price
+            if tlr.open_date is not None:
+                self.days = (datetime.now().date() - tlr.open_date).days
+            else:
+                self.days = 0
 
         # Open long stock
         if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares > 0.0 and not tlr.closed:
             self.ttype = 'open_long'
             self.basis = tlr.shares * tlr.open_price
+            self.close = 0
+            self.gain = 0
             self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open short stock
         if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares < 0.0 and not tlr.closed:
             self.ttype = 'open_short'
             self.basis = tlr.shares * tlr.open_price
+            self.close = 0
+            self.gain = 0
             self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open long option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares > 0.0 and not tlr.closed:
             self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
+            self.close = 0
+            self.gain = 0
             self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open short option
         if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares < 0.0 and not tlr.closed:
             self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
+            self.close = 0
+            self.gain = 0
             self.days = (datetime.now().date() - tlr.open_date).days
 
         # Close stock
@@ -278,15 +295,43 @@ class EditTransactionForm(object):
         self.initialize()
 
     def initialize(self):
+        """
+        initial        intermediate   open_long      open_call      closed_stock   closed_call
+                                      open_short     open_put                      closed_put
+        -------------- -------------- -------------- -------------- -------------- --------------
+        transaction_id transaction_id transaction_id transaction_id transaction_id transaction_id
+        ttype          ttype          ttype          ttype          ttype          ttype
+        fileportname   fileportname   fileportname   fileportname   fileportname   fileportname
+                       symbol         symbol         symbol         symbol         symbol
+        *sector        *sector        *sector        *sector        *sector        *sector
+        position       position       position       position       position       position
+        descriptor     descriptor     descriptor     descriptor     descriptor     descriptor
+                                      *shares        *shares        *shares        *shares
+        *open_price    *open_price    *open_price    *open_price    *open_price    *open_price
+        *open_date     *open_date     *open_date     *open_date     *open_date     *open_date
+                                      **basis        **basis        **basis        **basis
+                                      *closed        *closed        *closed        *closed
+                                      *close_price   *close_price   *close_price   *close_price
+                                      *close_date    *close_date    *close_date    *close_date
+                                      **close        **close        **close        **close
+                                      **gain         **gain         **gain         **gain
+        **days         **days         **days         **days         **days         **days
+                                                     expiration                    expiration
+                                                     strike                        strike
+        *  -- editable
+        ** -- calculated
+        """
         self.form = Form()
         self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
+        if self.transaction.ttype not in ('initial',):
+            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
         self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
         self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)', fmt=self.default_decimal_format))
+        if self.transaction.ttype not in ('initial', 'intermediate'):
+            self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)', fmt=self.default_decimal_format))
         self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open', fmt=self.default_decimal_format))
         self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
@@ -294,10 +339,9 @@ class EditTransactionForm(object):
             self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
             self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close', fmt=self.default_decimal_format))
             self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
-        if self.transaction.ttype.startswith('closed_'):
             self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
-        if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
+        self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
         if self.transaction.ttype.endswith(('_call', '_put')):
             self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
             self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)', fmt=self.default_decimal_format))
@@ -403,6 +447,14 @@ class EditTransactionForm(object):
                 self.form.close.message = 'Recalculated'
                 self.form.close.validated_value = self.form.shares.validated_value * self.form.close_price.validated_value
                 self.form.close.form_value = f"{self.form.close.validated_value:{form_input.fmt}}"
+
+        if hasattr(self.form, 'gain'):
+            form_input = getattr(self.form, 'gain')
+            if getattr(self.form.shares, 'changed', False) or getattr(self.form.open_price, 'changed', False) or getattr(self.form.close_price, 'changed', False):
+                if self.form.shares.validated and self.form.close_price.validated and self.form.open_price.validated:
+                    self.form.gain.message = 'Recalculated'
+                    self.form.gain.validated_value = self.form.shares.validated_value * (self.form.close_price.validated_value - self.form.open_price.validated_value)
+                    self.form.gain.form_value = f"{self.form.gain.validated_value:{form_input.fmt}}"
 
         if hasattr(self.form, 'days'):
             form_input = getattr(self.form, 'days')

@@ -102,6 +102,7 @@ class TestUrlShowTransactions(unittest.TestCase):
                 'close_price': '62.6320',
                 'close_date': '2011-08-15',
                 'close': '3131.6000',
+                'gain': '1317.1000',
                 'days': '451',
                 }
         self.assertListEqual(names, list(expected.keys()))
@@ -133,7 +134,34 @@ class TestUrlShowTransactions(unittest.TestCase):
                 'closed': '0',
                 'close_price': '0.0000',
                 'close_date': 'None',
+                'close': '0.0000',
+                'gain': '0.0000',
                 'days': str((datetime.now().date() - dateparser.parse('2013-03-07').date()).days),
+                }
+        self.assertListEqual(names, list(expected.keys()))
+        self.assertListEqual(values, list(expected.values()))
+
+    def test_edit_transaction_initial_1213(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=1213',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        names = [i.get('name') for i in inputs]
+        values = [i.get('value') for i in inputs]
+        expected = {
+                'transaction_id': '1213',
+                'ttype': 'initial',
+                'fileportname': 'port:fluffgazer',
+                'sector': '',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '108406.4679',
+                'open_date': 'None',
+                'days': '0',
                 }
         self.assertListEqual(names, list(expected.keys()))
         self.assertListEqual(values, list(expected.values()))
@@ -166,6 +194,7 @@ class TestUrlShowTransactions(unittest.TestCase):
                 'close_price': '72.6320',
                 'close_date': '2011-09-15',
                 'close': '10894.8000',
+                'gain': '6951.3000',
                 'days': '512',
                 }
         self.assertListEqual(names, list(expected.keys()))
