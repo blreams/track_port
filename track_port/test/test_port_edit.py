@@ -295,7 +295,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'transaction_id': '1213',
                 'ttype': 'initial',
                 'fileportname': 'port:fluffgazer',
-                'sector': '',
+                'sector': 'This is my portfolio',
                 'position': 'cash',
                 'descriptor': 'initial',
                 'open_price': '200000.0000',

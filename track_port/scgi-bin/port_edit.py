@@ -447,6 +447,11 @@ class EditTransactionForm(object):
                     self.form.days.message = 'Recalculated'
                     self.form.days.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
                     self.form.days.form_value = f"{self.form.days.validated_value}"
+            else:
+                if getattr(self.form.open_date, 'changed', False) and self.form.open_date.validated:
+                    self.form.days.message = 'Recalculated'
+                    self.form.days.validated_value = (datetime.now().date() - self.form.open_date.validated_value).days
+                    self.form.days.form_value = f"{self.form.days.validated_value}"
 
         return validated, changed
 
