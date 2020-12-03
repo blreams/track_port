@@ -442,10 +442,11 @@ class EditTransactionForm(object):
 
         if hasattr(self.form, 'days'):
             form_input = getattr(self.form, 'days')
-            if (getattr(self.form.open_date, 'changed', False) or getattr(self.form.close_date, 'changed', False)) and self.form.open_date.validated and self.form.close_date.validated:
-                self.form.days.message = 'Recalculated'
-                self.form.days.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
-                self.form.days.form_value = f"{self.form.days.validated_value}"
+            if hasattr(self.form, 'close_date'):
+                if (getattr(self.form.open_date, 'changed', False) or getattr(self.form.close_date, 'changed', False)) and self.form.open_date.validated and self.form.close_date.validated:
+                    self.form.days.message = 'Recalculated'
+                    self.form.days.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
+                    self.form.days.form_value = f"{self.form.days.validated_value}"
 
         return validated, changed
 

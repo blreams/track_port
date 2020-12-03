@@ -20,6 +20,9 @@ def decimal_equal(num1, num2):
         print(f"error diff = {err}")
         return False
 
+def elapsed_days(date1, date2=datetime.now().date()):
+    return str((date2 - dateparser.parse(date1).date()).days)
+
 #############################################################################
 # Test the helper functions
 #############################################################################
@@ -134,7 +137,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'descriptor': 'intermediate',
                 'open_price': '20.0000',
                 'open_date': expected_open_date,
-                'days': str((datetime.now().date() - dateparser.parse(expected_open_date).date()).days),
+                'days': elapsed_days(expected_open_date),
                 }
         self.assertDictEqual(actual, expected)
 
@@ -166,7 +169,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'close_date': 'None',
                 'close': '0.0000',
                 'gain': '0.0000',
-                'days': str((datetime.now().date() - dateparser.parse(expected_open_date).date()).days),
+                'days': elapsed_days(expected_open_date),
                 }
         self.assertDictEqual(actual, expected)
 
@@ -276,7 +279,32 @@ class TestUrlEditTransactionPost(unittest.TestCase):
         port_edit.initialize()
         self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
 
-    def test_edit_transaction_post_closed_stock(self):
+    def test_edit_transaction_post_ttype_initial(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=1213',
+                '--post_args=../scgi-bin/post_args_edit_transaction_initial.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2000-12-31'
+        expected = {
+                'transaction_id': '1213',
+                'ttype': 'initial',
+                'fileportname': 'port:fluffgazer',
+                'sector': '',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '200000.0000',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_closed_stock(self):
         argv = [
                 'port_edit.py',
                 '--test',
