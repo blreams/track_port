@@ -185,31 +185,15 @@ class Transaction(object):
                 self.days = 0
 
         # Open long stock
-        if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares > 0.0 and not tlr.closed:
-            self.ttype = 'open_long'
-            self.basis = tlr.shares * tlr.open_price
-            self.close = 0
-            self.gain = 0
-            self.days = (datetime.now().date() - tlr.open_date).days
-
-        # Open short stock
-        if tlr.position == 'long' and tlr.descriptor == 'stock' and tlr.shares < 0.0 and not tlr.closed:
-            self.ttype = 'open_short'
+        if tlr.position == 'long' and tlr.descriptor == 'stock' and not tlr.closed:
+            self.ttype = 'open_stock'
             self.basis = tlr.shares * tlr.open_price
             self.close = 0
             self.gain = 0
             self.days = (datetime.now().date() - tlr.open_date).days
 
         # Open long option
-        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares > 0.0 and not tlr.closed:
-            self.ttype = f"open_{tlr.descriptor}"
-            self.basis = tlr.shares * tlr.open_price
-            self.close = 0
-            self.gain = 0
-            self.days = (datetime.now().date() - tlr.open_date).days
-
-        # Open short option
-        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and tlr.shares < 0.0 and not tlr.closed:
+        if tlr.position == 'long' and tlr.descriptor in ('call', 'put',) and not tlr.closed:
             self.ttype = f"open_{tlr.descriptor}"
             self.basis = tlr.shares * tlr.open_price
             self.close = 0
@@ -297,7 +281,7 @@ class EditTransactionForm(object):
     def initialize(self):
         """
         initial        intermediate   open_long      open_call      closed_stock   closed_call
-                                      open_short     open_put                      closed_put
+                                                     open_put                      closed_put
         -------------- -------------- -------------- -------------- -------------- --------------
         transaction_id transaction_id transaction_id transaction_id transaction_id transaction_id
         ttype          ttype          ttype          ttype          ttype          ttype
@@ -561,7 +545,7 @@ def parse_arguments():
     action_choices = ('show_transactions', "edit_transaction")
     parser.add_argument('--action', choices=action_choices, help="Edit action")
     parser.add_argument('--fileportname', default=None, help="The fileportname being edited")
-    ttype_choices = ('initial', 'intermediate', 'open_long', 'open_short', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
+    ttype_choices = ('initial', 'intermediate', 'open_stock', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
     try:
