@@ -123,6 +123,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
         self.startup(argv)
         inputs = self.soup.find("table").find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2011-01-14'
         expected = {
                 'transaction_id': '1241',
                 'ttype': 'intermediate',
@@ -132,8 +133,8 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'position': 'cash',
                 'descriptor': 'intermediate',
                 'open_price': '20.0000',
-                'open_date': '2011-01-14',
-                'days': '3610',
+                'open_date': expected_open_date,
+                'days': str((datetime.now().date() - dateparser.parse(expected_open_date).date()).days),
                 }
         self.assertDictEqual(actual, expected)
 
