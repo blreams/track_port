@@ -441,6 +441,22 @@ class EditTransactionForm(object):
            self.form.days.validated_value = (datetime.now().date() - self.form.open_date.validated_value).days
            self.form.days.form_value = f"{self.form.days.validated_value}"
 
+    def validate_transaction(self):
+        """Once all the individual forms values have been validated, then
+        validate the entire transaction as a whole.
+        """
+        # Here are some ideas for checks to perform:
+        #   - There should be no additional inputs beyond what is allowed by
+        #     the transaction type.
+        #   - The close_date and open_date should make sense.
+        #   - If the closed field is 1, then you must have both close_price
+        #     and close_date.
+        #   - If the closed field is 0, then you must have neither close_price
+        #     nor close_date.
+        #   - If descriptor indicates this is an option, you must have both
+        #     expiration and strike fields.
+        pass
+
     def validate(self):
         logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate')
         validated = True
@@ -493,6 +509,8 @@ class EditTransactionForm(object):
 
         if hasattr(self.form, 'days'):
             self.recalculate_days()
+
+        self.validate_transaction()
 
         for input_name in self.form.inputs:
             logger.debug(f"post:{getattr(self.form, input_name)}")
