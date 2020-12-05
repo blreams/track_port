@@ -1,0 +1,1 @@
+shares=31.0000&open_price=700&sector=Keep%20AMZN%20forever

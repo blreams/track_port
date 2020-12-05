@@ -275,6 +275,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
 #############################################################################
 class TestUrlEditTransactionPost(unittest.TestCase):
     def startup(self, argv):
+        self.maxDiff = None
         sys.argv = argv
         port_edit.initialize()
         self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
@@ -285,7 +286,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--test',
                 '--action=edit_transaction',
                 '--transaction_id=1213',
-                '--post_args=../scgi-bin/post_args_edit_transaction_initial.txt',
+                '--post_args=post_args_edit_transaction_initial.txt',
                 ]
         self.startup(argv)
         inputs = self.soup.find("table").find_all("input")
@@ -304,19 +305,81 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 }
         self.assertDictEqual(actual, expected)
 
-    def test_edit_transaction_post_ttype_closed_stock(self):
+    def test_edit_transaction_post_ttype_intermediate(self):
+        transaction_id = 11272
         argv = [
                 'port_edit.py',
                 '--test',
                 '--action=edit_transaction',
-                '--transaction_id=271',
-                '--post_args=../scgi-bin/post_args_edit_transaction_closed_stock.txt',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2017-03-15'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'JNJ',
+                'sector': 'Editing a VLCM dividend',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '200.0000',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_open_stock(self):
+        transaction_id = 11130
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_open_stock.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2016-11-04'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'open_stock',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'AMZN',
+                'sector': 'Keep AMZN forever',
+                'position': 'long',
+                'descriptor': 'stock',
+                'shares': '31.0000',
+                'open_price': '700.0000',
+                'open_date': expected_open_date,
+                'basis': '21700.0000',
+                'closed': '0',
+                'close_price': '0.0000',
+                'close_date': 'None',
+                'close': '0.0000',
+                'gain': '0.0000',
+                'days': elapsed_days(expected_open_date),
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_closed_stock(self):
+        transaction_id = 271
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_closed_stock.txt',
                 ]
         self.startup(argv)
         inputs = self.soup.find("table").find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
-                'transaction_id': '271',
+                'transaction_id': f'{transaction_id}',
                 'ttype': 'closed_stock',
                 'fileportname': 'port:fluffgazer',
                 'symbol': 'BWLD',
@@ -333,6 +396,76 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'close': '10894.8000',
                 'gain': '6951.3000',
                 'days': '512',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_closed_call(self):
+        transaction_id = 10380
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_closed_call.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'closed_call',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'AAL',
+                'sector': 'Changing closed call',
+                'position': 'long',
+                'descriptor': 'call',
+                'shares': '-200.0000',
+                'open_price': '0.6925',
+                'open_date': '2015-03-13',
+                'basis': '-138.5000',
+                'closed': '1',
+                'close_price': '4.4000',
+                'close_date': '2015-03-20',
+                'close': '-880.0000',
+                'gain': '-741.5000',
+                'days': '7',
+                'expiration': '2015-04-10',
+                'strike': '53.0000',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_closed_put(self):
+        transaction_id = 10500
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_closed_put.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find("table").find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'closed_put',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'SPY',
+                'sector': 'Changing closed put',
+                'position': 'long',
+                'descriptor': 'put',
+                'shares': '400.0000',
+                'open_price': '3.0000',
+                'open_date': '2014-12-01',
+                'basis': '1200.0000',
+                'closed': '1',
+                'close_price': '13.8569',
+                'close_date': '2016-01-12',
+                'close': '5542.7600',
+                'gain': '4342.7600',
+                'days': '407',
+                'expiration': '2016-03-19',
+                'strike': '200.0000',
                 }
         self.assertDictEqual(actual, expected)
 

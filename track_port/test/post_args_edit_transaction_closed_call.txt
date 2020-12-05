@@ -1,0 +1,1 @@
+shares=-200.0000&open_date=2015-03-13&close_price=4.40&strike=53&sector=Changing%20closed%20call
