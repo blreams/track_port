@@ -105,10 +105,12 @@ def setup_database():
     global session
     global TransactionLists
 
+    logger = logging.getLogger(__name__ + '.' + 'setup_database')
     if arguments.database:
         database_path = os.path.abspath(arguments.database)
+        logger.warning(f"using a non-standard database {database_path}")
     else:
-        database_path = 'track_port.db'
+        database_path = os.path.join(thisdir, 'track_port.db')
 
     if host and host in ('skx-linux',):
         #engine = create_engine('mysql://blreams@localhost/track_port')
@@ -616,6 +618,12 @@ def parse_arguments():
     ttype_choices = ('initial', 'intermediate', 'open_stock', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
+
+    # Need to filter pytest arguments
+    if 'pytest' in sys.argv[0]:
+        argv = [argv_item for argv_item in sys.argv if 'test_port_edit.py::' not in argv_item]
+        sys.argv = argv
+
     try:
         arguments = parser.parse_args()
         logger.debug("Arguments:")

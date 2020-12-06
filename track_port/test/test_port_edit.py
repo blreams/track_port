@@ -7,6 +7,7 @@ import dateparser
 from argparse import Namespace
 from decimal import Decimal
 from bs4 import BeautifulSoup
+from shutil import copyfile
 
 port_edit = importlib.import_module('scgi-bin.port_edit')
 
@@ -274,9 +275,24 @@ class TestUrlEditTransactionGet(unittest.TestCase):
 # Test edit_transaction POST URLs
 #############################################################################
 class TestUrlEditTransactionPost(unittest.TestCase):
+    test_db_name = 'test_track_port.db'
+
+    @classmethod
+    def startUpClass(cls):
+        """These tests require a test version of the database since they will
+        be modifying the database.
+        """
+        # start by copying the database to a new file.
+        cls.test_db_name = 'test_track_port.db'
+        src_db = os.path.join('..', 'scgi-bin', 'track_port.db')
+        dst_db = os.path.join('.', test_db_name)
+        copyfile(src_db, dst_db)
+        pass
+
     def startup(self, argv):
         self.maxDiff = None
         sys.argv = argv
+        sys.argv.append(f"--database={self.test_db_name}")
         port_edit.initialize()
         self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
 
