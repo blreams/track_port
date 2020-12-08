@@ -618,6 +618,7 @@ def parse_arguments():
     ttype_choices = ('initial', 'intermediate', 'open_stock', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
     parser.add_argument('--ttype', choices=ttype_choices, default=None, help="The transaction type")
     parser.add_argument('--transaction_id', type=int, default=-1, help="id from transaction_list table")
+    parser.add_argument('--validated_changed', default='', help="only passed when form inputs are changed/validated")
 
     # Need to filter pytest arguments
     if 'pytest' in sys.argv[0]:
@@ -732,13 +733,16 @@ def main():
         context['form'] = show_transactions_form
         result = render('port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
-        edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
-        context['form'] = edit_transaction_form
-        if arguments.request_method == 'GET':
+        if not arguments.validated_changed:
+            edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
+            context['form'] = edit_transaction_form
+            if arguments.request_method == 'GET':
+                result = render(r'port_edit_edit_transaction.html', context)
+            elif arguments.request_method == 'POST':
+                context['validated'], context['changed'] = edit_transaction_form.validate()
             result = render(r'port_edit_edit_transaction.html', context)
-        elif arguments.request_method == 'POST':
-            context['validated'], context['changed'] = edit_transaction_form.validate()
-        result = render(r'port_edit_edit_transaction.html', context)
+        else:
+            result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
 
