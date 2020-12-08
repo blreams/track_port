@@ -278,14 +278,14 @@ class TestUrlEditTransactionPost(unittest.TestCase):
     test_db_name = 'test_track_port.db'
 
     @classmethod
-    def startUpClass(cls):
+    def setUpClass(cls):
         """These tests require a test version of the database since they will
         be modifying the database.
         """
         # start by copying the database to a new file.
         cls.test_db_name = 'test_track_port.db'
         src_db = os.path.join('..', 'scgi-bin', 'track_port.db')
-        dst_db = os.path.join('.', test_db_name)
+        dst_db = os.path.join('.', cls.test_db_name)
         copyfile(src_db, dst_db)
         pass
 
