@@ -733,16 +733,15 @@ def main():
         context['form'] = show_transactions_form
         result = render('port_edit_show_transactions.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'edit_transaction':
-        if not arguments.validated_changed:
-            edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
-            context['form'] = edit_transaction_form
-            if arguments.request_method == 'GET':
-                result = render(r'port_edit_edit_transaction.html', context)
-            elif arguments.request_method == 'POST':
-                context['validated'], context['changed'] = edit_transaction_form.validate()
+        edit_transaction_form = EditTransactionForm(get_transaction(arguments.transaction_id))
+        context['form'] = edit_transaction_form
+        if arguments.request_method == 'GET':
             result = render(r'port_edit_edit_transaction.html', context)
-        else:
-            result = render(r'port_edit_else.html', context)
+        elif arguments.request_method == 'POST':
+            context['validated'], context['changed'] = edit_transaction_form.validate()
+        result = render(r'port_edit_edit_transaction.html', context)
+    elif hasattr(arguments, 'action') and arguments.action == 'commit_transaction':
+        result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
 

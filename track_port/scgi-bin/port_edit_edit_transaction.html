@@ -72,6 +72,7 @@
   <input type="submit" value="Validate" />
   {% else %}
   <input type="hidden" name="validated_changed" value="True" />
+  <input type="hidden" name="action" value="commit_transaction" />
   <input type="submit" value="Submit" />
   {% endif %}
   <p>* - {{form.msg_no_change}}</p>
