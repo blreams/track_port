@@ -166,6 +166,15 @@ class Transaction(object):
         return f"Transaction:ttype={self.ttype},symbol={self.symbol},position={self.position},descriptor={self.descriptor},shares={self.shares},earliest={self.earliest_date}"
 
     def initialize(self):
+        """As transaction_list rows are added, we calculate the earliest open
+        date. This is saved as class attribute. Then we create calculated
+        fields as follows:
+          - ttype: transaction type
+          - days: days that transaction has been open
+          - basis: initial invested amount
+          - close: total amount when transaction was closed
+          - gain: investment gain
+        """
         tlr = self.transaction_list_row
         if tlr.open_date is not None and tlr.open_date < self.earliest_date:
             Transaction.earliest_date = tlr.open_date
@@ -224,6 +233,9 @@ class Transaction(object):
             self.close = tlr.shares * tlr.close_price
             self.gain = self.close - self.basis
             self.days = (tlr.close_date - tlr.open_date).days
+
+    def post(self):
+        pass
 
 
 class ShowTransactionsForm(object):
@@ -342,11 +354,10 @@ class EditTransactionForm(object):
     def validate_text(self, input_name):
         form_input = getattr(self.form, input_name)
         if hasattr(arguments, input_name) and getattr(arguments, input_name) != getattr(self.transaction, input_name):
-            setattr(form_input, 'message', self.msg_modified)
-            setattr(form_input, 'changed', True)
-            setattr(form_input, 'validated', True)
-            setattr(form_input, 'validated_value', getattr(arguments, input_name)[:32])
-            setattr(form_input, 'form_value', getattr(arguments, input_name)[:32])
+            form_input.message = self.msg_modified
+            form_input.changed = True
+            form_input.validated = True
+            form_input.validated_value = getattr(arguments, input_name)[:32]
 
     def validate_decimal(self, input_name):
         logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_decimal')
@@ -355,41 +366,35 @@ class EditTransactionForm(object):
             validated_value = Decimal(float(getattr(arguments, input_name)))
         except:
             logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-            setattr(form_input, 'validated', False)
+            form_input.validated = False
         else:
-            setattr(form_input, 'validated_value', validated_value)
-            setattr(form_input, 'validated', True)
-            if form_input.fmt:
-                setattr(form_input, 'form_value', f"{validated_value:{form_input.fmt}}")
-            else:
-                setattr(form_input, 'form_value', f"{validated_value}")
+            form_input.validated_value = validated_value
+            form_input.validated = True
 
         if abs(validated_value - getattr(self.transaction, input_name)) > Decimal(0.00001):
-            setattr(form_input, 'message', self.msg_modified)
-            setattr(form_input, 'changed', True)
+            form_input.message = self.msg_modified
+            form_input.changed = True
 
     def validate_date(self, input_name):
         logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_date')
         form_input = getattr(self.form, input_name)
         if getattr(arguments, input_name) == 'None':
             validated_value = None
-            setattr(form_input, 'validated_value', validated_value)
-            setattr(form_input, 'validated', True)
-            setattr(form_input, 'form_value', validated_value)
+            form_input.validated_value = validated_value
+            form_input.validated = True
         else:
             try:
                 validated_value = dateparser.parse(getattr(arguments, input_name)).date()
             except:
                 logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-                setattr(form_input, 'validated', False)
+                form_input.validated = False
             else:
-                setattr(form_input, 'validated_value', validated_value)
-                setattr(form_input, 'validated', True)
-                setattr(form_input, 'form_value', validated_value)
+                form_input.validated_value = validated_value
+                form_input.validated = True
 
         if validated_value != getattr(self.transaction, input_name):
-            setattr(form_input, 'message', self.msg_modified)
-            setattr(form_input, 'changed', True)
+            form_input.message = self.msg_modified
+            form_input.changed = True
 
     def validate_int_1_0(self, input_name):
         logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_int_1_0')
@@ -398,50 +403,41 @@ class EditTransactionForm(object):
             validated_value = int(getattr(arguments, input_name))
         except:
             logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-            setattr(form_input, 'validated', False)
+            form_input.validated = False
         else:
-            setattr(form_input, 'validated_value', validated_value)
-            setattr(form_input, 'validated', True)
-            setattr(form_input, 'form_value', validated_value)
+            form_input.validated_value = validated_value
+            form_input.validated = True
 
         if validated_value != getattr(self.transaction, input_name):
-            setattr(form_input, 'message', self.msg_modified)
-            setattr(form_input, 'changed', True)
+            form_input.message = self.msg_modified
+            form_input.changed = True
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
-        self.form.basis.message = 'Recalculated'
-        self.form.basis.validated_value = self.form.shares.validated_value * self.form.open_price.validated_value
-        self.form.basis.form_value = f"{self.form.basis.validated_value:{form_input.fmt}}"
+        form_input.message = 'Recalculated'
+        form_input.validated_value = self.form.shares.validated_value * self.form.open_price.validated_value
 
     def recalculate_close(self):
         form_input = getattr(self.form, 'close')
         if self.form.closed:
-            self.form.close.message = 'Recalculated'
-            self.form.close.validated_value = self.form.shares.validated_value * self.form.close_price.validated_value
-            self.form.close.form_value = f"{self.form.close.validated_value:{form_input.fmt}}"
+            form_input.message = 'Recalculated'
+            form_input.validated_value = self.form.shares.validated_value * self.form.close_price.validated_value
 
     def recalculate_gain(self):
         form_input = getattr(self.form, 'gain')
+        form_input.message = 'Recalculated'
         if self.form.closed.validated_value:
-            self.form.gain.message = 'Recalculated'
-            self.form.gain.validated_value = self.form.shares.validated_value * (self.form.close_price.validated_value - self.form.open_price.validated_value)
-            self.form.gain.form_value = f"{self.form.gain.validated_value:{form_input.fmt}}"
+            form_input.validated_value = self.form.shares.validated_value * (self.form.close_price.validated_value - self.form.open_price.validated_value)
         else:
-            self.form.gain.message = 'Recalculated'
-            self.form.gain.validated_value = 0.0
-            self.form.gain.form_value = f"{self.form.gain.validated_value:{form_input.fmt}}"
+            form_input.validated_value = 0.0
 
     def recalculate_days(self):
         form_input = getattr(self.form, 'days')
+        form_input.message = 'Recalculated'
         if hasattr(self.form, 'closed') and self.form.closed and self.form.close_date.validated_value is not None:
-           self.form.days.message = 'Recalculated'
-           self.form.days.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
-           self.form.days.form_value = f"{self.form.days.validated_value}"
+           form_input.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
         else:
-           self.form.days.message = 'Recalculated'
-           self.form.days.validated_value = (datetime.now().date() - self.form.open_date.validated_value).days
-           self.form.days.form_value = f"{self.form.days.validated_value}"
+           form_input.validated_value = (datetime.now().date() - self.form.open_date.validated_value).days
 
     def validate_transaction(self):
         """Once all the individual forms values have been validated, then
@@ -473,9 +469,9 @@ class EditTransactionForm(object):
                 continue
 
             if input_name in ('transaction_id', 'symbol', 'position', 'descriptor'):
-                setattr(form_input, 'changed', False)
-                setattr(form_input, 'validated', True)
-                setattr(form_input, 'validated_value', getattr(self.transaction, input_name))
+                form_input.changed = False
+                form_input.validated = True
+                form_input.validated_value = getattr(self.transaction, input_name)
                 continue
 
             if not hasattr(arguments, input_name):
@@ -494,8 +490,8 @@ class EditTransactionForm(object):
                 self.validate_int_1_0(input_name)
 
             else:
-                setattr(form_input, 'changed', False)
-                setattr(form_input, 'validated', False)
+                form_input.changed = False
+                form_input.validated = False
 
             validated &= getattr(form_input, 'validated', True)
             changed |= getattr(form_input, 'changed', False)
@@ -529,7 +525,7 @@ class Form(object):
         self.inputs.append(form_input.name)
         setattr(self, form_input.name, form_input)
         if not form_input.disabled:
-            setattr(form_input, 'tabindex', self.tabindex)
+            form_input.tabindex = self.tabindex
             self.tabindex += 1
 
 class FormInput(object):
@@ -550,10 +546,7 @@ class FormInput(object):
             self.tabindex_count += 1
             self.tabindex = self.tabindex_count
         self.validated_value = value
-        if fmt:
-            self.form_value = f"{value:{fmt}}"
-        else:
-            self.form_value = f"{value}"
+        self.form_value = value
 
     def __repr__(self):
         base_repr = f"FormInput: name={self.name},value={self.value},form_value={self.form_value}"
@@ -564,6 +557,51 @@ class FormInput(object):
         if hasattr(self, 'validated'):
             base_repr += f",validated={self.validated}"
         return base_repr
+
+    # FormInput Properties
+    @property
+    def message(self):
+        return self._message
+
+    @message.setter
+    def message(self, val):
+        self._message = val
+
+    @property
+    def validated(self):
+        return self._validated
+
+    @validated.setter
+    def validated(self, val):
+        self._validated = val
+
+    @property
+    def changed(self):
+        return self._changed
+
+    @changed.setter
+    def changed(self, val):
+        self._changed = val
+
+    @property
+    def validated_value(self):
+        return self._validated_value
+
+    @validated_value.setter
+    def validated_value(self, val):
+        self._validated_value = val
+        self.form_value = val
+
+    @property
+    def form_value(self):
+        return self._form_value
+
+    @form_value.setter
+    def form_value(self, val):
+        if self.fmt:
+            self._form_value = f"{val:{self.fmt}}"
+        else:
+            self._form_value = f"{val}"
 
 #############################################################################
 # Function definitions
@@ -741,6 +779,7 @@ def main():
             context['validated'], context['changed'] = edit_transaction_form.validate()
         result = render(r'port_edit_edit_transaction.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'commit_transaction':
+        transaction = get_transaction(arguments.transaction_id)
         result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
