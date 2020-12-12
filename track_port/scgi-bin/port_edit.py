@@ -235,7 +235,18 @@ class Transaction(object):
             self.days = (tlr.close_date - tlr.open_date).days
 
     def post(self):
-        pass
+        if 'sector' in arguments: self.transaction_list_row.sector = arguments.sector
+        if 'shares' in arguments: self.transaction_list_row.shares = Decimal(float(arguments.shares))
+        if 'open_price' in arguments: self.transaction_list_row.open_price = Decimal(float(arguments.open_price))
+        if 'open_date' in arguments: self.transaction_list_row.open_date = dateparser.parse(arguments.open_date).date()
+        if 'closed' in arguments: self.transaction_list_row.closed = int(arguments.closed)
+        if 'close_price' in arguments: self.transaction_list_row.close_price = Decimal(float(arguments.close_price))
+        if 'close_date' in arguments: self.transaction_list_row.close_date = dateparser.parse(arguments.close_date).date()
+        if 'expiration' in arguments: self.transaction_list_row.expiration = dateparser.parse(arguments.expiration).date()
+        if 'strike' in arguments: self.transaction_list_row.strike = Decimal(float(arguments.strike))
+
+        if False:
+            session.commit()
 
 
 class ShowTransactionsForm(object):
@@ -655,7 +666,7 @@ def parse_arguments():
     parser.add_argument('--database', default='', help="Specify a different sqlite database (relative if no starting '/')")
     # The following arguments are mimicking what can be passed via cgi
     parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
-    action_choices = ('show_transactions', "edit_transaction")
+    action_choices = ('show_transactions', "edit_transaction", "commit_transaction")
     parser.add_argument('--action', choices=action_choices, help="Edit action")
     parser.add_argument('--fileportname', default=None, help="The fileportname being edited")
     ttype_choices = ('initial', 'intermediate', 'open_stock', 'open_call', 'open_put', 'closed_stock', 'closed_call', 'closed_put')
@@ -791,6 +802,7 @@ def main():
         result = render(r'port_edit_edit_transaction.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'commit_transaction':
         transaction = get_transaction(arguments.transaction_id)
+        transaction.post()
         result = render(r'port_edit_else.html', context)
     else:
         result = render(r'port_edit_else.html', context)
