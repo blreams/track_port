@@ -34,9 +34,9 @@
                 type="{{form_input.itype}}"
                 name="{{input_name}}"
                 value="{{form_input.form_value}}"
-                {{form_input.disabled}}
+                {{form_input.attr_disabled}}
                 {{form_input.autofocus}}
-                {% if not form_input.disabled %}
+                {% if not form_input.attr_disabled %}
                   onfocus="this.select()"
                   tabindex="{{form_input.tabindex}}"
                 {% endif %}
@@ -75,8 +75,8 @@
   <input type="hidden" name="action" value="commit_transaction" />
   <input type="submit" value="Submit" />
   {% endif %}
-  <p>* - {{form.msg_no_change}}</p>
-  <p>** - {{form.msg_calculated}}</p>
+  <p>* - You may not change this field</p>
+  <p>** - Info-Only: field is calculated based on other fields</p>
 </form>
 {% if validated %}
 <h2>VALIDATED</h2>

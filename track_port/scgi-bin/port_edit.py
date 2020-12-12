@@ -292,7 +292,6 @@ class EditTransactionForm(object):
     msg_calculated = 'Info-Only: field is calculated based on other fields'
     msg_asterisk = '*'
     msg_illegal_change = 'Illegal change'
-    msg_modified = 'Modified'
     default_decimal_format = '.4f'
 
     def __init__(self, transaction):
@@ -327,90 +326,33 @@ class EditTransactionForm(object):
         ** -- calculated
         """
         self.form = Form()
-        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, message=self.msg_asterisk, disabled='disabled'))
+        disabled = 1
+        calculated = 2
+        #disabled = self.form.INPUT_DISABLED_TYPE_DISABLED
+        #calculated = self.form.INPUT_DISABLED_TYPE_CALCULATED
+        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, disabled=disabled))
+        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, disabled=disabled))
+        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, disabled=disabled))
         if self.transaction.ttype not in ('initial',):
-            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
-        self.form.add_input(FormInput(name='position', value=self.transaction.position, message=self.msg_asterisk, disabled='disabled'))
-        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, message=self.msg_asterisk, disabled='disabled'))
+            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=disabled))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
+        self.form.add_input(FormInput(name='position', value=self.transaction.position, disabled=disabled))
+        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=disabled))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='shares', value=self.transaction.shares, message='Number of shares (negative if short)', fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, message='Price per share at open', fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, message='Date transaction was opened'))
+            self.form.add_input(FormInput(name='shares', value=self.transaction.shares, validation_type='decimal', message='Number of shares (negative if short)', fmt=self.default_decimal_format))
+        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, validation_type='decimal', message='Price per share at open', fmt=self.default_decimal_format))
+        self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, validation_type='date', message='Date transaction was opened'))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='closed', value=self.transaction.closed, message='Indicates a "closed" transaction (set to 1)'))
-            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, message='Price per share at close', fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, message='Date transaction was closed'))
-            self.form.add_input(FormInput(name='close', value=self.transaction.close, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, message=self.msg_asterisk*2, disabled='disabled', fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='days', value=self.transaction.days, message=self.msg_asterisk*2, disabled='disabled'))
+            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, disabled=calculated, fmt=self.default_decimal_format))
+            self.form.add_input(FormInput(name='closed', value=self.transaction.closed, validation_type='int_1_0', message='Indicates a "closed" transaction (set to 1)'))
+            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, validation_type='decimal', message='Price per share at close', fmt=self.default_decimal_format))
+            self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, validation_type='date', message='Date transaction was closed'))
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format))
+            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format))
+        self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated))
         if self.transaction.ttype.endswith(('_call', '_put')):
-            self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, message='Expiration date (options-only)'))
-            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, message='Strike price (options-only)', fmt=self.default_decimal_format))
-
-    def validate_text(self, input_name):
-        form_input = getattr(self.form, input_name)
-        if hasattr(arguments, input_name) and getattr(arguments, input_name) != getattr(self.transaction, input_name):
-            form_input.message = self.msg_modified
-            form_input.changed = True
-            form_input.validated = True
-            form_input.validated_value = getattr(arguments, input_name)[:32]
-
-    def validate_decimal(self, input_name):
-        logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_decimal')
-        form_input = getattr(self.form, input_name)
-        try:
-            validated_value = Decimal(float(getattr(arguments, input_name)))
-        except:
-            logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-            form_input.validated = False
-        else:
-            form_input.validated_value = validated_value
-            form_input.validated = True
-
-        if abs(validated_value - getattr(self.transaction, input_name)) > Decimal(0.00001):
-            form_input.message = self.msg_modified
-            form_input.changed = True
-
-    def validate_date(self, input_name):
-        logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_date')
-        form_input = getattr(self.form, input_name)
-        if getattr(arguments, input_name) == 'None':
-            validated_value = None
-            form_input.validated_value = validated_value
-            form_input.validated = True
-        else:
-            try:
-                validated_value = dateparser.parse(getattr(arguments, input_name)).date()
-            except:
-                logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-                form_input.validated = False
-            else:
-                form_input.validated_value = validated_value
-                form_input.validated = True
-
-        if validated_value != getattr(self.transaction, input_name):
-            form_input.message = self.msg_modified
-            form_input.changed = True
-
-    def validate_int_1_0(self, input_name):
-        logger = logging.getLogger(__name__ + '.' + 'EditTransactionForm.validate_int_1_0')
-        form_input = getattr(self.form, input_name)
-        try:
-            validated_value = int(getattr(arguments, input_name))
-        except:
-            logger.warning(f"validate failed on {getattr(arguments, input_name)}")
-            form_input.validated = False
-        else:
-            form_input.validated_value = validated_value
-            form_input.validated = True
-
-        if validated_value != getattr(self.transaction, input_name):
-            form_input.message = self.msg_modified
-            form_input.changed = True
+            self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, validation_type='date', message='Expiration date (options-only)'))
+            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, validation_type='decimal', message='Strike price (options-only)', fmt=self.default_decimal_format))
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
@@ -477,21 +419,9 @@ class EditTransactionForm(object):
             if not hasattr(arguments, input_name):
                 continue
 
-            if input_name in ('sector',):
-                self.validate_text(input_name)
-
-            elif input_name in ('shares', 'open_price', 'close_price', 'strike'):
-                self.validate_decimal(input_name)
-
-            elif input_name in ('open_date', 'close_date', 'expiration'):
-                self.validate_date(input_name)
-
-            elif input_name in ('closed',):
-                self.validate_int_1_0(input_name)
-
-            else:
-                form_input.changed = False
-                form_input.validated = False
+            form_input.changed = False
+            form_input.validated = False
+            form_input.validate(self.transaction)
 
             validated &= getattr(form_input, 'validated', True)
             changed |= getattr(form_input, 'changed', False)
@@ -530,17 +460,26 @@ class Form(object):
 
 class FormInput(object):
     tabindex_count = 0
-    def __init__(self, name, value, fmt='', message='', itype='text', disabled='', autofocus='', first=False):
+    msg_input_modified = 'Modified'
+    INPUT_DISABLED_TYPE_NONE = 0
+    INPUT_DISABLED_TYPE_DISABLED = 1
+    INPUT_DISABLED_TYPE_CALCULATED = 2
+    def __init__(self, name, value, validation_type='', fmt='', message='', itype='text', disabled=INPUT_DISABLED_TYPE_NONE, autofocus='', first=False):
         self.name = name
         self.value = value
+        self.validation_type = validation_type
         self.fmt = fmt
         self.message = message
+        if not message and disabled:
+            self.message = '*' * disabled
         self.itype = itype
         self.disabled = disabled
         self.autofocus = autofocus
         self.first = first
 
+        self.attr_disabled = 'disabled'
         if not disabled:
+            self.attr_disabled = ''
             if first:
                 self.tabindex_count = 0
             self.tabindex_count += 1
@@ -557,6 +496,71 @@ class FormInput(object):
         if hasattr(self, 'validated'):
             base_repr += f",validated={self.validated}"
         return base_repr
+
+    def validate(self, transaction):
+        validate_function = getattr(self, 'validate_' + self.validation_type)
+        validate_function(transaction)
+
+    def validate_(self, transaction):
+        pass
+
+    def validate_text(self, transaction):
+        if hasattr(arguments, self.name) and getattr(arguments, self.name) != getattr(transaction, self.name):
+            self.message = self.msg_input_modified
+            self.changed = True
+            self.validated = True
+            self.validated_value = getattr(arguments, self.name)[:32]
+
+    def validate_decimal(self, transaction):
+        logger = logging.getLogger(__name__ + '.' + 'FormInput.validate_decimal')
+        try:
+            validated_value = Decimal(float(getattr(arguments, self.name)))
+        except:
+            logger.warning(f"validation failed on arguments.{self.name}")
+            self.validated = False
+        else:
+            self.validated_value = validated_value
+            self.validated = True
+
+        if abs(validated_value - getattr(transaction, self.name)) > Decimal(0.00001):
+            self.message = self.msg_input_modified
+            self.changed = True
+
+    def validate_date(self, transaction):
+        logger = logging.getLogger(__name__ + '.' + 'FormInput.validate_date')
+        arg_date = getattr(arguments, self.name)
+        if arg_date == 'None':
+            self.validated_value = None
+            self.validated = True
+        else:
+            try:
+                validated_value = dateparser.parse(arg_date).date()
+            except:
+                logger.warning(f"validation failed on arguments.{self.name}={arg_date}")
+                self.validated = False
+            else:
+                self.validated_value = validated_value
+                self.validated = True
+
+        if self.validated_value != getattr(transaction, self.name):
+            self.message = self.msg_input_modified
+            self.changed = True
+
+    def validate_int_1_0(self, transaction):
+        logger = logging.getLogger(__name__ + '.' + 'FormInput.validate_int_1_0')
+        arg_int = getattr(arguments, self.name)
+        try:
+            validated_value = int(arg_int)
+        except:
+            logger.warning(f"validation failed on arguments.{self.name}={arg_int}")
+            self.validated = False
+        else:
+            self.validated_value = validated_value
+            self.validated = True
+
+        if validated_value != getattr(transaction, self.name):
+            self.message = self.msg_input_modified
+            self.changed = True
 
     # FormInput Properties
     @property
@@ -647,6 +651,7 @@ def parse_arguments():
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help="Show verbose messages")
     parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug mode")
     parser.add_argument('-t', '--test', action='store_true', default=False, help="Use this when testing")
+    parser.add_argument('-s', '--simulate', action='store_true', default=False, help="Use when simulating from command line")
     parser.add_argument('--database', default='', help="Specify a different sqlite database (relative if no starting '/')")
     # The following arguments are mimicking what can be passed via cgi
     parser.add_argument('--post_args', default=None, help="File containing post argument string (usually copied from log on server)")
@@ -669,10 +674,14 @@ def parse_arguments():
         for arg, val in arguments.__dict__.items():
             logger.debug(f"{arg}={val}")
     except:
-        assert False, "Aborting in parse_arguments."
+        logger.debug("Aborting in parse_arguments.")
+        #assert False, "Aborting in parse_arguments."
+        return False
 
     if arguments.post_args is not None:
         assert os.path.isfile(arguments.post_args), f"Unable to open file {arguments.post_args}"
+
+    return True
 
 def process_arguments():
     global arguments
@@ -747,9 +756,11 @@ def process_arguments():
 #############################################################################
 def initialize():
     configure_logging()
-    parse_arguments()
-    setup_database()
-    process_arguments()
+    if parse_arguments():
+        setup_database()
+        process_arguments()
+        return True
+    return False
 
 #############################################################################
 # Main
@@ -762,7 +773,7 @@ def main():
             'tclasses': tclasses,
             'schemes': schemes,
             'tsconfig': tsconfig,
-            'cgi': arguments.cgi,
+            'simulate': arguments.simulate,
             'column_order': Transaction.column_order,
             }
 
@@ -787,12 +798,14 @@ def main():
     if arguments.test:
         return result
 
-    if hasattr(arguments, 'cgi') and arguments.cgi:
+    #import pdb;pdb.set_trace()
+    if not arguments.simulate and hasattr(arguments, 'cgi') and arguments.cgi:
         print("Content-type: text/html\n\n")
+    print()
     print(result)
 
 
 if __name__ == '__main__':
-    initialize()
-    main()
+    if initialize():
+        main()
 

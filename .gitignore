@@ -11,3 +11,4 @@ port_plot.html
 ~*.docx
 *.db
 *.stdin
+test_output.html

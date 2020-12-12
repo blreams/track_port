@@ -6,11 +6,11 @@
   <meta name="format-detection" content="telephone=no"/>
   <meta name="viewport" content="width=500"/>
   <title>{% block title %}port_edit.py{% endblock %}</title>
-  <link rel="stylesheet" type="text/css" href="/css/track_port_less.css" />
-  <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/track_port.css" />
-  <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/theme.jui.css">
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/track_port_less.css" />
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/track_port.css" />
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/theme.jui.css">
   {% for scheme in schemes %}
-  <link rel="stylesheet" type="text/css" href="{% if not cgi %}..{% endif %}/css/theme.{{scheme}}.css">
+  <link rel="stylesheet" type="text/css" href="{% if simulate %}..{% endif %}/css/theme.{{scheme}}.css">
   {% endfor %}
   {% block head_jquery_block %}
   <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js"></script>
