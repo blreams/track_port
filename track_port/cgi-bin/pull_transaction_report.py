@@ -190,6 +190,7 @@ def handle_cgi_args(arguments):
     argdict['cashdetail'] = False
     argdict['sort'] = 'pct_chg'
     argdict['showsector'] = False
+    argdict['showname'] = False
     link_args = []
     for argkey in arguments.keys():
         if argkey in known_argkeys:
@@ -749,6 +750,8 @@ def main():
         args.sortcol = cgi_args['sort']
         if cgi_args['showsector']:
             args.addcols.append('sector')
+        if cgi_args['showname']:
+            args.addcols.append('name')
 
     lheadings = handle_cols()
 

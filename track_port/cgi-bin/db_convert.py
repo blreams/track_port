@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 from sqlalchemy import *
 
+sqlite_db_name = f"track_port_{datetime.now().date().strftime('%Y-%m-%d')}.db"
 mengine = create_engine('mysql://blreams@localhost/track_port')
-sengine = create_engine('sqlite:///track_port.db')
+sengine = create_engine(f"sqlite:///{sqlite_db_name}")
 
 def copy_table(src_engine, src_table_name, dst_engine):
     # Initial setup
