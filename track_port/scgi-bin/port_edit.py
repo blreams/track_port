@@ -341,30 +341,30 @@ class EditTransactionForm(object):
         calculated = 2
         #disabled = self.form.INPUT_DISABLED_TYPE_DISABLED
         #calculated = self.form.INPUT_DISABLED_TYPE_CALCULATED
-        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, disabled=disabled))
-        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, disabled=disabled))
-        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, disabled=disabled))
-        self.form.add_input(FormInput(name='position', value=self.transaction.position, disabled=disabled))
-        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=disabled))
+        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, disabled=disabled, row=True, width_class='col-2'))
+        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, disabled=disabled, width_class='col-2'))
+        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, disabled=disabled, width_class='col-2'))
+        self.form.add_input(FormInput(name='position', value=self.transaction.position, disabled=disabled, width_class='col-2'))
+        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=disabled, width_class='col-2'))
         if self.transaction.ttype not in ('initial',):
-            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=disabled))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', message='Free form text (limit 32 chars)', autofocus='autofocus', first=True))
+            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=disabled, width_class='col-2'))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='shares', value=self.transaction.shares, validation_type='decimal', message='Number of shares (negative if short)', fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, validation_type='decimal', message='Price per share at open', fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, validation_type='date', message='Date transaction was opened'))
+            self.form.add_input(FormInput(name='shares', value=self.transaction.shares, validation_type='decimal', message='Number of shares (negative if short)', fmt=self.default_decimal_format, row=True))
+        self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, validation_type='decimal', message='Price per share at open', fmt=self.default_decimal_format, row=True))
+        self.form.add_input(FormInput(name='open_date', value=self.transaction.open_date, validation_type='date', message='Date transaction was opened', row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='closed', value=self.transaction.closed, validation_type='int_1_0', message='Indicates a "closed" transaction (set to 1)'))
-            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, validation_type='decimal', message='Price per share at close', fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, validation_type='date', message='Date transaction was closed'))
+            self.form.add_input(FormInput(name='closed', value=self.transaction.closed, validation_type='int_1_0', message='Indicates a "closed" transaction (set to 1)', row=True))
+            self.form.add_input(FormInput(name='close_price', value=self.transaction.close_price, validation_type='decimal', message='Price per share at close', fmt=self.default_decimal_format, row=True))
+            self.form.add_input(FormInput(name='close_date', value=self.transaction.close_date, validation_type='date', message='Date transaction was closed', row=True))
         if self.transaction.ttype.endswith(('_call', '_put')):
-            self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, validation_type='date', message='Expiration date (options-only)'))
-            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, validation_type='decimal', message='Strike price (options-only)', fmt=self.default_decimal_format))
+            self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, validation_type='date', message='Expiration date (options-only)', row=True))
+            self.form.add_input(FormInput(name='strike', value=self.transaction.strike, validation_type='decimal', message='Strike price (options-only)', fmt=self.default_decimal_format, row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, disabled=calculated, fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format))
-            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format))
-        self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated))
+            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, disabled=calculated, fmt=self.default_decimal_format, row=True, width_class='col-3'))
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
+            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
+        self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated, width_class='col-3'))
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
@@ -390,8 +390,10 @@ class EditTransactionForm(object):
         form_input.message = 'Recalculated'
         if hasattr(self.form, 'closed') and self.form.closed and self.form.close_date.validated_value is not None:
            form_input.validated_value = (self.form.close_date.validated_value - self.form.open_date.validated_value).days
-        else:
+        elif hasattr(self.form, 'open_date') and self.form.open_date.validated_value is not None:
            form_input.validated_value = (datetime.now().date() - self.form.open_date.validated_value).days
+        else:
+           form_input.validated_value = 0
 
     def validate_transaction(self):
         """Once all the individual forms values have been validated, then
@@ -476,7 +478,17 @@ class FormInput(object):
     INPUT_DISABLED_TYPE_NONE = 0
     INPUT_DISABLED_TYPE_DISABLED = 1
     INPUT_DISABLED_TYPE_CALCULATED = 2
-    def __init__(self, name, value, validation_type='', fmt='', message='', itype='text', disabled=INPUT_DISABLED_TYPE_NONE, autofocus='', first=False):
+    def __init__(self, name, value, 
+            validation_type='',
+            fmt='',
+            message='',
+            itype='text',
+            disabled=INPUT_DISABLED_TYPE_NONE,
+            autofocus='',
+            first=False,
+            row=False,
+            width_class='col-12',
+            ):
         self.name = name
         self.value = value
         self.validation_type = validation_type
@@ -488,6 +500,8 @@ class FormInput(object):
         self.disabled = disabled
         self.autofocus = autofocus
         self.first = first
+        self.row = row
+        self.width_class = width_class
 
         self.attr_disabled = 'disabled'
         if not disabled:

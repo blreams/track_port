@@ -509,5 +509,32 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 }
         self.assertDictEqual(actual, expected)
 
+    def test_edit_transaction_post_ttype_initial_sector(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=1262',
+                '--post_args=post_args_edit_transaction_initial_sector.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected = {
+                'transaction_id': '1262',
+                'ttype': 'initial',
+                'fileportname': 'practice:dummy',
+                'sector': 'This is initial cash',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '10000.0000',
+                'open_date': 'None',
+                'days': '0',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
     def test_edit_transaction_xxxx_post_including_closed(self):
         pass

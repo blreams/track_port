@@ -1,0 +1,1 @@
+sector=This%20is%20initial%20cash
