@@ -102,7 +102,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=1213',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': '1213',
@@ -114,6 +114,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'open_price': '108406.4679',
                 'open_date': 'None',
                 'days': '0',
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -125,7 +126,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=1241',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected_open_date = '2011-01-14'
         expected = {
@@ -139,6 +140,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'open_price': '20.0000',
                 'open_date': expected_open_date,
                 'days': elapsed_days(expected_open_date),
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -150,7 +152,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=12460',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected_open_date = '2013-03-07'
         expected = {
@@ -171,6 +173,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'close': '0.0000',
                 'gain': '0.0000',
                 'days': elapsed_days(expected_open_date),
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -182,7 +185,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=271',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': '271',
@@ -202,6 +205,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'close': '3131.6000',
                 'gain': '1317.1000',
                 'days': '451',
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -213,7 +217,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=8166',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': '8166',
@@ -235,6 +239,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'days': '136',
                 'expiration': '2014-01-18',
                 'strike': '30.8000',
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -246,7 +251,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 '--transaction_id=8213',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': '8213',
@@ -268,6 +273,7 @@ class TestUrlEditTransactionGet(unittest.TestCase):
                 'days': '31',
                 'expiration': '2013-11-16',
                 'strike': '170.0000',
+                'submit_button': 'Validate',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -305,7 +311,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_initial.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected_open_date = '2000-12-31'
         expected = {
@@ -318,6 +324,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'open_price': '200000.0000',
                 'open_date': expected_open_date,
                 'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -331,7 +340,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_intermediate.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected_open_date = '2017-03-15'
         expected = {
@@ -345,6 +354,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'open_price': '200.0000',
                 'open_date': expected_open_date,
                 'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -358,7 +370,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_open_stock.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected_open_date = '2016-11-04'
         expected = {
@@ -379,6 +391,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'close': '0.0000',
                 'gain': '0.0000',
                 'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -392,7 +407,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_closed_stock.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': f'{transaction_id}',
@@ -412,6 +427,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'close': '10894.8000',
                 'gain': '6951.3000',
                 'days': '512',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -425,7 +443,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_closed_call.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': f'{transaction_id}',
@@ -447,6 +465,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'days': '7',
                 'expiration': '2015-04-10',
                 'strike': '53.0000',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 
@@ -460,7 +481,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 '--post_args=post_args_edit_transaction_closed_put.txt',
                 ]
         self.startup(argv)
-        inputs = self.soup.find("table").find_all("input")
+        inputs = self.soup.find_all("input")
         actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
         expected = {
                 'transaction_id': f'{transaction_id}',
@@ -482,6 +503,9 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'days': '407',
                 'expiration': '2016-03-19',
                 'strike': '200.0000',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
                 }
         self.assertDictEqual(actual, expected)
 

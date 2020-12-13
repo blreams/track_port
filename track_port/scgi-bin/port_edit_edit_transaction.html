@@ -20,60 +20,98 @@
 {% endblock %}
 
 {% block body_block %}
+<div class="container">
 <h1>Edit Transaction{% if arguments.request_method == 'POST' %} (Verify){% endif %}</h1>
 <form method="post" name="port_edit.py">
-  <table>
-      {% if not validated or not changed %}
-        {% for input_name in form.form.inputs %}
-        {% set form_input = form.form|attr(input_name) %}
-        <tr>
-            <td><label for="id_{{input_name}}">{{input_name}}:</label></td>
-            <td>
-                <input
-                id="id_{{input_name}}"
-                type="{{form_input.itype}}"
-                name="{{input_name}}"
-                value="{{form_input.form_value}}"
-                {{form_input.attr_disabled}}
-                {{form_input.autofocus}}
-                {% if not form_input.attr_disabled %}
-                  onfocus="this.select()"
-                  tabindex="{{form_input.tabindex}}"
-                {% endif %}
-                />
-            </td>
-            <td>{{form_input.message}}</td>
-        </tr>
-        {% endfor %}
-      {% else %}
-        {% for input_name in form.form.inputs %}
-        {% set form_input = form.form|attr(input_name) %}
-        <tr>
-            <td><label for="id_{{input_name}}">{{input_name}}:</label></td>
-            <td>
-                <input
-                id="id_{{input_name}}"
-                type="{{form_input.itype}}"
-                name="{{input_name}}"
-                value="{{form_input.form_value}}"
-                {% if form_input.changed %}
-                readonly
-                {% else %}
-                disabled
-                {% endif %}
-                />
-            </td>
-            <td>{{form_input.message}}</td>
-        </tr>
-        {% endfor %}
-      {% endif %}
-  </table>
+    {% for input_name in form.form.inputs %}
+    {% set form_input = form.form|attr(input_name) %}
+    {% if not validated or not changed %}
+    {% if loop.index0 == 0 %}
+    <div class="row">
+    <div class="col-2">
+    {% elif loop.index0 < 6 %}
+    <div class="col-2">
+    {% elif loop.index0 == 6 %}
+    </div>
+    <div class="row">
+    <div class="col-12">
+    {% elif loop.index0 < 13 %}
+    </div>
+    <div class="row">
+    <div class="col-12">
+    {% elif loop.index0 == 13 %}
+    </div>
+    <div class="row">
+    <div class="col-3">
+    {% else %}
+    <div class="col-3">
+    {% endif %}
+    <div class="form-floating mb-3">
+        <input class="form-control"
+        id="id_{{input_name}}"
+        type="{{form_input.itype}}"
+        name="{{input_name}}"
+        value="{{form_input.form_value}}"
+        placeholder="{{form_input.form_value}}"
+        {{form_input.attr_disabled}}
+        {{form_input.autofocus}}
+        {% if not form_input.attr_disabled %}
+          onfocus="this.select()"
+          tabindex="{{form_input.tabindex}}"
+        {% endif %}
+        aria-describedby="id_{{input_name}}_help"
+        />
+        <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
+        <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
+    </div>
+    </div>
+    {% else %}
+    {% if loop.index0 == 0 %}
+    <div class="row">
+    <div class="col-2">
+    {% elif loop.index0 < 6 %}
+    <div class="col-2">
+    {% elif loop.index0 == 6 %}
+    </div>
+    <div class="row">
+    <div class="col-12">
+    {% elif loop.index0 < 13 %}
+    </div>
+    <div class="row">
+    <div class="col-12">
+    {% elif loop.index0 == 13 %}
+    </div>
+    <div class="row">
+    <div class="col-3">
+    {% else %}
+    <div class="col-3">
+    {% endif %}
+    <div class="form-floating mb-3">
+        <input class="form-control"
+        id="id_{{input_name}}"
+        type="{{form_input.itype}}"
+        name="{{input_name}}"
+        value="{{form_input.form_value}}"
+        placeholder="{{form_input.form_value}}"
+        {% if form_input.changed %}
+        readonly
+        {% else %}
+        disabled
+        {% endif %}
+        aria-describedby="id_{{input_name}}_help"
+        />
+        <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
+        <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
+    </div>
+    </div>
+    {% endif %}
+    {% endfor %}
   {% if not validated or not changed %}
-  <input type="submit" value="Validate" />
+  <input type="submit" name="submit_button" value="Validate" />
   {% else %}
   <input type="hidden" name="validated_changed" value="True" />
   <input type="hidden" name="action" value="commit_transaction" />
-  <input type="submit" value="Submit" />
+  <input type="submit" name="submit_button" value="Commit" />
   {% endif %}
   <p>* - You may not change this field</p>
   <p>** - Info-Only: field is calculated based on other fields</p>
@@ -85,3 +123,4 @@
 <h2>CHANGED</h2>
 {% endif %}
 {% endblock %}
+</div>

@@ -20,6 +20,7 @@
 {% endblock %}
 
 {% block body_block %}
+<div class="container">
 <p>Query returned {{form.table|length}} transactions</p>
 <div style="width:100%">
   <div style="display:table-cell;min-width:400px;vertical-align:top">
@@ -54,5 +55,6 @@
     </table>
     {% endif %}
   </div>
+</div>
 </div>
 {% endblock %}
