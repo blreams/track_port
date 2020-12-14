@@ -348,7 +348,7 @@ class EditTransactionForm(object):
         self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=disabled, width_class='col-2'))
         if self.transaction.ttype not in ('initial',):
             self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=disabled, width_class='col-2'))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
+        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', maxlength=32, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
             self.form.add_input(FormInput(name='shares', value=self.transaction.shares, validation_type='decimal', message='Number of shares (negative if short)', fmt=self.default_decimal_format, row=True))
         self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, validation_type='decimal', message='Price per share at open', fmt=self.default_decimal_format, row=True))
@@ -473,22 +473,39 @@ class Form(object):
             self.tabindex += 1
 
 class FormInput(object):
+    """Models the form <input> tag.
+    """
     tabindex_count = 0
     msg_input_modified = 'Modified'
     INPUT_DISABLED_TYPE_NONE = 0
     INPUT_DISABLED_TYPE_DISABLED = 1
     INPUT_DISABLED_TYPE_CALCULATED = 2
+
     def __init__(self, name, value, 
             validation_type='',
             fmt='',
             message='',
             itype='text',
+            maxlength=0,
             disabled=INPUT_DISABLED_TYPE_NONE,
             autofocus='',
             first=False,
             row=False,
             width_class='col-12',
             ):
+        """Inputs
+          name - (Required) this is how the form returns input values
+          value - (Required) this is the current value in the db
+          validation_type - specify which validation_* function to call (text, decimal, date, int_1_0)
+          message - use to indicate to user how to fill in this field
+          itype - the input type
+          maxlength - for text inputs, maximum length (0 means not specified)
+          disabled - [0,1,2] 0 means not disabled, 1 disabled, 2 disabled and calculated
+          autofocus - only one field should get this, it is where cursor is placed when form is loaded
+          first - this is used to determine tabindex
+          row - for bootstrap, start a new row
+          width_class - for bootstrap, specify number of col units (ie. col-12)
+        """
         self.name = name
         self.value = value
         self.validation_type = validation_type
@@ -497,6 +514,7 @@ class FormInput(object):
         if not message and disabled:
             self.message = '*' * disabled
         self.itype = itype
+        self.maxlength = maxlength
         self.disabled = disabled
         self.autofocus = autofocus
         self.first = first

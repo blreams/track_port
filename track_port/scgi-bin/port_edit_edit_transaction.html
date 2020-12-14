@@ -48,6 +48,9 @@
             tabindex="{{form_input.tabindex}}"
           {% endif %}
           aria-describedby="id_{{input_name}}_help"
+          {% if form_input.maxlength %}
+            maxlength="{{form_input.maxlength}}"
+          {% endif %}
           />
           <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
           <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
