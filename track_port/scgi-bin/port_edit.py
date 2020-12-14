@@ -336,6 +336,7 @@ class EditTransactionForm(object):
         *  -- editable
         ** -- calculated
         """
+        logger = logging.getLogger(__name__ + '.' + 'FormInput.initialize')
         self.form = Form()
         disabled = 1
         calculated = 2
@@ -365,6 +366,9 @@ class EditTransactionForm(object):
             self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
             self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
         self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated, width_class='col-3'))
+        #logger.info(self.form.inputs)
+        #for name in self.form.inputs:
+        #    logger.info(getattr(self.form, name))
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
@@ -465,12 +469,26 @@ class Form(object):
         self.inputs = []
         self.tabindex = 1
 
+    def __repr__(self):
+        return f"Form() containing {len(self.inputs)} inputs"
+
     def add_input(self, form_input):
         self.inputs.append(form_input.name)
         setattr(self, form_input.name, form_input)
         if not form_input.disabled:
             form_input.tabindex = self.tabindex
             self.tabindex += 1
+
+        if len(self.inputs) <= 1:
+            form_input.row = True
+            form_input.end_row = True
+        else:
+            prev_form_input = getattr(self, self.inputs[-2])
+            if form_input.row:
+                prev_form_input.end_row = True
+            else:
+                prev_form_input.end_row = False
+
 
 class FormInput(object):
     """Models the form <input> tag.
@@ -530,6 +548,7 @@ class FormInput(object):
             self.tabindex = self.tabindex_count
         self.validated_value = value
         self.form_value = value
+        self.end_row = True
 
     def __repr__(self):
         base_repr = f"FormInput: name={self.name},value={self.value},form_value={self.form_value}"
@@ -539,6 +558,10 @@ class FormInput(object):
             base_repr += f",changed={self.changed}"
         if hasattr(self, 'validated'):
             base_repr += f",validated={self.validated}"
+        if hasattr(self, 'row'):
+            base_repr += f",row={self.row}"
+        if hasattr(self, 'end_row'):
+            base_repr += f",end_row={self.end_row}"
         return base_repr
 
     def validate(self, transaction):

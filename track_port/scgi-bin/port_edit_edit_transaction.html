@@ -21,85 +21,85 @@
 
 {% block body_block %}
 <div class="container">
-<h1>Edit Transaction{% if arguments.request_method == 'POST' %} (Verify){% endif %}</h1>
-<form method="post" name="port_edit.py">
-    {% for input_name in form.form.inputs %}
-    {% set form_input = form.form|attr(input_name) %}
-    <!-- Start {{form_input.name}} -->
-    {% if not validated or not changed %}
-    {% if form_input.row %}
-    {% if loop.index0 != 0 %}
-    </div><!-- End of row -->
+    <h1>Edit Transaction{% if arguments.request_method == 'POST' %} (Verify){% endif %}</h1>
+    <form method="post" name="port_edit.py">
+        {% for input_name in form.form.inputs %}
+            {% set form_input = form.form|attr(input_name) %}
+            <!-- Start {{form_input.name}} -->
+            {% if not validated or not changed %}
+                {% if form_input.row %}
+                    <div class="row"><!-- Start of row -->
+                {% endif %}
+                <div class="{{form_input.width_class}}"><!-- Start of col -->
+                    <div class="form-floating mb-3">
+                        <input class="form-control"
+                            id="id_{{input_name}}"
+                            type="{{form_input.itype}}"
+                            name="{{input_name}}"
+                            value="{{form_input.form_value}}"
+                            placeholder="{{form_input.form_value}}"
+                            {{form_input.attr_disabled}}
+                            {{form_input.autofocus}}
+                            {% if not form_input.attr_disabled %}
+                              onfocus="this.select()"
+                              tabindex="{{form_input.tabindex}}"
+                            {% endif %}
+                            aria-describedby="id_{{input_name}}_help"
+                            {% if form_input.maxlength %}
+                              maxlength="{{form_input.maxlength}}"
+                            {% endif %}
+                        />
+                        <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
+                        <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
+                    </div>
+                </div><!-- End of column -->
+                {% if form_input.end_row %}
+                    </div><!-- End of row -->
+                {% endif %}
+            {% else %}
+                {% if form_input.row %}
+                    <div class="row"><!-- Start of row -->
+                {% endif %}
+                <div class="{{form_input.width_class}}"><!-- Start of col-->
+                    <div class="form-floating mb-3">
+                        <input class="form-control"
+                            id="id_{{input_name}}"
+                            type="{{form_input.itype}}"
+                            name="{{input_name}}"
+                            value="{{form_input.form_value}}"
+                            placeholder="{{form_input.form_value}}"
+                            {% if form_input.changed %}
+                                readonly
+                            {% else %}
+                                disabled
+                            {% endif %}
+                            aria-describedby="id_{{input_name}}_help"
+                        />
+                        <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
+                        <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
+                    </div>
+                </div><!-- End of column -->
+                {% if form_input.end_row %}
+                    </div><!-- End of row -->
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if not validated or not changed %}
+            <input type="submit" name="submit_button" value="Validate" />
+        {% else %}
+            <input type="hidden" name="validated_changed" value="True" />
+            <input type="hidden" name="action" value="commit_transaction" />
+            <input type="submit" name="submit_button" value="Commit" />
+        {% endif %}
+        <p>* - You may not change this field</p>
+        <p>** - Info-Only: field is calculated based on other fields</p>
+    </form>
+    {% if validated %}
+    <h2>VALIDATED</h2>
     {% endif %}
-    <div class="row"><!-- Start of row -->
+    {% if changed %}
+    <h2>CHANGED</h2>
     {% endif %}
-      <div class="{{form_input.width_class}}"><!-- Start of col -->
-        <div class="form-floating mb-3">
-          <input class="form-control"
-          id="id_{{input_name}}"
-          type="{{form_input.itype}}"
-          name="{{input_name}}"
-          value="{{form_input.form_value}}"
-          placeholder="{{form_input.form_value}}"
-          {{form_input.attr_disabled}}
-          {{form_input.autofocus}}
-          {% if not form_input.attr_disabled %}
-            onfocus="this.select()"
-            tabindex="{{form_input.tabindex}}"
-          {% endif %}
-          aria-describedby="id_{{input_name}}_help"
-          {% if form_input.maxlength %}
-            maxlength="{{form_input.maxlength}}"
-          {% endif %}
-          />
-          <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
-          <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
-        </div>
-      </div><!-- End of column -->
-    {% else %}
-    {% if form_input.row %}
-    {% if loop.index0 != 0 %}
-    </div><!-- End of row -->
-    {% endif %}
-    <div class="row"><!-- Start of row -->
-    {% endif %}
-      <div class="{{form_input.width_class}}"><!-- Start of col-->
-        <div class="form-floating mb-3">
-          <input class="form-control"
-          id="id_{{input_name}}"
-          type="{{form_input.itype}}"
-          name="{{input_name}}"
-          value="{{form_input.form_value}}"
-          placeholder="{{form_input.form_value}}"
-          {% if form_input.changed %}
-          readonly
-          {% else %}
-          disabled
-          {% endif %}
-          aria-describedby="id_{{input_name}}_help"
-          />
-          <div id="id_{{input_name}}_help" class="form-text">{{form_input.message}}</div>
-          <label class="form-label" for="id_{{input_name}}">{{input_name}}:</label>
-        </div>
-      </div><!-- End of column -->
-    {% endif %}
-    {% endfor %}
-    </div><!-- End of row -->
-  {% if not validated or not changed %}
-  <input type="submit" name="submit_button" value="Validate" />
-  {% else %}
-  <input type="hidden" name="validated_changed" value="True" />
-  <input type="hidden" name="action" value="commit_transaction" />
-  <input type="submit" name="submit_button" value="Commit" />
-  {% endif %}
-  <p>* - You may not change this field</p>
-  <p>** - Info-Only: field is calculated based on other fields</p>
-</form>
-{% if validated %}
-<h2>VALIDATED</h2>
-{% endif %}
-{% if changed %}
-<h2>CHANGED</h2>
-{% endif %}
-{% endblock %}
+    {% endblock %}
 </div>
+
