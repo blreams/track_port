@@ -25,6 +25,20 @@
 </head>
 <body>
 {% block body_block %}{% endblock %}
+{% if arguments %}
+<div class="container">
+    {{arguments}}
+    <table>
+        {% for arg, argval in arguments.__dict__|dictsort %}
+            {% if argval in (None, False, True) %}
+                <tr><td>arguments.{{arg}}</td><td>{{argval}}</td></tr>
+            {% else %}
+                <tr><td>arguments.{{arg}}</td><td>"{{argval}}"</td></tr>
+            {% endif %}
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
 </body>
 </html>

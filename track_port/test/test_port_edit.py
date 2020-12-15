@@ -302,13 +302,16 @@ class TestUrlEditTransactionPost(unittest.TestCase):
         port_edit.initialize()
         self.soup = BeautifulSoup(port_edit.main(), 'html.parser')
 
-    def test_edit_transaction_post_ttype_initial(self):
+    ############################################################################
+    # edit_transaction_post_ttype_initial
+    ############################################################################
+    def test_edit_transaction_post_ttype_initial_opendate_openprice_sector(self):
         argv = [
                 'port_edit.py',
                 '--test',
                 '--action=edit_transaction',
                 '--transaction_id=1213',
-                '--post_args=post_args_edit_transaction_initial.txt',
+                '--post_args=post_args_edit_transaction_initial_opendate_openprice_sector.txt',
                 ]
         self.startup(argv)
         inputs = self.soup.find_all("input")
@@ -330,14 +333,100 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 }
         self.assertDictEqual(actual, expected)
 
-    def test_edit_transaction_post_ttype_intermediate(self):
+    def test_edit_transaction_post_ttype_initial_opendate(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=1193',
+                '--post_args=post_args_edit_transaction_initial_opendate.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '1999-12-30'
+        expected = {
+                'transaction_id': '1193',
+                'ttype': 'initial',
+                'fileportname': 'port:xcargot',
+                'sector': '',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '174340.6100',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_initial_openprice(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=1262',
+                '--post_args=post_args_edit_transaction_initial_openprice.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        #expected_open_date = actual['open_date']
+        expected = {
+                'transaction_id': '1262',
+                'ttype': 'initial',
+                'fileportname': 'practice:dummy',
+                'sector': '',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '199999.0000',
+                'open_date': 'None',
+                'days': '0',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_initial_sector(self):
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                '--transaction_id=10331',
+                '--post_args=post_args_edit_transaction_initial_sector.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected = {
+                'transaction_id': '10331',
+                'ttype': 'initial',
+                'fileportname': 'fluffclone:fluffclone',
+                'sector': 'This is initial cash',
+                'position': 'cash',
+                'descriptor': 'initial',
+                'open_price': '250000.0000',
+                'open_date': 'None',
+                'days': '0',
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    ############################################################################
+    # edit_transaction_post_ttype_intermediate
+    ############################################################################
+    def test_edit_transaction_post_ttype_intermediate_opendate_openprice_sector(self):
         transaction_id = 11272
         argv = [
                 'port_edit.py',
                 '--test',
                 '--action=edit_transaction',
                 f'--transaction_id={transaction_id}',
-                '--post_args=post_args_edit_transaction_intermediate.txt',
+                '--post_args=post_args_edit_transaction_intermediate_opendate_openprice_sector.txt',
                 ]
         self.startup(argv)
         inputs = self.soup.find_all("input")
@@ -360,6 +449,99 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 }
         self.assertDictEqual(actual, expected)
 
+    def test_edit_transaction_post_ttype_intermediate_opendate(self):
+        transaction_id = 1496
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate_opendate.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2010-06-03'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'MEAS',
+                'sector': 'commission',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '-9.9900',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_intermediate_openprice(self):
+        transaction_id = 1403
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate_openprice.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2010-07-15'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'BOOM',
+                'sector': 'dividend',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '1212.1212',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_intermediate_sector(self):
+        transaction_id = 1307
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate_sector.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2011-02-18'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'AZZ',
+                'sector': 'Editing the sector field because',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '37.5000',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    ############################################################################
+    # edit_transaction_post_ttype_open_stock
+    ############################################################################
     def test_edit_transaction_post_ttype_open_stock(self):
         transaction_id = 11130
         argv = [
@@ -503,33 +685,6 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'days': '407',
                 'expiration': '2016-03-19',
                 'strike': '200.0000',
-                'action': 'commit_transaction',
-                'validated_changed': 'True',
-                'submit_button': 'Commit',
-                }
-        self.assertDictEqual(actual, expected)
-
-    def test_edit_transaction_post_ttype_initial_sector(self):
-        argv = [
-                'port_edit.py',
-                '--test',
-                '--action=edit_transaction',
-                '--transaction_id=1262',
-                '--post_args=post_args_edit_transaction_initial_sector.txt',
-                ]
-        self.startup(argv)
-        inputs = self.soup.find_all("input")
-        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
-        expected = {
-                'transaction_id': '1262',
-                'ttype': 'initial',
-                'fileportname': 'practice:dummy',
-                'sector': 'This is initial cash',
-                'position': 'cash',
-                'descriptor': 'initial',
-                'open_price': '10000.0000',
-                'open_date': 'None',
-                'days': '0',
                 'action': 'commit_transaction',
                 'validated_changed': 'True',
                 'submit_button': 'Commit',

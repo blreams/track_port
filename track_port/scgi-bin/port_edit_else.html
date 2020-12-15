@@ -19,11 +19,3 @@
   </script>
 {% endblock %}
 
-{% block body_block %}
-{{arguments}}
-<table>
-{% for arg in arguments.__dict__ %}
-  <tr><td>arguments.{{arg}}</td><td>{{arguments|attr(arg)}}</td></tr>
-{% endfor %}
-</table>
-{% endblock %}

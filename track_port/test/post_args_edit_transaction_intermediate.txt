@@ -1,1 +1,0 @@
-open_price=200.0000&open_date=2017-03-15&sector=Editing%20a%20VLCM%20dividend

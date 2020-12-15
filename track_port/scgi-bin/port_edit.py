@@ -366,9 +366,6 @@ class EditTransactionForm(object):
             self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
             self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
         self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated, width_class='col-3'))
-        #logger.info(self.form.inputs)
-        #for name in self.form.inputs:
-        #    logger.info(getattr(self.form, name))
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
