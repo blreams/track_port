@@ -419,14 +419,14 @@ class TestUrlEditTransactionPost(unittest.TestCase):
     ############################################################################
     # edit_transaction_post_ttype_intermediate
     ############################################################################
-    def test_edit_transaction_post_ttype_intermediate_opendate_openprice_sector(self):
+    def test_edit_transaction_post_ttype_intermediate_opendate_openprice_sector_symbol(self):
         transaction_id = 11272
         argv = [
                 'port_edit.py',
                 '--test',
                 '--action=edit_transaction',
                 f'--transaction_id={transaction_id}',
-                '--post_args=post_args_edit_transaction_intermediate_opendate_openprice_sector.txt',
+                '--post_args=post_args_edit_transaction_intermediate_opendate_openprice_sector_symbol.txt',
                 ]
         self.startup(argv)
         inputs = self.soup.find_all("input")
@@ -436,7 +436,7 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'transaction_id': f'{transaction_id}',
                 'ttype': 'intermediate',
                 'fileportname': 'port:fluffgazer',
-                'symbol': 'JNJ',
+                'symbol': 'MRK',
                 'sector': 'Editing a VLCM dividend',
                 'position': 'cash',
                 'descriptor': 'intermediate',
@@ -531,6 +531,67 @@ class TestUrlEditTransactionPost(unittest.TestCase):
                 'position': 'cash',
                 'descriptor': 'intermediate',
                 'open_price': '37.5000',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    def test_edit_transaction_post_ttype_intermediate_symbol(self):
+        transaction_id = 2067
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate_symbol.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2010-03-05'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'INTC',
+                'sector': 'commission',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '-10.1100',
+                'open_date': expected_open_date,
+                'days': elapsed_days(expected_open_date),
+                'action': 'commit_transaction',
+                'validated_changed': 'True',
+                'submit_button': 'Commit',
+                }
+        self.assertDictEqual(actual, expected)
+
+    @unittest.skip("Not sure how to make this work")
+    def test_edit_transaction_post_ttype_intermediate_nosector(self):
+        transaction_id = 2172
+        argv = [
+                'port_edit.py',
+                '--test',
+                '--action=edit_transaction',
+                f'--transaction_id={transaction_id}',
+                '--post_args=post_args_edit_transaction_intermediate_nosector.txt',
+                ]
+        self.startup(argv)
+        inputs = self.soup.find_all("input")
+        actual = dict(zip([i.get('name') for i in inputs], [i.get('value') for i in inputs]))
+        expected_open_date = '2008-09-23'
+        expected = {
+                'transaction_id': f'{transaction_id}',
+                'ttype': 'intermediate',
+                'fileportname': 'port:fluffgazer',
+                'symbol': 'SHS',
+                'sector': '',
+                'position': 'cash',
+                'descriptor': 'intermediate',
+                'open_price': '-10.0300',
                 'open_date': expected_open_date,
                 'days': elapsed_days(expected_open_date),
                 'action': 'commit_transaction',

@@ -299,10 +299,6 @@ class ShowTransactionsForm(object):
         self.table.append((row, form))
 
 class EditTransactionForm(object):
-    msg_no_change = 'You may not change this field'
-    msg_calculated = 'Info-Only: field is calculated based on other fields'
-    msg_asterisk = '*'
-    msg_illegal_change = 'Illegal change'
     default_decimal_format = '.4f'
 
     def __init__(self, transaction):
@@ -317,7 +313,7 @@ class EditTransactionForm(object):
         transaction_id transaction_id transaction_id transaction_id transaction_id transaction_id
         ttype          ttype          ttype          ttype          ttype          ttype
         fileportname   fileportname   fileportname   fileportname   fileportname   fileportname
-                       symbol         symbol         symbol         symbol         symbol
+                       *symbol         symbol         symbol         symbol         symbol
         *sector        *sector        *sector        *sector        *sector        *sector
         position       position       position       position       position       position
         descriptor     descriptor     descriptor     descriptor     descriptor     descriptor
@@ -342,14 +338,19 @@ class EditTransactionForm(object):
         calculated = 2
         #disabled = self.form.INPUT_DISABLED_TYPE_DISABLED
         #calculated = self.form.INPUT_DISABLED_TYPE_CALCULATED
-        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, disabled=disabled, row=True, width_class='col-2'))
-        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, disabled=disabled, width_class='col-2'))
-        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, disabled=disabled, width_class='col-2'))
-        self.form.add_input(FormInput(name='position', value=self.transaction.position, disabled=disabled, width_class='col-2'))
-        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=disabled, width_class='col-2'))
-        if self.transaction.ttype not in ('initial',):
-            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=disabled, width_class='col-2'))
-        self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', maxlength=32, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
+        self.form.add_input(FormInput(name='transaction_id', value=self.transaction.id, disabled=True, row=True, width_class='col-2'))
+        self.form.add_input(FormInput(name='ttype', value=self.transaction.ttype, disabled=True, width_class='col-2'))
+        self.form.add_input(FormInput(name='fileportname', value=self.transaction.fileportname, disabled=True, width_class='col-2'))
+        self.form.add_input(FormInput(name='position', value=self.transaction.position, disabled=True, width_class='col-2'))
+        self.form.add_input(FormInput(name='descriptor', value=self.transaction.descriptor, disabled=True, width_class='col-2'))
+        if self.transaction.ttype in ('intermediate',):
+            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, validation_type='text_upper', maxlength=5, message='Enter symbol if dividend, otherwise CASH', autofocus='autofocus', first=True, row=True))
+            self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', maxlength=32, message='Enter dividend, interest, deposit, adjustment, or free form text (limit 32 chars)', row=True))
+        elif self.transaction.ttype not in ('initial',):
+            self.form.add_input(FormInput(name='symbol', value=self.transaction.symbol, disabled=True, width_class='col-2'))
+            self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', maxlength=32, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
+        else:
+            self.form.add_input(FormInput(name='sector', value=self.transaction.sector, validation_type='text', maxlength=32, message='Free form text (limit 32 chars)', autofocus='autofocus', first=True, row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
             self.form.add_input(FormInput(name='shares', value=self.transaction.shares, validation_type='decimal', message='Number of shares (negative if short)', fmt=self.default_decimal_format, row=True))
         self.form.add_input(FormInput(name='open_price', value=self.transaction.open_price, validation_type='decimal', message='Price per share at open', fmt=self.default_decimal_format, row=True))
@@ -362,10 +363,10 @@ class EditTransactionForm(object):
             self.form.add_input(FormInput(name='expiration', value=self.transaction.expiration, validation_type='date', message='Expiration date (options-only)', row=True))
             self.form.add_input(FormInput(name='strike', value=self.transaction.strike, validation_type='decimal', message='Strike price (options-only)', fmt=self.default_decimal_format, row=True))
         if self.transaction.ttype not in ('initial', 'intermediate'):
-            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, disabled=calculated, fmt=self.default_decimal_format, row=True, width_class='col-3'))
-            self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
-            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=calculated, fmt=self.default_decimal_format, width_class='col-3'))
-        self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=calculated, width_class='col-3'))
+            self.form.add_input(FormInput(name='basis', value=self.transaction.basis, disabled=True, calculated=True, fmt=self.default_decimal_format, row=True, width_class='col-3'))
+            self.form.add_input(FormInput(name='close', value=self.transaction.close, disabled=True, calculated=True, fmt=self.default_decimal_format, width_class='col-3'))
+            self.form.add_input(FormInput(name='gain', value=self.transaction.gain, disabled=True, calculated=True, fmt=self.default_decimal_format, width_class='col-3'))
+        self.form.add_input(FormInput(name='days', value=self.transaction.days, disabled=True, calculated=True, width_class='col-3'))
 
     def recalculate_basis(self):
         form_input = getattr(self.form, 'basis')
@@ -425,7 +426,7 @@ class EditTransactionForm(object):
             if input_name in ('ttype', 'fileportname'):
                 continue
 
-            if input_name in ('transaction_id', 'symbol', 'position', 'descriptor'):
+            if input_name in ('transaction_id', 'position', 'descriptor'):
                 form_input.changed = False
                 form_input.validated = True
                 form_input.validated_value = getattr(self.transaction, input_name)
@@ -437,6 +438,7 @@ class EditTransactionForm(object):
             form_input.changed = False
             form_input.validated = False
             form_input.validate(self.transaction)
+            logger.info(f"form_input {form_input.name} validated={form_input.validated}")
 
             validated &= getattr(form_input, 'validated', True)
             changed |= getattr(form_input, 'changed', False)
@@ -492,9 +494,6 @@ class FormInput(object):
     """
     tabindex_count = 0
     msg_input_modified = 'Modified'
-    INPUT_DISABLED_TYPE_NONE = 0
-    INPUT_DISABLED_TYPE_DISABLED = 1
-    INPUT_DISABLED_TYPE_CALCULATED = 2
 
     def __init__(self, name, value, 
             validation_type='',
@@ -502,7 +501,8 @@ class FormInput(object):
             message='',
             itype='text',
             maxlength=0,
-            disabled=INPUT_DISABLED_TYPE_NONE,
+            disabled=False,
+            calculated=False,
             autofocus='',
             first=False,
             row=False,
@@ -515,7 +515,8 @@ class FormInput(object):
           message - use to indicate to user how to fill in this field
           itype - the input type
           maxlength - for text inputs, maximum length (0 means not specified)
-          disabled - [0,1,2] 0 means not disabled, 1 disabled, 2 disabled and calculated
+          disabled - indicates if input should be disabled
+          calculated - indicates if input is calculated (not entered)
           autofocus - only one field should get this, it is where cursor is placed when form is loaded
           first - this is used to determine tabindex
           row - for bootstrap, start a new row
@@ -526,19 +527,18 @@ class FormInput(object):
         self.validation_type = validation_type
         self.fmt = fmt
         self.message = message
-        if not message and disabled:
-            self.message = '*' * disabled
         self.itype = itype
         self.maxlength = maxlength
         self.disabled = disabled
+        self.calculated = calculated
         self.autofocus = autofocus
         self.first = first
         self.row = row
         self.width_class = width_class
 
-        self.attr_disabled = 'disabled'
+        self.iclass = []
+
         if not disabled:
-            self.attr_disabled = ''
             if first:
                 self.tabindex_count = 0
             self.tabindex_count += 1
@@ -569,11 +569,20 @@ class FormInput(object):
         pass
 
     def validate_text(self, transaction):
-        if hasattr(arguments, self.name) and getattr(arguments, self.name) != getattr(transaction, self.name):
-            self.message = self.msg_input_modified
-            self.changed = True
+        if hasattr(arguments, self.name):
+            self.validated_value = getattr(arguments, self.name)[:self.maxlength]
+            if self.validated_value != getattr(transaction, self.name):
+                self.message = self.msg_input_modified
+                self.changed = True
             self.validated = True
-            self.validated_value = getattr(arguments, self.name)[:32]
+
+    def validate_text_upper(self, transaction):
+        if hasattr(arguments, self.name):
+            self.validated_value = getattr(arguments, self.name)[:self.maxlength].upper()
+            if self.validated_value != getattr(transaction, self.name):
+                self.message = self.msg_input_modified
+                self.changed = True
+            self.validated = True
 
     def validate_decimal(self, transaction):
         logger = logging.getLogger(__name__ + '.' + 'FormInput.validate_decimal')
@@ -852,6 +861,7 @@ def main():
             result = render(r'port_edit_edit_transaction.html', context)
         elif arguments.request_method == 'POST':
             context['validated'], context['changed'] = edit_transaction_form.validate()
+            logger.info(f"validated={context['validated']},changed={context['changed']}")
         result = render(r'port_edit_edit_transaction.html', context)
     elif hasattr(arguments, 'action') and arguments.action == 'commit_transaction':
         transaction = get_transaction(arguments.transaction_id)

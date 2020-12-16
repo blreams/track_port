@@ -38,9 +38,9 @@
                             name="{{input_name}}"
                             value="{{form_input.form_value}}"
                             placeholder="{{form_input.form_value}}"
-                            {{form_input.attr_disabled}}
+                            {% if form_input.disabled %}disabled{% endif %}
                             {{form_input.autofocus}}
-                            {% if not form_input.attr_disabled %}
+                            {% if not form_input.disabled %}
                               onfocus="this.select()"
                               tabindex="{{form_input.tabindex}}"
                             {% endif %}
