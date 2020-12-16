@@ -537,7 +537,7 @@ class FormInput(object):
         self.row = row
         self.width_class = width_class
 
-        self.iclass = []
+        self.iclass = ['form-control']
 
         if not disabled:
             if first:
@@ -565,6 +565,10 @@ class FormInput(object):
     def validate(self, transaction):
         validate_function = getattr(self, 'validate_' + self.validation_type)
         validate_function(transaction)
+        if self.validated and self.changed:
+            self.iclass.append('is-valid')
+        elif not self.validated and self.changed:
+            self.iclass.append('is-invalid')
 
     def validate_(self, transaction):
         pass
@@ -591,12 +595,13 @@ class FormInput(object):
             validated_value = Decimal(float(getattr(arguments, self.name)))
         except:
             logger.warning(f"validation failed on arguments.{self.name}")
+            #self.validated_value = getattr(arguments, self.name)
             self.validated = False
         else:
             self.validated_value = validated_value
             self.validated = True
 
-        if abs(validated_value - getattr(transaction, self.name)) > Decimal(0.00001):
+        if self.validated and abs(validated_value - getattr(transaction, self.name)) > Decimal(0.00001):
             self.message = self.msg_input_modified
             self.changed = True
 

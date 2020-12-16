@@ -62,7 +62,10 @@
                 {% endif %}
                 <div class="{{form_input.width_class}}"><!-- Start of col-->
                     <div class="form-floating mb-3">
+                        <!--
                         <input class="form-control{% if form_input.validated and form_input.changed %} is-valid{% elif form_input.changed %} is-invalid{% endif %}"
+                        -->
+                        <input class="{{form_input.iclass|join(' ')}}"
                             id="id_{{input_name}}"
                             type="{{form_input.itype}}"
                             name="{{input_name}}"
