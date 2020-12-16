@@ -423,10 +423,11 @@ class EditTransactionForm(object):
 
         for input_name in self.form.inputs:
             form_input = getattr(self.form, input_name)
-            if input_name in ('ttype', 'fileportname'):
-                continue
+            #if input_name in ('ttype', 'fileportname'):
+            #    continue
 
-            if input_name in ('transaction_id', 'position', 'descriptor'):
+            #if input_name in ('transaction_id', 'position', 'descriptor'):
+            if form_input.disabled:
                 form_input.changed = False
                 form_input.validated = True
                 form_input.validated_value = getattr(self.transaction, input_name)

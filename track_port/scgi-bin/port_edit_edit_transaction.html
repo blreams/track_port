@@ -21,7 +21,7 @@
 
 {% block body_block %}
 <div class="container">
-    <h1>Edit Transaction{% if arguments.request_method == 'POST' %} (Verify){% endif %}</h1>
+    <h1>Edit Transaction{% if validated and changed %} - Commit{% endif %}</h1>
     <form method="post" name="port_edit.py">
         {% for input_name in form.form.inputs %}
             {% set form_input = form.form|attr(input_name) %}
@@ -84,15 +84,15 @@
                 {% endif %}
             {% endif %}
         {% endfor %}
+        <div class="row"><!-- Start of button row -->
         {% if not validated or not changed %}
-            <input type="submit" name="submit_button" value="Validate" />
+            <input type="submit" class="btn btn-primary btn-lg btn-block" name="submit_button" value="Validate" />
         {% else %}
             <input type="hidden" name="validated_changed" value="True" />
             <input type="hidden" name="action" value="commit_transaction" />
-            <input type="submit" name="submit_button" value="Commit" />
+            <input type="submit" class="btn btn-success btn-lg btn-block" name="submit_button" value="Commit" />
         {% endif %}
-        <p>* - You may not change this field</p>
-        <p>** - Info-Only: field is calculated based on other fields</p>
+        </div>
     </form>
 </div>
 {% endblock %}
