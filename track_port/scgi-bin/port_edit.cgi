@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl -T
 # Copyright 2009 BLR.
 # All rights reserved.
 # This is unpublished, confidential BLR proprietary
