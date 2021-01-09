@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl 
 # Copyright 2009 BLR.
 # All rights reserved.
 # This is unpublished, confidential BLR proprietary
@@ -127,11 +127,12 @@ if ($flag_debug) {
 # $q->param(action => ('submit_new_port')); $q->param(file => ('gem_watch')); $q->param(port => ('practice')); $q->param(initial_cash => ('0.00'));
 
 # $q->param(action=>('submit_new_transaction'));$q->param(fileportname=>('practice:dummy'));
-# $q->param(symbol=>('intc'));$q->param(sector=>('Tech'));$q->param(position=>('long'));$q->param(descriptor=>('stock'));
-# $q->param(shares=>('100'));$q->param(open_price=>('21.75'));$q->param(open_date=>('today'));
+# $q->param(symbol=>('goog'));$q->param(sector=>('aaa'));$q->param(position=>('long'));$q->param(descriptor=>('stock'));
+# $q->param(shares=>('123.45'));$q->param(open_price=>('1750.75'));$q->param(open_date=>('yesterday'));
 
-# $q->param(action=>('submit_new_cash_transaction'));$q->param(fileportname=>('practice:dummy'));
-# $q->param(position=>('cash'));$q->param(descriptor=>('final'));$q->param(open_price=>('123456.78'));
+$q->param(action=>('submit_new_cash_transaction'));$q->param(fileportname=>('practice:dummy'));
+$q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(open_price=>('25.00'));
+$q->param(open_date=>('yesterday'));$q->param(sector=>('dividend'));$q->param(symbol=>('INTC'));
 
 # $q->param(action=>('delete_transaction_by_id'));$q->param(id=>('1280'));
 # $q->param(action=>('submit_edit_cash_by_id'));$q->param(id=>('1559'));$q->param(fileportname=>('gem:gem_port'));$q->param(symbol=>('CASH'));$q->param(sector=>('interest'));$q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(shares=>('0.0000'));$q->param(open_price=>('-3.7700'));$q->param(open_date=>('2009-05-28'));$q->param(closed=>('0'));$q->param(close_price=>('0.0000'));$q->param(close_date=>(''));$q->param(expiration=>(''));$q->param(strike=>('0.0000'));
@@ -1185,17 +1186,17 @@ sub new_transaction_form($;$) {
   if ($hash_params{'position'}[0] eq 'long') {
     if ($hash_params{'security_type'}[0] eq 'stock') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1, 'expiration'=>1, 'strike'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'stock' );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'stock', 'closed'=>0 );
       $insert_title .= 'Stock/MFund';
       $supported = $TRUE;
     } elsif ($hash_params{'security_type'}[0] eq 'call') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'call' );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'call', 'closed'=>0 );
       $insert_title .= 'Call Option';
       $supported = $TRUE;
     } elsif ($hash_params{'security_type'}[0] eq 'put') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'put' );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'put', 'closed'=>0 );
       $insert_title .= 'Put Option';
       $supported = $TRUE;
     }
@@ -1253,11 +1254,18 @@ sub submit_new_transaction {
 
   if ($hash_params{'position'}[0] eq 'long') {
     if ($hash_params{'descriptor'}[0] eq 'stock') {
-      %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1, 'expiration'=>1, 'strike'=>1 );
+        %null_fields = ( 'id'=>1, 'close_date'=>1, 'expiration'=>1 );
+        $hash_params{closed}[0] = 0;
+        $hash_params{close_price}[0] = 0.0;
+        $hash_params{strike}[0] = 0.0;
     } elsif ($hash_params{'descriptor'}[0] eq 'call') {
-      %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
+        %null_fields = ( 'id'=>1, 'close_date'=>1 );
+        $hash_params{closed}[0] = 0;
+        $hash_params{close_price}[0] = 0.0;
     } elsif ($hash_params{'descriptor'}[0] eq 'put') {
-      %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
+        %null_fields = ( 'id'=>1, 'close_date'=>1 );
+        $hash_params{closed}[0] = 0;
+        $hash_params{close_price}[0] = 0.0;
     }
   }
   my $query = 'INSERT INTO transaction_list SET ';
@@ -1320,7 +1328,9 @@ sub submit_new_transaction {
   foreach my $f (@{$p_list_fields}) {
     if ($null_fields{$f}) { next; }
     if ($f eq 'sector') { next; }
-    unless ($hash_params{$f}[0]) { $p_field_errors->{$f} = sprintf("Missing required field %s.", $f); }
+    if ($f eq 'closed') { next; }
+    if ($f eq 'close_price') { next; }
+    unless (exists($hash_params{$f})) { $p_field_errors->{$f} = sprintf("Missing required field %s.", $f); }
   }
 
   ### Build query.
@@ -1459,9 +1469,17 @@ sub submit_new_cash_transaction {
 
   if ($hash_params{'position'}[0] eq 'cash') {
     if ($hash_params{'descriptor'}[0] eq 'intermediate') {
-      %null_fields = ( 'id'=>1,'shares'=>1,'closed'=>1,'close_price'=>1,'close_date'=>1,'expiration'=>1,'strike'=>1 );
+      %null_fields = ( 'id'=>1,'close_date'=>1,'expiration'=>1 );
+      $hash_params{shares}[0] = 0.0;
+      $hash_params{closed}[0] = 0;
+      $hash_params{close_price}[0] = 0.00;
+      $hash_params{strike}[0] = 0.0;
     } elsif ($hash_params{'descriptor'}[0] eq 'final') {
-      %null_fields = ( 'id'=>1,'shares'=>1,'open_date'=>1,'closed'=>1,'close_price'=>1,'close_date'=>1,'expiration'=>1,'strike'=>1,'symbol'=>1,'sector'=>1 );
+      %null_fields = ( 'id'=>1,'open_date'=>1,'close_date'=>1,'expiration'=>1,'symbol'=>1,'sector'=>1 );
+      $hash_params{shares}[0] = 0.0;
+      $hash_params{closed}[0] = 0;
+      $hash_params{strike}[0] = 0.0;
+      $hash_params{close_price}[0] = 0.0;
       $hash_params{'descriptor'}[0] = 'intermediate';
       $hash_params{'open_price'}[0] = sprintf("%.4f", ($hash_params{'open_price'}[0] - calc_current_cash($hash_params{'fileportname'}[0])));
     }
@@ -1469,7 +1487,7 @@ sub submit_new_cash_transaction {
   $query = 'INSERT INTO transaction_list SET ';
   foreach my $f (@{$p_list_fields}) {
     if ($null_fields{$f}) { next; }
-    if ($hash_params{$f}[0]) {
+    if (exists($hash_params{$f})) {
       if (($f eq 'open_date') || ($f eq 'close_date') || ($f eq 'expiration')) {
         if (! ($secs = parsedate($hash_params{$f}[0]))) { 
           $errormsg .= sprintf("Unable to parse date [%s=%s].  ", $f, $hash_params{$f}[0]);
