@@ -20,6 +20,8 @@ def copy_table(src_engine, src_table_name, dst_engine):
         column.table = None
         if str(column.type).startswith('TINYINT'):
             column.type = INTEGER()
+        if str(column.type).startswith('LONGTEXT'):
+            column.type = TEXT()
         dst_table.append_column(column)
 
     # Remove existing dst_table if it exists and create new empty one
@@ -35,7 +37,17 @@ def copy_table(src_engine, src_table_name, dst_engine):
     
 def main():
     tables = (
+            'auth_group',
+            'auth_group_permissions',
+            'auth_permission',
+            'auth_user',
+            'auth_user_groups',
+            'auth_user_user_permissions',
             'color_scheme',
+            'django_admin_log',
+            'django_content_type',
+            'django_migrations',
+            'django_session',
             'finance_quote',
             #'hit_counter',   # This causes an error in sqlalchemy
             'market_holiday',
