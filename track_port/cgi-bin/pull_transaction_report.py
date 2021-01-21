@@ -117,8 +117,9 @@ class FilePortNames(Base):
 
 
 session = load_session()
-#fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
-fpnq = session.query(FilePortNames).all()
+fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
+if len(fpnq) == 0:
+    fpnq = session.query(FilePortNames).all()
 ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
 
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
@@ -476,10 +477,7 @@ class TransactionList(object):
         """This is where we tot up columns. The only columns we total are
         Day, MktVal, Gain, Port% and Basis. We also calculate Day% and Gain%.
         """
-        try:
-            daypct = Decimal(100.0) * self.daygain / self.totalvalue
-        except:
-            assert False, f"help me, {self.fileportname}"
+        daypct = Decimal(100.0) * self.daygain / self.totalvalue
         daycolor = calc_bgcolor(daypct, 0.1, 5.0)
         gainpct = Decimal(100.0) * self.realized_gain / self.totalvalue
         gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
