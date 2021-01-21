@@ -117,7 +117,8 @@ class FilePortNames(Base):
 
 
 session = load_session()
-fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
+#fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
+fpnq = session.query(FilePortNames).all()
 ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
 
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
