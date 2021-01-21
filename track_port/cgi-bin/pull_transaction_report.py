@@ -117,9 +117,7 @@ class FilePortNames(Base):
 
 
 session = load_session()
-fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
-if len(fpnq) == 0:
-    fpnq = session.query(FilePortNames).all()
+fpnq = session.query(FilePortNames).all()
 ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
 
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
@@ -192,7 +190,7 @@ def handle_cgi_args(arguments):
     global all_cols_link
     argdict = {}
     known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname', 'cashdetail')
-    fpns = [f"{fpn.filename}:{fpn.portname}" for fpn in fpnq]
+    fpns = [f"{fpn.filename}:{fpn.portname}" for fpn in fpnq if not fpn.portname.endswith('_combined')]
     knownfiles = set([fpn.split(':')[0] for fpn in fpns])
     argdict['fpns'] = []
     argdict['addcols'] = []
@@ -477,7 +475,10 @@ class TransactionList(object):
         """This is where we tot up columns. The only columns we total are
         Day, MktVal, Gain, Port% and Basis. We also calculate Day% and Gain%.
         """
-        daypct = Decimal(100.0) * self.daygain / self.totalvalue
+        try:
+            daypct = Decimal(100.0) * self.daygain / self.totalvalue
+        except:
+            assert False, f"help me, {self.fileportname}"
         daycolor = calc_bgcolor(daypct, 0.1, 5.0)
         gainpct = Decimal(100.0) * self.realized_gain / self.totalvalue
         gaincolor = calc_bgcolor(gainpct, 1.0, 50.0)
