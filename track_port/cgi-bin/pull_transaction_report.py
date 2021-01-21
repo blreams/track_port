@@ -30,7 +30,7 @@ except:
 if host and host in ('jkt-myth', 'skx-linux',):
     engine = create_engine('mysql://blreams@localhost/track_port')
 else:
-    engine = create_engine('sqlite:///track_port.db')
+    engine = create_engine('sqlite:///../port.db')
 
 Base = declarative_base(engine)
 metadata = MetaData()
@@ -109,8 +109,15 @@ class TickerSymbols(Base):
     __tablename__ = 'ticker_symbols'
     __table_args__ = {'autoload': True}
 
+class FilePortNames(Base):
+    """
+    """
+    __tablename__ = 'port_fileportname'
+    __table_args__ = {'autoload': True}
+
+
 session = load_session()
-ppq = session.query(PortParams).filter(PortParams.fileportname.endswith('_combined')).all()
+fpnq = session.query(FilePortNames).filter(FilePortNames.portname.endswith('_combined')).all()
 ticker_symbols = [ts.symbol for ts in session.query(TickerSymbols).all()]
 
 schemes = ['garnet', 'green', 'purple', 'blue', 'ice', 'gray',]
@@ -183,7 +190,7 @@ def handle_cgi_args(arguments):
     global all_cols_link
     argdict = {}
     known_argkeys = ('method', 'combined', 'showname', 'showsector', 'sort', 'sold', 'handheld', 'viewname', 'cashdetail')
-    fpns = [port_param.fileportname.replace('_combined', '') for port_param in ppq]
+    fpns = [f"{fpn.filename}:{fpn.portname}" for fpn in fpnq]
     knownfiles = set([fpn.split(':')[0] for fpn in fpns])
     argdict['fpns'] = []
     argdict['addcols'] = []
