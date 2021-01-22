@@ -322,8 +322,12 @@ sub get_valid_date {
   my $potentialsecs;
   my $maxmin;
   my $fpn;
+  my $fpn_id;
+  my $fn;
+  my $pn;
   my $query;
   my $p_db_dates;
+  my $p_db_fpns;
   my $datesecs;
 
   if ($which eq 'start') {
@@ -334,7 +338,11 @@ sub get_valid_date {
     $maxmin = 'MAX';
   }
   foreach $fpn (@{$p_fpns}) {
-    $query = sprintf(qq/SELECT %s(date) AS d FROM port_history WHERE (fileportname = '%s')/, $maxmin, $fpn);
+    ($fn, $pn) = split(/:/, $fpn);
+    $query = sprintf(qq/SELECT id FROM port_fileportname WHERE (filename = '%s') and (portname = '%s')/, $fn, $pn);
+    $p_db_fpns = $dbh->selectcol_arrayref($query);
+    $fpn_id = $p_db_fpns->[0];
+    $query = sprintf(qq/SELECT %s(date) AS d FROM port_history WHERE (fileportname_id = '%s')/, $maxmin, $fpn_id);
     $p_db_dates = $dbh->selectcol_arrayref($query);
     $datesecs = parsedate($p_db_dates->[0]);
     if ($which eq 'start') {
@@ -651,9 +659,13 @@ our %hash_stats;
 our $axis_totals;
 our $axis_pcts;
 our $axis_diffs;
+our $fn;
+our $pn;
 our $fpn;
+our $fpn_id;
 our $fpns;
 our $query;
+our $p_db_fpns;
 our $p_db_dates;
 our $p_db_totals;
 our @data_totals;
@@ -703,10 +715,14 @@ our $end_date_db = strftime("%Y-%m-%d", localtime(parsedate($end_param)));
 ### Loop over each specified port.
 for ($h = 0; $h <= $#fileportnames_param; $h++) {
   $fpn = $fileportnames_param[$h];
+  ($fn, $pn) = split(/:/, $fpn);
+  $query = sprintf(qq/SELECT id FROM port_fileportname WHERE (filename = '%s') and (portname = '%s')/, $fn, $pn);
+  $p_db_fpns = $dbh->selectcol_arrayref($query);
+  $fpn_id = $p_db_fpns->[0];
   ### TODO Need to validate each ports dates to insure exact match
-  $query = sprintf("SELECT date FROM port_history WHERE ((date >= '%s') AND (date <= '%s') and (fileportname = '%s')) ORDER by date", $start_date_db, $end_date_db, $fpn);
+  $query = sprintf("SELECT date FROM port_history WHERE ((date >= '%s') AND (date <= '%s') and (fileportname_id = '%s')) ORDER by date", $start_date_db, $end_date_db, $fpn_id);
   $p_db_dates = $dbh->selectcol_arrayref($query);
-  $query = sprintf("SELECT total FROM port_history WHERE ((date >= '%s') AND (date <= '%s') and (fileportname = '%s')) ORDER by date",$start_date_db, $end_date_db, $fpn);
+  $query = sprintf("SELECT total FROM port_history WHERE ((date >= '%s') AND (date <= '%s') and (fileportname_id = '%s')) ORDER by date",$start_date_db, $end_date_db, $fpn_id);
   $p_db_totals = $dbh->selectcol_arrayref($query);
   $data_totals[0] = $p_db_dates;
   $data_totals[$h+1] = $p_db_totals;
