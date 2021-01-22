@@ -218,7 +218,7 @@ sub color2hex {
 sub get_all_ports {
   my ($p_hlp, $p_hhp) = @_;
 
-  my $query = "SELECT fileportname FROM port_param WHERE (!(fileportname REGEXP '_combined')) ORDER BY portnum";
+  my $query = "SELECT filename, portname FROM port_fileportname WHERE (!(portname REGEXP '_combined'))";
   my $sth;
   my @dbrow;
   my $f;
@@ -228,7 +228,8 @@ sub get_all_ports {
   $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
 
   while (@dbrow = $sth->fetchrow_array()) {
-    ($f, $p) = split(/:/, $dbrow[0]);
+    $f = $dbrow[0];
+    $p = $dbrow[1];
     $p_hlp->{$f}[scalar(@{$p_hlp->{$f}})] = $p;
     $p_hhp->{$f}{$p} = $TRUE;
   }
