@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl 
 # Copyright 2009 BLR.
 # All rights reserved.
 # This is unpublished, confidential BLR proprietary
@@ -101,41 +101,49 @@ while ($#ARGV >= 0) {
 
 our $q = new CGI;
 if ($flag_debug) {
-# $q->param(action       => ('submit_close_transaction_by_id'));
-# $q->param(id           => ('7836'));
-# $q->param(symbol       => (''));
-# $q->param(sector       => (''));
-# $q->param(position     => ('long'));
-# $q->param(descriptor   => ('call'));
-# $q->param(shares       => (''));
-# $q->param(open_price   => (''));
-# $q->param(commission   => (''));
-# $q->param(net_total    => (''));
-# $q->param(open_date    => (''));
-# $q->param(expiration   => (''));
-# $q->param(strike       => (''));
+    # $q->param(action       => ('submit_close_transaction_by_id'));
+    # $q->param(id           => ('7836'));
+    # $q->param(symbol       => (''));
+    # $q->param(sector       => (''));
+    # $q->param(position     => ('long'));
+    # $q->param(descriptor   => ('call'));
+    # $q->param(shares       => (''));
+    # $q->param(open_price   => (''));
+    # $q->param(commission   => (''));
+    # $q->param(net_total    => (''));
+    # $q->param(open_date    => (''));
+    # $q->param(expiration   => (''));
+    # $q->param(strike       => (''));
+    
+    # $q->param(action     => ('submit_split'));
+    # $q->param(symbol     => ('INTC'));
+    # $q->param(splita     => ('2'));
+    # $q->param(splitb     => ('1'));
+    # $q->param(splitdate  => ('11/27/2011'));
+    
+    # $q->param(file  => ('spp', 'port'));
+    
+    # $q->param(action => ('edit_transaction_by_id_form')); $q->param('id' => ('4'));
+    
+    # $q->param(action => ('show_transactions')); $q->param('fileportname' => ('port:fluffgazer'));
+    
+    # $q->param(action => ('submit_new_port')); $q->param(file => ('practice')); $q->param(port => ('dummy')); $q->param(initial_cash => ('1000000.00'));
 
-# $q->param(action     => ('submit_split'));
-# $q->param(symbol     => ('INTC'));
-# $q->param(splita     => ('2'));
-# $q->param(splitb     => ('1'));
-# $q->param(splitdate  => ('11/27/2011'));
-
-  $q->param(file  => ('spp', 'port'));
-# $q->param(action => ('edit_transaction_by_id_form')); $q->param('id' => ('4'));
-# $q->param(action => ('show_transactions')); $q->param('fileportname' => ('port:fluffgazer'));
-# $q->param(action => ('submit_new_port')); $q->param(file => ('gem_watch')); $q->param(port => ('practice')); $q->param(initial_cash => ('0.00'));
-
-# $q->param(action=>('submit_new_transaction'));$q->param(fileportname=>('practice:dummy'));
-# $q->param(symbol=>('goog'));$q->param(sector=>('aaa'));$q->param(position=>('long'));$q->param(descriptor=>('stock'));
-# $q->param(shares=>('123.45'));$q->param(open_price=>('1750.75'));$q->param(open_date=>('yesterday'));
-
-$q->param(action=>('submit_new_cash_transaction'));$q->param(fileportname=>('practice:dummy'));
-$q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(open_price=>('25.00'));
-$q->param(open_date=>('yesterday'));$q->param(sector=>('dividend'));$q->param(symbol=>('INTC'));
-
-# $q->param(action=>('delete_transaction_by_id'));$q->param(id=>('1280'));
-# $q->param(action=>('submit_edit_cash_by_id'));$q->param(id=>('1559'));$q->param(fileportname=>('gem:gem_port'));$q->param(symbol=>('CASH'));$q->param(sector=>('interest'));$q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(shares=>('0.0000'));$q->param(open_price=>('-3.7700'));$q->param(open_date=>('2009-05-28'));$q->param(closed=>('0'));$q->param(close_price=>('0.0000'));$q->param(close_date=>(''));$q->param(expiration=>(''));$q->param(strike=>('0.0000'));
+    $q->param(action => ('submit_new_port')); $q->param(file => ('practice')); $q->param(port => ('dummy1')); $q->param(initial_cash => ('1000000.00'));
+    
+    # $q->param(action=>('submit_new_transaction'));$q->param(fileportname=>('practice:dummy'));
+    # $q->param(symbol=>('goog'));$q->param(sector=>('aaa'));$q->param(position=>('long'));$q->param(descriptor=>('stock'));
+    # $q->param(shares=>('123.45'));$q->param(open_price=>('1750.75'));$q->param(open_date=>('yesterday'));
+    
+    # $q->param(action=>('new_cash_transaction'));$q->param(fileportname=>('port:fluffgazer'));
+    # $q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));
+    
+    # $q->param(action=>('submit_new_cash_transaction'));$q->param(fileportname=>('practice:dummy'));
+    # $q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(open_price=>('25.00'));
+    # $q->param(open_date=>('yesterday'));$q->param(sector=>('dividend'));$q->param(symbol=>('MSFT'));
+    
+    # $q->param(action=>('delete_transaction_by_id'));$q->param(id=>('1280'));
+    # $q->param(action=>('submit_edit_cash_by_id'));$q->param(id=>('1559'));$q->param(fileportname=>('gem:gem_port'));$q->param(symbol=>('CASH'));$q->param(sector=>('interest'));$q->param(position=>('cash'));$q->param(descriptor=>('intermediate'));$q->param(shares=>('0.0000'));$q->param(open_price=>('-3.7700'));$q->param(open_date=>('2009-05-28'));$q->param(closed=>('0'));$q->param(close_price=>('0.0000'));$q->param(close_date=>(''));$q->param(expiration=>(''));$q->param(strike=>('0.0000'));
 }
 
 #-----------------------------------------------------------------------------
@@ -174,20 +182,20 @@ sub calc_current_cash($) {
   my $current_cash;
 
   ### First grab the initial cash transaction for fpn.
-  $query = "SELECT open_price FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'initial') && (fileportname = '$fpn'))";
+  $query = "SELECT open_price FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'initial') && (fileportname_link_id = '$main::fpn_id_map{$fpn}'))";
   $p_querydata = $dbh->selectrow_arrayref($query);
   $current_cash = $p_querydata->[0];
   ### Next get all the long, stock, not open positions and reduce current_cash by each.
-  $query = "SELECT shares,open_price FROM transaction_list WHERE ((position = 'long') && (descriptor in ('stock', 'call', 'put')) && (NOT closed) && (fileportname = '$fpn'))";
+  $query = "SELECT shares,open_price FROM transaction_list WHERE ((position = 'long') && (descriptor in ('stock', 'call', 'put')) && (NOT closed) && (fileportname_link_id = '$main::fpn_id_map{$fpn}'))";
   $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
   $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
   while (@dbrow = $sth->fetchrow_array()) { $current_cash -= $dbrow[0] * $dbrow[1]; }
   ### Next get all the cash, intermediate transactions and add to current_cash.
-  $query = "SELECT open_price FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'intermediate') && (fileportname = '$fpn'))";
+  $query = "SELECT open_price FROM transaction_list WHERE ((position = 'cash') && (descriptor = 'intermediate') && (fileportname_link_id = '$main::fpn_id_map{$fpn}'))";
   $p_querydata = $dbh->selectcol_arrayref($query);
   for (my $i = 0; $i <= $#{$p_querydata}; $i++) { $current_cash += $p_querydata->[$i]; }
   ### Next get all the long, stock, not open positions and reduce current_cash by each.
-  $query = "SELECT shares,open_price,close_price FROM transaction_list WHERE ((position = 'long') && (descriptor in ('stock', 'call', 'put')) && (closed) && (fileportname = '$fpn'))";
+  $query = "SELECT shares,open_price,close_price FROM transaction_list WHERE ((position = 'long') && (descriptor in ('stock', 'call', 'put')) && (closed) && (fileportname_link_id = '$main::fpn_id_map{$fpn}'))";
   $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr";
   $sth->execute() or die "ERROR: Could not execute query: $sth->errstr";
   while (@dbrow = $sth->fetchrow_array()) { $current_cash += $dbrow[0] * ($dbrow[2] - $dbrow[1]); }
@@ -216,6 +224,8 @@ sub default_form(;$) {
   }
   $query = 'SELECT fileportname FROM transaction_list ' . $query;
   $query .= ' GROUP BY fileportname';
+
+  $query = 'SELECT concat(filename, ":", portname) FROM port_fileportname WHERE portname not like ' . "'%_combined'" . ' ORDER BY filename, portname';
 
   $p_list_ports = $dbh->selectcol_arrayref($query);
 
@@ -295,7 +305,7 @@ sub show_transactions_form {
   my $tdir = ($hash_params{tdir}[0] eq 'ASC') ? 'DESC' : 'ASC';
   my $corder = ($hash_params{corder}[0]) ? $hash_params{corder}[0] : 'open_date';
   my $cdir = ($hash_params{cdir}[0] eq 'ASC') ? 'DESC' : 'ASC';
-  my $query = sprintf("SELECT * FROM transaction_list WHERE ((fileportname = '%s') && (position != 'cash') && (NOT closed)) ORDER by %s %s,symbol", $portname, $torder, $tdir);
+  my $query = sprintf("SELECT * FROM transaction_list WHERE ((fileportname_link_id = '%s') && (position != 'cash') && (NOT closed)) ORDER by %s %s,symbol", $main::fpn_id_map{$portname}, $torder, $tdir);
   my $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr\n";
   $sth->execute() or die "ERROR: Could not execute query: $sth->errstr\n";
 
@@ -392,7 +402,7 @@ sub show_transactions_form {
   printf(qq(      </table>\n));      # opens_tab
 
   %skip_fields = ( 'id'=>1, 'fileportname'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1, 'expiration'=>1, 'strike'=>1 );
-  $query = sprintf("SELECT * FROM transaction_list WHERE ((fileportname = '%s') && (position = 'cash')) ORDER by %s %s,descriptor", $portname, $corder, $cdir);
+  $query = sprintf("SELECT * FROM transaction_list WHERE ((fileportname_link_id = '%s') && (position = 'cash')) ORDER by %s %s,descriptor", $main::fpn_id_map{$portname}, $corder, $cdir);
   $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr\n";
   $sth->execute() or die "ERROR: Could not execute query: $sth->errstr\n";
 
@@ -485,6 +495,9 @@ sub show_transactions_form {
 sub submit_new_port {
   my $errormsg = '';
   my $fpn;
+  my $fn;
+  my $pn;
+  my $fpn_id;
   my $query;
   my $p_junk;
   my $sth;
@@ -503,14 +516,24 @@ sub submit_new_port {
   }
   $hash_params{'initial_cash'}[0] = sprintf("%.2f", $hash_params{'initial_cash'}[0]);
 
-  $fpn = sprintf("%s:%s", $hash_params{'file'}[0], $hash_params{'port'}[0]);
-  $query = sprintf("SELECT fileportname FROM transaction_list WHERE (fileportname = '%s')", $fpn);
-  $p_junk = $dbh->selectcol_arrayref($query);
-  if (scalar(@{$p_junk}) >= 1) { $errormsg .= sprintf("Port [%s] already exists.  ", $fpn); }
+  $fn = $hash_params{'file'}[0];
+  $pn = $hash_params{'port'}[0];
+  $fpn = sprintf("%s:%s", $fn, $pn);
+  if (exists $main::fpn_id_map{$fpn}) { $errormsg .= sprintf("Port [%s] already exists.  ", $fpn); }
 
   if ($errormsg) { return($errormsg); }
 
-  $query = sprintf("INSERT INTO transaction_list SET fileportname='%s',position='cash',descriptor='initial',open_price='%s'", $fpn, $hash_params{'initial_cash'}[0]);
+  $query = sprintf("INSERT INTO port_fileportname SET filename='%s',portname='%s'", $fn, $pn);
+  if ($query) {
+    $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr\n";
+    $sth->execute() or die "ERROR: Could not execute query: $sth->errstr\n";
+  }
+  $query = sprintf("SELECT id from port_fileportname WHERE filename='%s' and portname='%s'", $fn, $pn);
+  $fpn_id = $dbh->selectrow_arrayref($query)->[0];
+  $main::fpn_id_map{$fpn} = $fpn_id;
+
+  $query = sprintf("INSERT INTO transaction_list SET fileportname='%s',fileportname_link_id='%s',position='cash',descriptor='initial',open_price='%s'", $fpn, $main::fpn_id_map{$fpn}, $hash_params{'initial_cash'}[0]);
+  $query .= ",shares=0,closed=0,close_price=0,strike=0";
 
   if ($query) {
     $sth = $dbh->prepare($query) or die "ERROR: Could not prepare query: $dbh->errstr\n";
@@ -1186,17 +1209,17 @@ sub new_transaction_form($;$) {
   if ($hash_params{'position'}[0] eq 'long') {
     if ($hash_params{'security_type'}[0] eq 'stock') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1, 'expiration'=>1, 'strike'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'stock', 'closed'=>0 );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'fileportname_link_id'=>$main::fpn_id_map{$hash_params{'fileportname'}[0]}, 'position'=>'long', 'descriptor'=>'stock', 'closed'=>0 );
       $insert_title .= 'Stock/MFund';
       $supported = $TRUE;
     } elsif ($hash_params{'security_type'}[0] eq 'call') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'call', 'closed'=>0 );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'fileportname_link_id'=>$main::fpn_id_map{$hash_params{'fileportname'}[0]}, 'position'=>'long', 'descriptor'=>'call', 'closed'=>0 );
       $insert_title .= 'Call Option';
       $supported = $TRUE;
     } elsif ($hash_params{'security_type'}[0] eq 'put') {
       %null_fields = ( 'id'=>1, 'closed'=>1, 'close_price'=>1, 'close_date'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'long', 'descriptor'=>'put', 'closed'=>0 );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'fileportname_link_id'=>$main::fpn_id_map{$hash_params{'fileportname'}[0]}, 'position'=>'long', 'descriptor'=>'put', 'closed'=>0 );
       $insert_title .= 'Put Option';
       $supported = $TRUE;
     }
@@ -1407,12 +1430,12 @@ sub new_cash_transaction_form($;$) {
   if ($hash_params{'position'}[0] eq 'cash') {
     if ($hash_params{'descriptor'}[0] eq 'intermediate') {
       %null_fields = ( 'id'=>1,'shares'=>1,'closed'=>1,'close_price'=>1,'close_date'=>1,'expiration'=>1,'strike'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'cash', 'descriptor'=>'intermediate' );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'fileportname_link_id'=>$main::fpn_id_map{$hash_params{'fileportname'}[0]}, 'position'=>'cash', 'descriptor'=>'intermediate' );
       $insert_title = 'New Intermediate Cash Position';
       $supported = $TRUE;
     } elsif ($hash_params{'descriptor'}[0] eq 'final') {
       %null_fields = ( 'id'=>1,'shares'=>1,'closed'=>1,'close_price'=>1,'close_date'=>1,'expiration'=>1,'strike'=>1 );
-      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'position'=>'cash', 'descriptor'=>'final', 'symbol'=>'cash', 'sector'=>'adjustment' );
+      %filled_fields = ( 'fileportname'=>$hash_params{'fileportname'}[0], 'fileportname_link_id'=>$main::fpn_id_map{$hash_params{'fileportname'}[0]}, 'position'=>'cash', 'descriptor'=>'final', 'symbol'=>'cash', 'sector'=>'adjustment' );
       $insert_title = 'New Final Cash Position';
       $supported = $TRUE;
     }
@@ -1562,6 +1585,15 @@ untaint_params(\%hash_params);
 our $query = 'DESCRIBE transaction_list';
 $p_list_fields = $dbh->selectcol_arrayref($query);
 for (my $i = 0; $i <= $#{$p_list_fields}; $i++) { $hash_fields_index{$p_list_fields->[$i]} = $i; }
+
+### Use query from port_fileportname to create a map of fileportname-->id
+$query = 'SELECT filename, portname, id FROM port_fileportname WHERE portname not like ' . "'%_combined'" . ' ORDER BY filename, portname';
+our $p_fn_pn_id = $dbh->selectall_arrayref($query);
+our %fpn_id_map = {};
+our $fn_pn_id = 0;
+foreach $fn_pn_id (@{$p_fn_pn_id}) {
+  $fpn_id_map{$fn_pn_id->[0] . ':' . $fn_pn_id->[1]} = $fn_pn_id->[2]
+}
 
 
 print $q->header( 'text/html' );
