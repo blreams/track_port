@@ -31,6 +31,7 @@ Base = declarative_base(engine)
 metadata = Base.metadata
 Session = sessionmaker(bind=engine)
 session = Session()
+file_port_names = None  # TODO get rid of this global
 
 #############################################################################
 # Additional globals
@@ -74,9 +75,16 @@ def configure_logging():
 #############################################################################
 # Classes related to database tables
 #############################################################################
+class FilePortNames(Base):
+    __tablename__ = 'port_fileportname'
+    __table_args__ = {'autoload': True}
+
 class TransactionLists(Base):
     __tablename__ = 'transaction_list'
     __table_args__ = {'autoload': True}
+
+    def __str__(self):
+        return f"TransactionLists:{self.fileportname_link_id},{self.symbol},{self.position},{self.descriptor},{self.shares},{self.open_price},{self.open_date},{self.closed}"
 
 class TickerSymbols(Base):
     __tablename__ = 'ticker_symbols'
@@ -105,6 +113,18 @@ class PortHistories(Base):
 #############################################################################
 # Other classes
 #############################################################################
+class FilePortName(object):
+    def __init__(self):
+        logger = logging.getLogger(__name__ + '.' + 'FilePortName')
+        self.query = session.query(FilePortNames)
+        self.create_map()
+
+    def create_map(self):
+        """Create a map of fileportnames to ids"""
+        file_port_names = self.query.all()
+        self.fpn_id_map = {f"{fpn.filename}:{fpn.portname}": fpn.id for fpn in file_port_names}
+        self.id_fpn_map = {fpn.id: f"{fpn.filename}:{fpn.portname}" for fpn in file_port_names}
+
 class PortHistory(object):
     def __init__(self):
         logger = logging.getLogger(__name__ + '.' + 'PortHistory')
@@ -118,7 +138,7 @@ class PortHistory(object):
         """
         logger = logging.getLogger(__name__ + '.' + 'PortHistory.get_total_cash')
         latest_date = data_date - timedelta(days=days)
-        port_histories = self.query.filter_by(fileportname=portname).filter(PortHistories.date<=latest_date).order_by(desc(PortHistories.date)).all()
+        port_histories = self.query.filter_by(fileportname_id=file_port_names.fpn_id_map[portname]).filter(PortHistories.date<=latest_date).order_by(desc(PortHistories.date)).all()
         if len(port_histories) == 0:
             logger.warning(f"called with portname={portname},days={days}, unable to match port_history")
             return Decimal(0)
@@ -164,25 +184,24 @@ class Port(object):
         self.calculate()
 
     def calculate(self):
-        self.total = self.cash + self.invested_total
-        self.pct_invested = self.invested_total / self.total
-        previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, days=1, data_date=self.data_datetime)
-        self.invested_total = self.total - self.cash
+        logger = logging.getLogger(__name__ + '.' + 'Port.calculate')
+        # Init these attributes, then put calcs in try/except, bail if exception thrown.
+        self.total = Decimal(0)
+        self.pct_invested = Decimal(0)
+        self.pct_gain = Decimal(0)
+        self.pct_daygain = Decimal(0)
+
         try:
+            self.total = self.cash + self.invested_total
+            previous_total_1d, previous_cash_1d = self.port_history.get_total_cash(self.portname, days=1, data_date=self.data_datetime)
             self.pct_gain = self.gain / self.basis
-        except:
-            self.pct_gain = Decimal(0)
-        try:
             self.pct_daygain = self.daygain / (previous_total_1d - previous_cash_1d)
-        except:
-            self.pct_daygain = Decimal(0)
-        try:
             self.pct_invested = self.invested_total / self.total
         except:
-            self.pct_invested = Decimal(0)
+            logger.debug(f"Exception thrown in calculations for {self}")
 
     def get_transactions(self):
-        self.query = session.query(TransactionLists).filter_by(fileportname=self.portname).all()
+        self.query = session.query(TransactionLists).filter_by(fileportname_link_id=file_port_names.fpn_id_map[self.portname]).all()
 
     def parse_transactions(self):
         logger = logging.getLogger(__name__ + '.' + 'Port.parse_transactions')
@@ -238,7 +257,8 @@ class PortParamTable(object):
 
     def query_port_param(self):
         query = session.query(PortParams).all()
-        return {row.fileportname: row for row in query}
+        #return {row.fileportname: row for row in query}
+        return {file_port_names.id_fpn_map[row.fileportname_id]: row for row in query}
 
     def handle_ports(self):
         for portname, port in self.ports.items():
@@ -265,7 +285,7 @@ class PortParamTable(object):
         logger = logging.getLogger(__name__ + '.' + 'PortParamTable.create_row')
         logger.debug(f"creating row with port={port}")
         pp = PortParams(
-                fileportname=port.portname,
+                fileportname_id=file_port_names.fpn_id_map[port.portname],
                 cash=port.cash,
                 total=port.total,
                 pct_daygain=port.pct_daygain,
@@ -275,7 +295,7 @@ class PortParamTable(object):
                 gain=port.gain,
                 pct_invested=port.pct_invested,
                 basis=port.basis,
-                portnum=len(ports),
+                portnum=len(self.ports),
                 )
         session.add(pp)
 
@@ -300,7 +320,7 @@ class PortHistoryTable(object):
         fq_date = self.ports.get(port0).data_datetime
         if fq_date.date() == datetime.now().date():
             query = session.query(PortHistories).filter_by(date=datetime.now().date()).all()
-            return_rows = {row.fileportname: row for row in query}
+            return_rows = {file_port_names.id_fpn_map[row.fileportname_id]: row for row in query}
             logger.debug(f"returning {len(return_rows)} rows from query")
             return return_rows
         logger.debug(f"finance_quote date {fq_date.date()} != now date {datetime.now().date()}")
@@ -331,7 +351,7 @@ class PortHistoryTable(object):
         logger.debug(f"creating with port={port}")
         ph = PortHistories(
                 date=datetime.now().date(),
-                fileportname=port.portname,
+                fileportname_id=file_port_names.fpn_id_map[port.portname],
                 total=port.total,
                 cash=port.cash,
                 )
@@ -367,7 +387,8 @@ def get_option_symbols(query):
 def get_portnames():
     logger = logging.getLogger(__name__ + '.' + 'get_portnames')
     query = session.query(TransactionLists).all()
-    portname_set = set([row.fileportname for row in query])
+    #portname_set = set([row.fileportname for row in query])
+    portname_set = set([fpn for fpn in file_port_names.fpn_id_map.keys() if not fpn.endswith('_combined')])
     return portname_set
 
 def get_finance_quotes():
@@ -429,10 +450,15 @@ def process_arguments():
 # Main
 #############################################################################
 def main():
+    global file_port_names  # TODO at some point get rid of this global
+
     logger = logging.getLogger(__name__)
 
     # Delay
     delay_start()
+
+    # Get port_fileportname data
+    file_port_names = FilePortName()
 
     # Get finance_quote data
     finance_quotes = get_finance_quotes()
