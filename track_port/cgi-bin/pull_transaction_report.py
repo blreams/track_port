@@ -45,6 +45,12 @@ def load_session():
     session = Session()
     return session
 
+class FilePortNames(Base):
+    """
+    """
+    __tablename__ = 'port_fileportname'
+    __table_args__ = {'autoload': True}
+
 class FinanceQuotes(Base):
     """
 +------------+------------------+------+-----+---------+-------+
@@ -107,12 +113,6 @@ class TickerSymbols(Base):
     """
     """
     __tablename__ = 'ticker_symbols'
-    __table_args__ = {'autoload': True}
-
-class FilePortNames(Base):
-    """
-    """
-    __tablename__ = 'port_fileportname'
     __table_args__ = {'autoload': True}
 
 
@@ -346,7 +346,7 @@ class Transaction(object):
         # I did not create this as a class attribute because each instance gets
         # extended to include FinanceQuote.fieldlist columns.
         self.fieldlist = [
-                'symbol', 'fileportname', 'sector', 'position', 'descriptor', 'shares', 'open_price',
+                'symbol', 'fileportname', 'fileportname_link_id', 'sector', 'position', 'descriptor', 'shares', 'open_price',
                 'open_date', 'closed', 'close_price', 'close_date', 'expiration', 'strike',
                               ]
         if isinstance(trl_obj, TransactionLists):
@@ -372,6 +372,7 @@ class TransactionList(object):
     """
     def __init__(self, fileportname):
         self.fileportname = fileportname
+        self.fileportname_id = session.query(FilePortNames).filter_by(filename=fileportname.split(':')[0], portname=fileportname.split(':')[1]).all()[0].id
         self.combined_positions = {'longs': {}, 'shorts': {}, 'options': {}, 'cash': {}, 'closed': {}}
         (self.filename, self.portname) = fileportname.split(':')
 
@@ -379,7 +380,7 @@ class TransactionList(object):
         """This gets all the open, long transactions.
         """
         self.open_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, closed=False, position='long').all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, closed=False, position='long').all()
         for t in tlq:
             self.open_positions.append(Transaction(t))
             self.open_positions[-1].apply_quote(quotes.get_by_symbol(t.symbol))
@@ -388,7 +389,7 @@ class TransactionList(object):
         """This gets all the cash transactions.
         """
         self.cash_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, position='cash').all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, position='cash').all()
         for t in tlq:
             self.cash_positions.append(Transaction(t))
 
@@ -396,7 +397,7 @@ class TransactionList(object):
         """This gets all the closed transactions.
         """
         self.closed_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname=self.fileportname, closed=True).all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, closed=True).all()
         for t in tlq:
             self.closed_positions.append(Transaction(t))
 
