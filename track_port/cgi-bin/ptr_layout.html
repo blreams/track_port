@@ -103,6 +103,7 @@
         <div>
         <div style="display: inline-block; width: 100%;">
         <h3 style="display: inline;">{{tldict[fileportname].portname}}</h3>
+        <h6 style="display: inline;"><a href="http://jander.homelinux.net/transactions/{{fileportname}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/folder_math.png" alt="Edit Portfolio"></a></h6>
         <h6 style="display: inline;"><a href="/scgi-bin/port_edit.cgi?action=show_transactions&fileportname={{fileportname}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/edit_icon_25x25.jpg" alt="Edit Portfolio"></a></h6>
         <h6 style="display: inline;"><a href="/cgi-bin/port_chart.cgi?{% for fpn in tldict %}{{tldict[fpn].filename}}={{tldict[fpn].portname}}&{% endfor %}method=diff&start={{porteditstart}}&end={{porteditend}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/chart_icon_25x25.jpg" alt="Chart Portfolio"></a></h6>
         <h6 style="display: inline;"><a href="{{legacy_link}}" target="_blank"><img src="{% if args.simulate %}..{% endif %}/pics/handicap_icon_25x25.jpg" alt="Old School View"></a></h6>
