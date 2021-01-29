@@ -84,7 +84,7 @@ class TransactionLists(Base):
     __table_args__ = {'autoload': True}
 
     def __str__(self):
-        return f"TransactionLists:{self.fileportname_link_id},{self.symbol},{self.position},{self.descriptor},{self.shares},{self.open_price},{self.open_date},{self.closed}"
+        return f"TransactionLists:{self.fileportname_id},{self.symbol},{self.position},{self.descriptor},{self.shares},{self.open_price},{self.open_date},{self.closed}"
 
 class TickerSymbols(Base):
     __tablename__ = 'ticker_symbols'
@@ -201,7 +201,7 @@ class Port(object):
             logger.debug(f"Exception thrown in calculations for {self}")
 
     def get_transactions(self):
-        self.query = session.query(TransactionLists).filter_by(fileportname_link_id=file_port_names.fpn_id_map[self.portname]).all()
+        self.query = session.query(TransactionLists).filter_by(fileportname_id=file_port_names.fpn_id_map[self.portname]).all()
 
     def parse_transactions(self):
         logger = logging.getLogger(__name__ + '.' + 'Port.parse_transactions')

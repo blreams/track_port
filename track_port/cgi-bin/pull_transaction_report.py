@@ -346,7 +346,7 @@ class Transaction(object):
         # I did not create this as a class attribute because each instance gets
         # extended to include FinanceQuote.fieldlist columns.
         self.fieldlist = [
-                'symbol', 'fileportname', 'fileportname_link_id', 'sector', 'position', 'descriptor', 'shares', 'open_price',
+                'symbol', 'fileportname_id', 'sector', 'position', 'descriptor', 'shares', 'open_price',
                 'open_date', 'closed', 'close_price', 'close_date', 'expiration', 'strike',
                               ]
         if isinstance(trl_obj, TransactionLists):
@@ -380,7 +380,7 @@ class TransactionList(object):
         """This gets all the open, long transactions.
         """
         self.open_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, closed=False, position='long').all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_id=self.fileportname_id, closed=False, position='long').all()
         for t in tlq:
             self.open_positions.append(Transaction(t))
             self.open_positions[-1].apply_quote(quotes.get_by_symbol(t.symbol))
@@ -389,7 +389,7 @@ class TransactionList(object):
         """This gets all the cash transactions.
         """
         self.cash_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, position='cash').all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_id=self.fileportname_id, position='cash').all()
         for t in tlq:
             self.cash_positions.append(Transaction(t))
 
@@ -397,7 +397,7 @@ class TransactionList(object):
         """This gets all the closed transactions.
         """
         self.closed_positions = []
-        tlq = session.query(TransactionLists).filter_by(fileportname_link_id=self.fileportname_id, closed=True).all()
+        tlq = session.query(TransactionLists).filter_by(fileportname_id=self.fileportname_id, closed=True).all()
         for t in tlq:
             self.closed_positions.append(Transaction(t))
 

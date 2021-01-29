@@ -35,6 +35,7 @@ Base = declarative_base(engine)
 metadata = Base.metadata
 Session = sessionmaker(bind=engine)
 session = Session()
+file_port_names = None  # TODO get rid of this global
 
 #############################################################################
 # Additional globals
@@ -77,6 +78,10 @@ def configure_logging():
 #############################################################################
 # Classes related to database tables
 #############################################################################
+class FilePortNames(Base):
+    __tablename__ = 'port_fileportname'
+    __table_args__ = {'autoload': True}
+
 class TransactionLists(Base):
     __tablename__ = 'transaction_list'
     __table_args__ = {'autoload': True}
@@ -96,6 +101,19 @@ class MarketHolidays(Base):
 #############################################################################
 # Other classes
 #############################################################################
+class FilePortName(object):
+    def __init__(self):
+        logger = logging.getLogger(__name__ + '.' + 'FilePortName')
+        self.query = session.query(FilePortNames)
+        self.create_map()
+
+    def create_map(self):
+        """Create a map of fileportnames to ids"""
+        file_port_names = self.query.all()
+        self.fpn_id_map = {f"{fpn.filename}:{fpn.portname}": fpn.id for fpn in file_port_names}
+        self.id_fpn_map = {fpn.id: f"{fpn.filename}:{fpn.portname}" for fpn in file_port_names}
+
+
 class FinanceQuoteTable(object):
     def __init__(self, data_datetime, market_closed, details_list, details_type):
         logger = logging.getLogger(__name__ + '.' + 'FinanceQuoteTable')
@@ -248,13 +266,14 @@ def get_option_symbols(query):
 def get_portnames():
     logger = logging.getLogger(__name__ + '.' + 'get_portnames')
     query = session.query(TransactionLists).all()
-    portname_set = set([row.fileportname for row in query])
+    portname_set = set([file_port_names.id_fpn_map[row.fileportname_id] for row in query])
     return portname_set
 
 def get_symbols(fileportnames):
     logger = logging.getLogger(__name__ + '.' + 'get_symbols')
-    stock_query = session.query(TransactionLists).filter_by(descriptor='stock', closed=False).filter(TransactionLists.fileportname.in_(fileportnames))
-    option_query = session.query(TransactionLists).filter_by(closed=False).filter(TransactionLists.fileportname.in_(fileportnames)).filter(TransactionLists.descriptor.in_(('call', 'put')))
+    fileportname_ids = set([file_port_names.fpn_id_map[fpn] for fpn in fileportnames])
+    stock_query = session.query(TransactionLists).filter_by(descriptor='stock', closed=False).filter(TransactionLists.fileportname_id.in_(fileportname_ids))
+    option_query = session.query(TransactionLists).filter_by(closed=False).filter(TransactionLists.fileportname_id.in_(fileportname_ids)).filter(TransactionLists.descriptor.in_(('call', 'put')))
     symbol_set = set([row.symbol for row in stock_query])
 
     ticker_query = session.query(TickerSymbols).all()
@@ -620,7 +639,11 @@ def parse_arguments():
 
 def process_arguments():
     global arguments
+    global file_port_names
     logger = logging.getLogger(__name__ + '.' + 'process_arguments')
+
+    # Get port_fileportname data
+    file_port_names = FilePortName()
 
     available_fileportnames = get_portnames()
     enabled_fileportnames = set()
